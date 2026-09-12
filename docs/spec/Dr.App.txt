@@ -1,0 +1,778 @@
+# Comprehensive Product Specification & Strategic Blueprint: PractixOS
+
+**Version 2.1** · 11 September 2026 · Supersedes v2.0 and v1.0
+
+| | |
+| --- | --- |
+| **Status** | Approved for build |
+| **Companion documents** | `docs/plan/IMPLEMENTATION-PLAN.md` (engineering plan) · `prototype/PractixOS.html` (interactive prototype, three seeded tenants) · `prototype/check-layout.py` (layout regression check) · `docs/spec/Dr.App.Spec.html` (indexed reading copy) · `docs/shots/` (review screenshots) |
+| **Owner** | Product & Engineering |
+
+---
+
+## 0. Revision Log
+
+### 0.1 What changed in v2.1 and why
+
+Version 2.1 changes no business rule and adds no module. It corrects two things v2.0 left implicit, both of which turned out to be load-bearing once the prototype was built and measured on a real phone viewport.
+
+| # | Area | v2.0 | v2.1 | Rationale |
+| --- | --- | --- | --- | --- |
+| 18 | Form factor | Desktop-first layout, with narrow screens handled by `max-width` overrides | **Mobile-first.** The phone is the design target; tablet and desktop are progressive enhancements (new NFR in Section 8.2, breakpoint ladder in Section 6.6) | Patients, visiting consultants and most clinicians only ever hold a phone. Measured at a true 375 px viewport, five of the eleven v2.0 screens overflowed horizontally by 38–308 px |
+| 19 | Layout control | Implicit, from viewport width alone | **Automatic by default, with a per-device Compact / Tablet / Full override** | A 768 px reception tablet is wide enough for the four-lane board but would not choose it. One codebase, one attribute, no second build |
+| 20 | Tenancy in the requirements | Named once in Section 4.4 as an architecture choice | **Promoted into FR-1.1** as onboarding, white-labelling, module provisioning and isolation obligations | Isolation is a requirement the product must be tested against, not only a database setting |
+| 21 | Queue interaction | "Dragging a patient card between columns" (FR-2.4) | Drag **plus** an equivalent non-drag path | HTML5 drag-and-drop never fires from a finger. A touch-only instruction that cannot be performed on touch is a defect in the requirement, not the build |
+| 22 | Odontogram on small screens | A single 32-tooth arch (FR-4.1) | Full arch at 600 px and above; **quadrant selector** below it | Sixteen teeth across a 375 px screen is 21 px per target, against a 48 px accessibility floor |
+| 23 | Verification | Manual review | **`prototype/check-layout.py`** — every view × every tenant × seven widths, asserting neither horizontal overflow nor collapsed content, exiting non-zero on failure | The grid bug that collapsed the phone layout to 100 px produced no overflow at all; an overflow-only check cannot see it |
+
+### 0.2 What changed in v2.0 and why
+
+Version 1.0 established the product thesis, the market analysis and the requirement set. All of that survives intact. What changed is the **technical architecture**, which in v1.0 specified infrastructure costing roughly ₹35,000–60,000 per month before the first clinic signed up, contradicting the document's own target of under ₹250 per clinic per month.
+
+| # | Area | v1.0 | v2.0 | Rationale |
+| --- | --- | --- | --- | --- |
+| 1 | Edge | Cloudflare Enterprise (~$5,000/mo) | Caddy + Coraza WAF, in Mumbai | Every named capability exists on Cloudflare's free plan; terminating TLS in India also removes a data-residency argument |
+| 2 | Gateway | Kong API Gateway | None; auth in the application | One service and one team do not need a gateway tier |
+| 3 | Services | Three microservices | One modular monolith + one async worker | Booking a dental appointment spans all three services; splitting them turns one transaction into a distributed saga |
+| 4 | Database | Aurora Serverless Multi-AZ | PostgreSQL 16, self-managed | Roughly a tenth of the cost; no requirement needs Aurora |
+| 5 | Queues / cache | Redis 7 Cluster | pg-boss inside Postgres | Removes a second stateful system; jobs become transactional with the data they act on |
+| 6 | Frontend | Next.js SSR | Vite + React static PWA, pre-rendered public pages | SSR conflicts with offline-first, and the production host has 2 CPU cores |
+| 7 | Hosting | "AWS Mumbai / GCP Delhi" | **Oracle Cloud Always Free, `ap-mumbai-1`**; Azure startup credits for disposable workloads only | ₹0/month at pilot scale; production never depends on expiring credits |
+| 8 | Tenancy | Not specified | **PostgreSQL Row-Level Security** | Makes DPDP tenant isolation structural rather than a coding convention |
+| 9 | BR-02 enforcement | Application logic | **Postgres `EXCLUDE USING gist` constraint** | Application checks cannot survive two receptionists booking the same chair simultaneously |
+| 10 | BR-05 audit | "Append-only audit trail" | `REVOKE UPDATE, DELETE` from the application role | An audit log the application can rewrite is not an audit log |
+| 11 | Vault KDF | PBKDF2, 4-digit PIN | **Argon2id + split key** (PIN plus a server-held secret) | A 4-digit PIN is 10,000 combinations; no KDF alone protects a stolen database |
+| 12 | Password hashing | SHA-256 | Argon2id | SHA-256 is a hash function, not a password hashing function |
+| 13 | Availability NFR | "99.9% uptime" | **99.9% clinic-perceived availability**, RTO 20 min, RPO 5 min | A single VM cannot deliver 99.9% infrastructure uptime; offline-first means server downtime is not clinic downtime |
+| 14 | COGS | ₹350–550/clinic, 80–85% margin | ₹100–250/clinic, 88–92% margin | Follows from the architecture change |
+| 15 | Design | Not specified | **Section 6: the "Clinical Ink" design system** and six role modes | v1.0 specified what the software does but not what it is like to use |
+| 16 | Delivery | Not specified | **Section 10: milestones M0–M5** | ABDM certification and WhatsApp template approval are lead-time items that must start in week one |
+| 17 | Risk | Not specified | **Section 11: risk register** | Includes the commercial risk that the DHIS scheme is revised |
+
+---
+
+## 1. Overview & Executive Summary
+
+### 1.1 Executive Thesis
+
+PractixOS is a verticalized Practice Operating System designed specifically for independent outpatient medical practices in India, launching initially in two distinct clinical verticals — **Dentistry** and **Mental Health Counselling** — with an underlying architecture engineered for expansion into general outpatient polyclinics.
+
+In the Indian private healthcare ecosystem, generic appointment schedulers fail because they address scheduling as a standalone administrative task. In reality, clinic viability is determined by specialty-specific workflows:
+
+* Dental clinics are capital-intensive operations constrained by physical operatory chairs, external dental fabrication laboratories, and visiting specialists.
+* Mental health practices are time-bounded operations governed by strict clinical confidentiality, recurring appointments, and high unrecoverable losses from patient no-shows.
+* Across all Indian private practices, front-desk staff have limited digital literacy, digital personal data regulations are tightening under the Digital Personal Data Protection (DPDP) Act 2023, and patient footfall spans diverse socioeconomic and linguistic backgrounds.
+
+PractixOS rejects the marketplace aggregator model, which commoditizes doctors, and the horizontal calendar model, which creates administrative burden. Instead it provides an end-to-end operational operating system that runs friction-free on low-cost hardware, embeds natively into WhatsApp, supports major Indic languages (English, Marathi, Telugu, Bengali, Konkani), enforces medical privacy law, and turns statutory digital health adoption (ABDM) into a direct revenue driver for clinics.
+
+### 1.2 Core Product Pillars
+
+* **Zero-App Patient Engagement.** Patients interact entirely through sovereign clinic web portals (Progressive Web Apps) and two-way WhatsApp Business flows, eliminating app-download drop-off.
+* **Bifurcated Localization Model.** High-velocity dense interfaces for clinicians and staff, paired with generous native-script Indic typography and vernacular voice notes for patients. This is a typographic and interaction-design commitment, not only a translation commitment — see Section 6.
+* **Specialty-Specific Operational Workflows.** Interactive 32-tooth graphical odontograms and lab trackers for dentists; PIN-encrypted psychotherapy vaults for counsellors.
+* **Regulatory Compliance & Government Arbitrage.** Native Milestone 1/2/3 integration with the Ayushman Bharat Digital Mission, converting digital records into financial subsidy via the Digital Health Incentive Scheme.
+* **Autonomous Schedule & Cash-Flow Protection.** Two-way synchronization with personal Google and Outlook calendars, dynamic UPI reservation deposits, and rule-based follow-up fee calculation.
+* **Structural Cost Discipline.** *(New in v2.0.)* The platform runs entirely on free and open-source software with no commercial licence anywhere in the production path, on infrastructure that costs ₹0 per month at pilot scale. Low cost is an architectural property, not a discount.
+
+---
+
+## 2. Why This App & The Problems It Solves
+
+### 2.1 The Operational Realities of Indian Private Practice
+
+Independent clinics in India operate in high-pressure environments that render Western practice management software unusable:
+
+* **High OPD velocity.** Solo doctors routinely consult 30 to 80 patients within condensed three- to four-hour morning or evening windows. Administrative actions taking longer than 15 seconds per patient are abandoned for paper registers.
+* **Front-desk attrition and low digital proficiency.** Receptionists often possess basic technical skills and turn over frequently. Systems with nested menus or English-only clinical jargon create data-entry bottlenecks and scheduling mistakes.
+* **Severe revenue leakage from no-shows.** Urban outpatient cancellation and no-show rates routinely exceed 20% to 30%. For a counsellor holding a 50-minute block or a dentist reserving an operatory chair for an endodontic procedure, an unnotified absence produces zero chair utilisation and an unrecoverable loss.
+* **Linguistic diversity.** Patients span a wide socioeconomic range, from affluent non-English speakers who prefer local languages to lower-income workers who rely on voice notes. Forcing English-only communication leads to missed appointments, medication confusion, and disputes over consultation fees.
+
+### 2.2 The Failures of Incumbent Solutions
+
+* **Directory aggregators (e.g. Practo Ray).** Aggregators run consumer search engines that divert a clinic's existing patient base to competing sponsored listings. Doctors pay high monthly subscriptions only to have their brand diluted and their patient communication co-opted.
+* **Prescription-only pads (e.g. HealthPlix, Eka Care).** Effective for generating quick digital prescriptions, but they do not manage front-desk queues, physical chair constraints, visiting consultant fee splits, or external fabrication labs.
+* **Legacy vertical software (e.g. Dentee).** Built on desktop-era architectures, requiring extensive training, lacking real-time WhatsApp automation, and running poorly on modern mobile devices and reception tablets.
+
+### 2.3 Comprehensive Problem-to-Solution Mapping
+
+| Persona | Pain point and operational breakdown | PractixOS core solution | Measurable business outcome |
+| --- | --- | --- | --- |
+| **New & returning patients** | Forced app downloads; uncertain wait times; opaque procedure fees; confusion over free follow-up rules | Zero-install web portal; automated WhatsApp booking; dynamic 7-day follow-up rule engine | Eliminates booking drop-off; removes billing arguments at reception |
+| **Non-English speaking patients** | Cannot read English; intimidated by clinic communication; cannot follow complex post-operative care text | Localized Indic scripts (मराठी, తెలుగు, বাংলা, कोंकणी) with script-aware typography; automated 8-second regional WhatsApp voice notes | Zero communication drop-off; expands clinic reach into regional demographics |
+| **Front-desk receptionist** | Chaotic waiting room; complicated check-in forms; constant phone calls about directions and open slots | 10-second two-input walk-in modal; single-screen drag-and-drop Kanban queue; masked phone numbers | Reduces check-in time by 75%; ensures DPDP Act compliance |
+| **Triage nurse / chair assistant** | Slow vitals entry; missing allergy warnings before administering local anaesthesia | Tablet-optimized keypad vitals entry with 64px targets; high-visibility medical alert banners on every clinical screen | Eliminates adverse drug events; speeds up pre-examination triage |
+| **Solo dental surgeon** | Unmonitored lab delays; slow typing during clinical examination; high treatment-plan drop-off | Interactive 32-tooth FDI odontogram; automated WhatsApp lab work orders; auto-generated phased treatment plans | Saves 15 minutes per chair sitting; prevents delayed lab appointments |
+| **Visiting MDS specialist** | Juggling four to six clinics; calendar collisions with personal commitments; opaque revenue splits | Unified multi-clinic mobile hub; two-way Google and Outlook sync; automated 60/40 fee-split ledger | Eliminates double-booking; automates consultant payroll reconciliation |
+| **Mental health counsellor** | Front-desk staff able to view sensitive session notes; revenue loss from unfillable 50-minute no-shows | PIN-locked encrypted vault; 100% upfront UPI pre-payment; automated cancellation policy | Guaranteed session revenue; statutory privacy protection for psychotherapy notes |
+| **Clinic owner / administrator** | Front-desk cash leakage; rising per-doctor software costs; unmonitored chair-time cost | Flat facility pricing with unlimited staff; daily cash-versus-UPI reconciliation; chair-time profitability calculator | Prevents financial leakage; software pays for itself via ABDM DHIS claims |
+| **Commercial dental laboratories** | Shade and tooth-number errors from phone-call orders, causing remakes | Structured WhatsApp work orders carrying tooth number, restoration type, shade and due date | Reduces remake rate; streamlines lab billing |
+
+---
+
+## 3. Commercial Packaging, Costs & Unit Economics
+
+### 3.1 Recommended Subscription Packaging
+
+To eliminate the industry-standard friction of charging per doctor seat — which leads clinic owners to share administrative accounts and compromise data audit trails — PractixOS uses transparent, flat, facility-based pricing.
+
+| Commercial tier | List price | Target market segment | Core feature entitlements |
+| --- | --- | --- | --- |
+| **Solo Practice** | ₹999 / month<br>(₹9,999 / year prepaid) | Independent solo BDS dentists, private counsellors, solo general practitioners | 1 doctor seat; unlimited front-desk and nurse logins; 500 WhatsApp utility confirmations per month; bi-directional Google and Outlook sync; sovereign web portal; UPI gateway with the 7-day follow-up engine |
+| **Clinic Pro** | ₹1,999 / month<br>(₹19,999 / year prepaid) | Two- to four-chair dental clinics, counselling practices, small polyclinics | Up to 5 doctor seats; unlimited staff seats; full specialty modules (odontogram or encrypted vault); dental lab work-order tracker; visiting consultant hub with automated fee splits; ABDM M1/M2/M3 compliance engine; 1,500 WhatsApp utility confirmations per month |
+| **AI Enterprise** | ₹3,499 / month<br>(₹34,999 / year prepaid) | High-volume practices, multi-chair centres, multi-branch clinics | Unlimited clinicians and chairs; multilingual ambient AI clinical scribe (Speech-to-Rx); automated WhatsApp cancellation-recovery engine; multi-branch financial consolidation; 3,500 WhatsApp utility notifications per month; dedicated support SLA |
+
+### 3.2 Cost of Goods Sold and Margins  *(revised in v2.0)*
+
+Operating margin is protected by two decisions: integrating directly with core platform APIs rather than paying reseller markups, and running an entirely free and open-source stack on infrastructure sized to actual load.
+
+**Messaging — Meta WhatsApp Cloud API, India base tariffs**
+
+* *Utility notifications* (confirmations, reschedules, vitals and receipt alerts): approximately ₹0.115 to ₹0.12 per message. A Clinic Pro practice processing 400 patient bookings a month incurs roughly 800 utility messages, or about **₹96 per month**.
+* *24-hour customer service window:* free. When a patient initiates a query or taps an interactive button on a notification, all automated replies, triage questions and bot interactions for the next 24 hours cost ₹0. Conversational flows are deliberately designed to run inside this window.
+* *Marketing broadcasts:* approximately ₹0.86 to ₹0.87 per message. Excluded from the base subscription and billed separately through pay-as-you-go credit packs.
+
+**Hosting and database compute**
+
+All data is stored in India to comply with DPDP Act sovereignty rules. Production runs on Oracle Cloud Infrastructure Always Free in `ap-mumbai-1` (Section 5).
+
+| Stage | Infrastructure | Monthly infrastructure cost | Per clinic |
+| --- | --- | --- | --- |
+| Pilot, 0–30 clinics | 1 × Ampere A1 (2 OCPU / 12 GB), Always Free | **₹0** | ₹0 |
+| Growth, 30–150 clinics | Scale to A1 (4 OCPU / 24 GB) on pay-as-you-go | ~₹2,400 | ₹16–80 |
+| Scale, 150–500 clinics | Separate database and application hosts plus load balancer | ~₹10,000 | ₹20–65 |
+| 500+ clinics | Managed Postgres, read replica, multi-availability-domain | ~₹45,000 | ₹90 |
+
+Every band clears the ₹250 per clinic target set in v1.0.
+
+**Blended gross margin**
+
+Total marginal delivery cost per active clinic, including messaging, payment gateway fees and support, falls between **₹100 and ₹250 per month**, against v1.0's estimate of ₹350 to ₹550. This lifts blended gross margin from 80–85% to **88% to 92%**.
+
+### 3.3 The ABDM Digital Health Incentive Scheme Arbitrage
+
+Under active National Health Authority operational guidelines, the government financially subsidises digital health transactions:
+
+* Digital Solution Companies earn **₹5 per qualifying transaction** once baseline transaction tiers are achieved.
+* Healthcare facilities earn **₹10 to ₹20 per qualifying transaction** above baseline volume thresholds.
+
+*ROI impact.* A two-chair dental clinic or outpatient polyclinic handling 20 patients daily generates roughly 450 eligible ABDM care-context bundles per month.
+
+> Clinic incentive = 450 × ₹20 = **₹9,000 monthly government payout**
+
+A clinic owner paying ₹1,999 per month for Clinic Pro receives ₹9,000 in monthly government health incentives, fully covering the software cost and generating over ₹7,000 in monthly net profit.
+
+**Commercial caution added in v2.0.** DHIS is a government scheme and its rates and eligibility are subject to revision. It must not be the only return-on-investment argument in the sales motion. Chair-time profitability (FR-7.3) and no-show recovery (BR-04) must stand on their own, so that a change to the scheme damages a pricing argument rather than the entire commercial case. See risk R6.
+
+Accrual is recorded as a **ledger, not a counter**: every qualifying transaction is stored with its FHIR bundle reference so that a clinic's claim can be reconciled line by line against NHA records. Owners audit this number, because it is the number that justifies the subscription.
+
+---
+
+## 4. Technical Reference Architecture  *(rewritten in v2.0)*
+
+PractixOS is an **offline-first Progressive Web App** backed by a deliberately small, entirely open-source server footprint. The governing constraint is that a clinic must keep operating when the network does not, and that the platform must be profitable at thirty clinics rather than only at five thousand.
+
+### 4.1 Architecture Diagram
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                          CLIENT TIER                                              |
+|                                                                                                   |
+|  [ Patient Touchpoint ]               [ Reception / Nurse Tablet ]      [ Doctor Consulting Room ]|
+|  Mobile Browser (PWA) / WhatsApp      Desktop / Android tablet (PWA)    Laptop / chairside monitor|
+|  Zero-install sovereign portal        "Board" + "Slate" role modes      Odontogram / Quiet Room   |
+|  Indic UI (EN, MR, TE, BN, KOK)       Masked DPDP view & vitals         PIN-locked clinical vault |
+|         |                                      |                                  |               |
+|         |                               +------+----------------------------------+               |
+|         |                               v                                                         |
+|         |                     [ Local Client Engine ]                                             |
+|         |                     IndexedDB via Dexie.js  ·  Service-worker background sync           |
+|         |                     AES-256-GCM client-side encryption (clinical vault)                 |
+|         |                     Optimistic writes + visible sync ledger + conflict surfacing         |
++---------|-----------------------------------|-----------------------------------------------------+
+          |                                   | HTTPS / WSS
+          v                                   v
++---------------------------------------------------------------------------------------------------+
+|                        SINGLE HOST — Oracle Cloud ap-mumbai-1 (Always Free)                       |
+|                        VM.Standard.A1.Flex · 2 OCPU / 12 GB / 150 GB · Docker Compose             |
+|                                                                                                   |
+|   [ Caddy ]  TLS 1.3 termination in India · Coraza WAF (OWASP CRS) · static PWA · reverse proxy   |
+|                                                 |                                                 |
+|                                                 v                                                 |
+|   [ API — Fastify / Node 22 / TypeScript ]   modular monolith, boundaries enforced by lint        |
+|     scheduling  |  clinical  |  vault  |  billing  |  messaging  |  abdm  |  sync                 |
+|                                                 |                                                 |
+|                                                 v                                                 |
+|   [ PostgreSQL 16 ]                                                                               |
+|     · Row-Level Security .............. tenant isolation (DPDP)                                   |
+|     · EXCLUDE USING gist (btree_gist) .. chair + practitioner conflict prevention (BR-02)         |
+|     · append-only audit_log ........... REVOKE UPDATE, DELETE from app role (BR-05)               |
+|     · pg-boss .......................... job queues, transactional with their own data            |
+|     · LISTEN / NOTIFY .................. realtime queue updates pushed over WebSocket             |
+|                                                                                                   |
+|   [ Netdata ]  lightweight metrics        [ pgBackRest ]  WAL archiving -> Object Storage         |
++---------------------------------------------------------------------------------------------------+
+          |                                   |                                       |
+          v                                   v                                       v
++---------------------------------------------------------------------------------------------------+
+|                                    EXTERNAL INTEGRATION TIER                                      |
+|                                                                                                   |
+|    [ Communications ]     [ Payments ]             [ ABDM / NHCX ]         [ External Sync ]      |
+|    Meta Cloud API direct  UPI dynamic QR + intent  ABHA KYC, HIP/HIU       Google Calendar v3     |
+|    Bhashini voice TTS     Webhook-reconciled       FHIR bundles (HAPI)     Microsoft Graph        |
+|    AI4Bharat IndicWhisper settlement               NHCX cashless claims    Bi-directional sync    |
++---------------------------------------------------------------------------------------------------+
+```
+
+### 4.2 Consolidated Technology Stack
+
+Every component is free and open source. There is no commercial licence anywhere in the production path.
+
+| Layer | Choice | Licence |
+| --- | --- | --- |
+| Client | Vite + React 18 + Tailwind, PWA | MIT |
+| Local store | Dexie.js over IndexedDB | Apache 2.0 |
+| Edge | Caddy + Coraza WAF | Apache 2.0 |
+| API | Fastify, Node 22, TypeScript | MIT |
+| Authentication | Better Auth | MIT |
+| Database | PostgreSQL 16 (`btree_gist`, Row-Level Security) | PostgreSQL Licence |
+| Job queues | pg-boss | MIT |
+| Realtime | Postgres `LISTEN/NOTIFY` → WebSocket | — |
+| FHIR | HAPI FHIR (validation and serialisation) | Apache 2.0 |
+| Indic voice | Bhashini API; AI4Bharat IndicWhisper / IndicTrans2 | Government / MIT |
+| Metrics | Netdata | GPL-3.0 |
+| Backups | pgBackRest | MIT |
+| Provisioning | Terraform + cloud-init | BUSL / — |
+| CI | GitHub Actions | — |
+
+Two deliberate substitutions: **Valkey** rather than Redis if an in-memory cache later earns its place, following Redis's 2024 relicensing; and **Netdata** rather than Prometheus, Grafana and Loki, which together want more memory than a 12 GB host can spare.
+
+### 4.3 Application & Client Tier Specifications
+
+* **Frontend runtime.** Vite with React 18 and Tailwind CSS, built as a statically served, certified Progressive Web App. Server-side rendering is deliberately not used: every authenticated screen must render from IndexedDB when the network is down, so the client already owns rendering, and an SSR pass would produce a first paint the client must immediately reconcile. Public clinic portal pages (FR-1.1) are **pre-rendered to static HTML on profile change** so that they remain indexable.
+* **Offline-first storage engine.** Local operational data — arrived patients, vitals entries, draft clinical notes, chart changes — is mirrored to IndexedDB using Dexie.js. When connectivity drops, staff continue working; changes sync through a background service worker on reconnect, and the pending queue is visible in the interface rather than hidden.
+* **Conflict resolution.** Operational data resolves per field using last-write-wins with vector clocks. **Clinical notes never auto-merge**; conflicts are surfaced for explicit clinician resolution. Silent merging of clinical text is a patient-safety hazard.
+* **Modular monolith.** One deployable with enforced module boundaries (`scheduling`, `clinical`, `vault`, `billing`, `messaging`, `abdm`, `sync`). Cross-module access goes through each module's exported service interface, never directly into another module's tables; a lint rule enforces this, preserving the option to extract a service later when load justifies it.
+* **Responsive layout.** Minimum 48 × 48 CSS pixel touch targets throughout, rising to 64 × 64 in the nurse triage mode.
+
+### 4.4 Data Architecture & Cryptographic Isolation
+
+#### 4.4.1 Tenant isolation through Row-Level Security
+
+Every tenant-scoped table carries `clinic_id`, and isolation is enforced by the database rather than by application code. Application-enforced tenancy fails the first time a query omits a `WHERE` clause; database-enforced tenancy cannot be forgotten.
+
+```sql
+ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY clinic_isolation ON patients
+  USING (clinic_id = current_setting('app.clinic_id')::uuid);
+
+-- BR-05 / FR-2.3: reception may read patients but never the real phone number.
+REVOKE SELECT (phone_e164)   ON patients FROM app_reception;
+GRANT  SELECT (phone_masked) ON patients TO   app_reception;
+```
+
+`phone_masked` is a generated column. Because column-level access to the real number is revoked from the reception database role, FR-2.3 holds even against a SQL-injection vector: the role genuinely cannot read the column.
+
+#### 4.4.2 BR-02 enforced by the database
+
+Chair double-booking must be impossible, including when two receptionists book simultaneously. Between the `SELECT` that finds a chair free and the `INSERT` that books it, another transaction can do the same — so application-level checking cannot guarantee the rule. An exclusion constraint can:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+ALTER TABLE appointments
+  ADD CONSTRAINT chair_not_double_booked
+  EXCLUDE USING gist (chair_id WITH =, during WITH &&)
+  WHERE (chair_id IS NOT NULL AND state NOT IN ('cancelled','no_show'));
+
+ALTER TABLE appointments
+  ADD CONSTRAINT practitioner_not_double_booked
+  EXCLUDE USING gist (practitioner_id WITH =, during WITH &&)
+  WHERE (state NOT IN ('cancelled','no_show'));
+```
+
+Externally synced personal calendar blocks (FR-6.3) are inserted as appointments in a reserved state, so they participate in the same constraint automatically.
+
+#### 4.4.3 BR-05 append-only audit trail
+
+```sql
+REVOKE UPDATE, DELETE ON audit_log FROM app_rw;
+GRANT  INSERT, SELECT  ON audit_log TO   app_rw;
+```
+
+Even a fully compromised application cannot rewrite history. Retention and archival run under a separate role available only to a scheduled job. Every phone unmask, every vault open and every record export writes an entry.
+
+#### 4.4.4 The clinical vault — corrected design
+
+**The v1.0 design was not secure and is superseded.** FR-5.1 protects psychotherapy notes behind a 4-digit PIN with keys derived client-side via PBKDF2. The intent is right; the arithmetic is not. A 4-digit PIN has **10,000 possible values**. Against an attacker holding the database, no key derivation function saves you — a deliberately expensive KDF turns an instant break into a few hours of GPU time. The zero-knowledge property does not exist under that design.
+
+Two changes make the promise real.
+
+**Split the key.** Derive the encryption key from the PIN *and* a server-held secret released only to an authenticated, rate-limited session:
+
+```
+wrapping_key = Argon2id(
+    password = user_pin || server_secret,
+    salt     = per_note_salt,
+    m = 64 MiB, t = 3, p = 1
+)
+```
+
+`server_secret` lives in a separate keystore, never in the application database, and is released only after the therapist authenticates, subject to a hard rate limit and lockout. A stolen database dump then contains no brute-forceable material, because the attacker holds only half the key input. The therapist's experience is unchanged: they still type four digits.
+
+**Use Argon2id, not PBKDF2.** OWASP has recommended Argon2id since 2021; PBKDF2 remains preferred only where FIPS certification is mandated, which does not apply here.
+
+Additional controls: automatic re-lock after 10 minutes idle; keys held only in JavaScript closure memory and never in `localStorage`; every unlock and every failed attempt written to the audit log.
+
+> **Note on the prototype.** `prototype/PractixOS.html` performs genuine encryption using the Web Crypto API, which exposes PBKDF2 but not Argon2id. It therefore uses PBKDF2 at 210,000 iterations and states the limitation on screen. Production uses Argon2id with the split key described above.
+
+#### 4.4.5 Core schema extract
+
+```sql
+CREATE TABLE clinics (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug          text UNIQUE NOT NULL,                  -- drsharma -> drsharma.practix.in
+  legal_name    text NOT NULL,
+  vertical      text NOT NULL CHECK (vertical IN ('dental','mental_health','polyclinic')),
+  followup_days int  NOT NULL DEFAULT 7 CHECK (followup_days BETWEEN 3 AND 15),   -- BR-01
+  timezone      text NOT NULL DEFAULT 'Asia/Kolkata'
+);
+
+CREATE TABLE patients (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id      uuid NOT NULL REFERENCES clinics(id),
+  full_name      text NOT NULL,
+  phone_e164     text NOT NULL,
+  phone_masked   text GENERATED ALWAYS AS
+                   (left(phone_e164, 9) || '•••' || right(phone_e164, 2)) STORED,
+  preferred_lang text NOT NULL DEFAULT 'en'
+                   CHECK (preferred_lang IN ('en','mr','te','bn','kok')),
+  abha_id        text,
+  alerts         text[] NOT NULL DEFAULT '{}',         -- FR-3.2
+  UNIQUE (clinic_id, phone_e164)
+);
+
+CREATE TABLE appointments (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id       uuid NOT NULL REFERENCES clinics(id),
+  patient_id      uuid NOT NULL REFERENCES patients(id),
+  practitioner_id uuid NOT NULL REFERENCES practitioners(id),
+  chair_id        uuid REFERENCES chairs(id),          -- null for teletherapy
+  during          tstzrange NOT NULL,
+  mode            text NOT NULL CHECK (mode IN ('clinic','video')),
+  state           text NOT NULL DEFAULT 'expected',
+  fee_paise       bigint NOT NULL,
+  fee_reason      text   NOT NULL,                     -- BR-01 audit of why this fee
+  prepaid         boolean NOT NULL DEFAULT false       -- BR-04
+);
+```
+
+### 4.5 External Integration Adapters
+
+* **Meta WhatsApp Cloud API.** Direct integration with Meta's Graph API for template registration, interactive webhook management and two-way conversational routing, bypassing reseller surcharges of 30 to 100 percent.
+  *Critical path:* every utility template must be approved by Meta **per language** before it can be sent. Five languages across roughly a dozen template types is around sixty approvals, each taking days, with opaque rejections. Template submission is a week-one task, not a launch task.
+* **NPCI / UPI payment adapter.** Instant UPI intent links for mobile web checkout, and dynamic time-limited UPI QR codes. **Every payment is reconciled against a server-side settlement webhook, never a client-side success callback**, since the client can disconnect or lie.
+* **ABDM gateway connector.** M1 creates and verifies ABHA IDs via Aadhaar or mobile OTP. M2 serializes clinical visit summaries into HL7 FHIR profiles and pushes them to the national gateway. M3 manages consent requests for querying historical records. Bundles are constructed and validated with HAPI FHIR rather than assembled by hand, because profile conformance is where these integrations fail. Sandbox certification is a week-one task; lead time is measured in weeks and is outside our control.
+* **Bi-directional calendar synchronization.** Google Calendar API v3 and Microsoft Graph, with PractixOS as master scheduler. Personal events block patient booking slots, and their titles are **masked at write time** to `"Doctor Unavailable (External Sync)"` — so the private title never enters clinic storage at all. This is a stronger guarantee than masking at read time: a database compromise cannot reveal a doctor's personal calendar.
+
+---
+
+## 5. Hosting, Infrastructure & Cost Control  *(new in v2.0)*
+
+**Decision: production runs on Oracle Cloud Infrastructure Always Free in `ap-mumbai-1`. Microsoft for Startups Azure credits fund workloads that are expensive, time-boxed and disposable, and never the production path.**
+
+### 5.1 Why production does not run on the Azure credits
+
+The Microsoft for Startups self-serve offer is $1,000 valid for 90 days, followed by a further $4,000 for 180 days after business verification — roughly ₹4.4 lakh across about nine months, after which the subscription converts automatically to pay-as-you-go. Investor Network-backed startups begin at $100,000 with up to $150,000 available over two years.
+
+Either way, credits are a subsidy with an expiry date. Putting the production database of a clinical system on an expiring subsidy guarantees a migration under deadline pressure at exactly the moment the business is trying to grow. And the commercial pitch in Section 3.3 requires a defensible cost-per-clinic figure; "currently free because Microsoft is paying" is not that figure.
+
+If the Investor Network offer is available, take it, and spend it as described in 5.5.
+
+### 5.2 What OCI Always Free provides
+
+Verified against Oracle's current documentation, September 2026:
+
+| Resource | Always Free allowance |
+| --- | --- |
+| Ampere A1 compute (Arm) | 1,500 OCPU-hours + 9,000 GB-hours per month, i.e. **2 OCPU / 12 GB** sustained |
+| AMD micro instances | 2 × VM.Standard.E2.1.Micro (1/8 OCPU, 1 GB) |
+| Block storage | 200 GB total |
+| Object storage | 10 GB |
+| Outbound data transfer | **10 TB per month** |
+| Load balancer | 1 flexible, 10 Mbps |
+
+Oracle **halved** the Ampere allowance in 2026, from 4 OCPU / 24 GB to 2 / 12; plan against the current figure, since some Oracle pages still display the old numbers. The 10 TB egress allowance is unusually generous and removes the cost line that most often surprises teams on AWS.
+
+### 5.3 Three setup facts that will otherwise cost days
+
+1. **Upgrade to pay-as-you-go before provisioning anything.** Ampere A1 capacity is effectively unobtainable on a Free Tier account; "Out of host capacity" is the normal experience, and operators report retry scripts failing for months. On a pay-as-you-go account the Always Free allowance remains free, but you gain capacity priority and exemption from idle-resource reclamation. The card on file is charged only for usage beyond the free allowance.
+2. **The home region cannot be changed after signup on a free account.** Select `ap-mumbai-1`, which is confirmed to offer `VM.Standard.A1.Flex`. This thirty-second choice determines whether the product is DPDP-compliant, and it is irreversible.
+3. **Oracle does terminate free accounts.** A pay-as-you-go account with a valid card sharply reduces the risk; a tested restore into a second provider is the actual insurance.
+
+### 5.4 Production topology
+
+```
+ap-mumbai-1
+├── VM.Standard.A1.Flex  (2 OCPU / 12 GB / 150 GB)   [Always Free]
+│   ├── caddy       TLS termination, Coraza WAF, static PWA, reverse proxy
+│   ├── api         Fastify, Node 22 (arm64)
+│   ├── postgres    PostgreSQL 16 + pg-boss queues
+│   └── netdata     lightweight metrics
+│
+├── VM.Standard.E2.1.Micro (1 GB)                    [Always Free]
+│   └── off-host uptime probe + weekly restore-drill runner
+│
+├── Object Storage (10 GB)                           [Always Free]
+│   └── pgBackRest WAL archive + base backups
+│
+└── Azure Blob, Central India                        [credits, then ~₹200/mo]
+    └── geo-redundant encrypted nightly dumps
+```
+
+No Kubernetes. Kubernetes on a single host is pure overhead, and OKE's free control plane does not change that because the worker nodes are the cost and the complexity.
+
+The micro instance earns its keep by living **outside** the main host: an uptime probe running on the machine it monitors is not a probe.
+
+### 5.5 Where the Azure credits go
+
+The governing rule: **anything running on credits must be movable in an afternoon.** Docker Compose everywhere, no proprietary Azure PaaS in the critical path.
+
+| Workload | Rationale |
+| --- | --- |
+| Geo-redundant encrypted backups (Blob, Central India) | High value, low cost, worth paying for after credits lapse |
+| Staging and demo environments (Container Apps) | Genuinely disposable |
+| Load and soak testing before pilot go-live | Burst compute is exactly what credits are for |
+| **GPU time to fine-tune IndicWhisper for Speech-to-Rx** | The highest-value use available: compute we would never otherwise buy, producing model weights — a durable asset that outlives the credits |
+| Azure OpenAI / Foundry for AI Enterprise tier research | Time-boxed R&D |
+| ~~Production database~~ | Never |
+| ~~Production application~~ | Never |
+
+### 5.6 Availability, backup and recovery
+
+The availability requirement is restated in Section 8.2 as **99.9% clinic-perceived availability**, with an infrastructure recovery time objective of 20 minutes and a recovery point objective of 5 minutes. Three things make that claim honest, and none of them is optional:
+
+1. **Infrastructure as code.** Terraform plus cloud-init for the entire host, so a rebuild is a twenty-minute automated process rather than a day of remembering.
+2. **Continuous archiving.** pgBackRest with WAL archiving to OCI Object Storage, giving a five-minute recovery point.
+3. **A weekly automated restore drill** that provisions a throwaway container, restores the most recent backup, verifies checksums and row counts, reports to the team channel, and destroys itself. On single-host infrastructure, an unverified backup is not a backup.
+
+---
+
+## 6. Experience Architecture & The "Clinical Ink" Design System  *(new in v2.0)*
+
+Version 1.0 specified what the software must do but not what it is like to use. In a market where the competing products are functionally similar and the buyers are time-poor, that is the gap where the product is won or lost.
+
+### 6.1 Design thesis
+
+The visual identity derives from what an Indian clinic actually is: **warm paper, teal ink, marigold for urgency, and statuses as stamped marks.** Not sky-blue-on-cool-grey, which is what every incumbent looks like, and which reads to an Indian clinician as foreign software.
+
+### 6.2 Six role modes, one spine
+
+The same system presents itself in the register each role needs. Role-adaptive modes are the central interaction concept and the hardest part of the design to copy, because each mode encodes an observation about the working conditions of the person using it.
+
+| Mode | Role | Design response | Because |
+| --- | --- | --- | --- |
+| **The Board** | Reception | Air-traffic-control density; drag targets; wait time expressed as colour temperature | The receptionist manages a room, not a record; she needs to perceive state peripherally |
+| **The Slate** | Triage nurse | 64px targets, numeric keypads, one question at a time | Gloves and hurry; the OS keyboard costs two seconds and an accuracy penalty |
+| **Chairside Console** | Dentist | Dark theme, luminous chart | The monitor sits on a swing arm under operatory lighting, in peripheral vision. No competitor ships this |
+| **Quiet Room** | Therapist | Warm paper, serif type, 66-character measure, no badges or counters | A counselling record is written slowly and read carefully; urgency cues are actively harmful |
+| **Route Card** | Visiting consultant | Phone-first vertical timeline, thumb-zone action bar | Used standing up between clinics: where next, what am I owed |
+| **The Doorway** | Patient | Oversized type, one decision per screen, language chosen first, voice always within reach | Used once, under stress, possibly by someone who does not read comfortably |
+
+### 6.3 Typography
+
+* **Two registers.** A dense staff face optimised for information density, and a generous patient face at a larger scale with wider leading and a constrained measure. Same family, deliberately different rhythm.
+* **Script-aware Indic typography.** Devanagari, Telugu and Bengali each receive their own font stack and their own line-height. A global `line-height: 1.5` clips Telugu and Bengali conjuncts — a real defect in the v1.0 reference prototype, and the kind that only surfaces after shipping to a Bengali-speaking clinic.
+* **Tabular numerals** everywhere numbers are compared in a column: fees, vitals, tokens, ledger lines.
+* Fonts must be self-hosted (Noto Sans Devanagari / Telugu / Bengali, SIL Open Font License) rather than loaded from a third-party CDN, both for offline capability and for data residency.
+
+### 6.4 Interaction rules
+
+* **Undo, not confirm.** Financial and destructive actions apply immediately with an eight-second undo. Confirmation dialogs are fatal to a 15-second workflow, and high-turnover staff learn to dismiss them reflexively — which makes them slower *and* less safe.
+* **Never more than three levels.** Role, screen, modal. Nested menus are named in Section 2.2 as a specific failure of the incumbents.
+* **Keypads, never keyboards** for vitals, fees and tooth numbers.
+* **Colour is never the only signal.** Every state carries shape, pattern and text. Roughly 8% of Indian men have a colour vision deficiency, and FR-4.2 as written in v1.0 encoded diagnosis in colour alone.
+* **Optimistic writes with a visible queue.** Actions land instantly; the sync ledger shows what is pending. Offline becomes legible rather than frightening.
+* **Motion is functional only.** 150–200 ms, and `prefers-reduced-motion` is honoured.
+
+### 6.5 On defensibility
+
+The stylesheet is copyable in an afternoon, and claiming otherwise would be dishonest. What resists copying is the reasoning — why the dentist gets a dark theme and the therapist gets warm paper, why undo beats confirm, why the wait-time gradient exists. A copy made without the reasoning reads as a copy.
+
+The durable moats are elsewhere and should be invested in accordingly: **ABDM certification**, the **approved Meta template library** across five languages, the **dental laboratory network**, and the **chair-constraint scheduling logic**.
+
+### 6.6 The breakpoint ladder *(new in v2.1)*
+
+Three layout modes, not a spectrum. Each one is a deliberate density decision rather than an arbitrary width.
+
+| Mode | Applies | Navigation | What changes |
+| --- | --- | --- | --- |
+| **Compact** | below 600 px | Bottom tab bar, five slots, the fifth being an overflow sheet | One queue lane at a time behind a segmented control; the odontogram becomes a quadrant selector; tables render as card lists; modals become bottom sheets; the owner's week becomes a vertical list |
+| **Tablet** | 600–1023 px | Icon rail, no labels | Two queue lanes; the full dental arch returns; real tables return; centred dialogs replace bottom sheets |
+| **Full** | 1024 px and above | Labelled rail plus header controls | Four queue lanes; the visiting consultant's route card gains a phone bezel, which is honest signalling that the screen was designed for a pocket |
+
+Two implementation notes, both of which follow from the first.
+
+**Layout is driven by an attribute, not by media queries.** A `data-lay` attribute on the root element carries the mode, and every responsive rule keys off it. The mode is normally computed from the viewport, but because the mechanism is an attribute rather than a media query, pinning it costs one assignment and duplicates no CSS. This is what makes the per-device Compact / Tablet / Full override affordable, and it is also what lets the layout checker force each mode deterministically instead of inferring it from a window size that headless Chrome refuses to honour below roughly 500 px.
+
+**A component that diverges still shares its vocabulary.** The reception board on a phone and on a tablet are different layouts, but the card inside them is byte-identical: same name, same token, same rubber-stamp alert, same actions in the same order. A receptionist trained on the tablet is not re-learning the product on her phone; she is seeing less of it at once.
+
+---
+
+## 7. Business Requirements Document (BRD)
+
+### 7.1 Project Scope & Target Markets
+
+* **Phase 1 launch verticals.** Independent dental practices (solo BDS and multi-chair clinics) and private mental health practitioners (psychologists and counsellors).
+* **Geographic focus.** Urban and semi-urban medical clusters in India: Bengaluru, Pune, Mumbai, Hyderabad, Kolkata and Tier-2 medical hubs.
+* **Phase 2 expansion.** Multi-specialty outpatient polyclinics, paediatric chambers and general physician practices.
+
+### 7.2 Stakeholder Ecosystem & Business Objectives
+
+* **Clinic owners.** Protect operatory margins, reduce front-desk cash leakage, minimise no-shows, and eliminate per-seat software fees.
+* **Associate dentists and visiting MDS consultants.** Clear automated fee-split ledgers and synchronized external schedules to avoid double-booking.
+* **Reception and nursing staff.** Move away from paper registers and speed up check-in without learning complex software.
+* **Patients.** Zero-friction booking, native-language communication, transparent fees, automated free follow-ups.
+* **Commercial dental laboratories.** Clear digital work orders that reduce remake errors and streamline billing.
+
+### 7.3 Business Rules Engine
+
+**BR-01 — Dynamic follow-up rule policy**
+* The system checks the patient's visit history for the selected doctor and specialty.
+* If a primary consultation was completed within the last *N* calendar days (default 7, configurable between 3 and 15), the consultation fee calculates as **₹0, complimentary follow-up**.
+* On day *N*+1 the fee resets to the standard consultation rate, eliminating front-desk billing disputes.
+* *v2.0 addition:* the reason for the computed fee is stored on the appointment (`fee_reason`), so a dispute can be settled by reading the record rather than by argument.
+
+**BR-02 — Multi-chair resource dependency (dentistry)**
+* Booking an in-clinic dental appointment requires satisfying a three-way dependency: clinician availability AND operatory chair availability AND specialized hardware availability.
+* Overlapping bookings for the same operatory chair are strictly prevented, even when multiple doctors are on site.
+* *v2.0 addition:* enforced by a PostgreSQL exclusion constraint (Section 4.4.2), so the rule holds under concurrent booking rather than only under sequential booking.
+
+**BR-03 — Visiting consultant fee-split settlement**
+* Consultant earnings calculate automatically from gross collections minus agreed deductions:
+
+  > Net payout = (gross procedure fee − dental lab cost − surgical consumables) × agreed doctor split (60%)
+
+* The payout updates the visiting specialist's mobile ledger in real time on payment confirmation.
+
+**BR-04 — Psychotherapy pre-payment and cancellation policy**
+* In-person and virtual psychotherapy bookings require a 100% upfront UPI deposit.
+* Cancellations within 24 hours of the scheduled start forfeit the deposit, compensating for reserved clinical time.
+* Patients are automatically offered conversion of an in-person session to a video call rather than forfeiting.
+* *v2.0 addition:* the policy is stated in the patient's own language **before** payment, not only in terms and conditions afterwards.
+
+**BR-05 — DPDP Act 2023 statutory privacy compliance**
+* Front-desk accounts display masked phone numbers, showing only the last two digits, preventing unapproved export of patient lists.
+* Every record access, edit and export is logged in an append-only audit trail.
+* Mental health session formulations remain inaccessible to administrative staff.
+* *v2.0 addition:* masking is enforced by a column-level `REVOKE` on the reception database role, and the audit trail by revoking `UPDATE` and `DELETE` from the application role (Section 4.4). Both rules become structural rather than conventional.
+
+---
+
+## 8. Product Requirements Document (PRD)
+
+### 8.1 Functional Requirements
+
+#### Module 1: Patient Discovery & Booking Experience
+
+* **FR-1.1** — **Tenant workspaces.** Generate a sovereign, white-labelled web URL for each clinic (e.g. `drsharma.practix.in`) requiring zero app downloads. *Expanded in v2.1:*
+  * **FR-1.1.1 — Resolution.** The tenant is resolved from the request host before authentication and before any row is read. The resolved tenant is bound to the session; there is no cross-tenant view, no "all clinics" mode, and no super-user list, at any tier of the product.
+  * **FR-1.1.2 — Isolation.** Every table carrying clinical or commercial data holds a `clinic_id` and is governed by a PostgreSQL row-level security policy with `FORCE` enabled (Section 4.4). A query for a record belonging to another tenant returns **zero rows, not an authorization error** — a denial confirms the record exists, which would itself let one clinic test whether a patient attends another.
+  * **FR-1.1.3 — Configuration.** Display name, mark, accent colour, enabled languages, the free-follow-up window, the room and chair registry, and the enabled module set are per-tenant columns. Two tenants may therefore return different fee outcomes under BR-01 for the same patient on the same day, and both are correct.
+  * **FR-1.1.4 — Module provisioning by vertical.** A dental workspace does not expose the Mental Health Confidentiality Vault; a counselling practice does not expose the odontogram or the nurse triage desk; a polyclinic exposes both. Modules absent from a tenant's vertical are not merely hidden in navigation — they are not provisioned.
+  * **FR-1.1.5 — Membership.** A practitioner working across clinics, such as a visiting MDS, holds one membership per tenant and switches between them explicitly. There is no merged inbox and no combined calendar view; the fee-split ledger aggregates the practitioner's own earnings, never another clinic's patient data.
+  * **FR-1.1.6 — Onboarding and exit.** A new tenant is provisioned by inserting one clinic row and its configuration; no schema change, no new database and no new deployment. Exit is symmetrical: a per-tenant logical export for portability, and a per-tenant erasure job satisfying DPDP deletion requests without touching neighbouring tenants.
+  * **FR-1.1.7 — Fair use.** Rate limits are applied per tenant at the edge, and a statement timeout is applied to the application database role, so one clinic running a heavy report cannot degrade another.
+* **FR-1.2** — The public portal supports on-the-fly language switching across English, Marathi, Telugu, Bengali and Konkani. *v2.0: this covers every patient-facing surface — confirmations, receipts, care notes and queue updates — not only the landing page.*
+* **FR-1.3** — Natural-language matching for symptoms, clinical terms and doctor names across all supported Indic languages.
+* **FR-1.4** — Patient authentication via WhatsApp OTP, eliminating username and password setup.
+* **FR-1.5** — The booking flow presents real-time open slots, confirms consultation mode (in-clinic or video), and applies follow-up fee rules before checkout.
+
+#### Module 2: Front-Desk Reception & Queue Management
+
+* **FR-2.1** — A single-screen, real-time Kanban queue with four columns: *Expected Today*, *Waiting Room*, *In Consultation*, *Billing / Exit*.
+* **FR-2.2** — Walk-in patient creation requires only two inputs, mobile number and patient name, creating the record and a queue token in under 10 seconds.
+* **FR-2.3** — Front-desk views mask patient phone numbers by default (e.g. `+91 98220•••10`), with unmasking restricted to authorized administrative roles and written to the audit trail.
+* **FR-2.4** — Moving a patient card between columns immediately updates the doctor's chamber screen and waiting-room displays. *v2.1: drag is implemented on Pointer Events, not HTML5 drag-and-drop, so it behaves identically under a mouse, a stylus and a thumb. Every card also carries an equivalent non-drag path — a "Move to…" sheet — because on a phone only one lane is on screen and there is nowhere to drag to.*
+
+#### Module 3: Nurse Triage & Clinical Vitals Desk
+
+* **FR-3.1** — A high-contrast interface to log baseline vitals (blood pressure, pulse, blood sugar, weight) in under 10 seconds, using numeric keypads rather than the OS keyboard.
+* **FR-3.2** — Medical alert tags (penicillin allergy, local anaesthetic reaction, hypertension risk, diabetes, bleeding risk, pregnancy) displaying high-visibility banners across all clinical screens.
+
+#### Module 4: Dental Specialty Chamber Console
+
+* **FR-4.1** — An interactive 32-tooth graphical odontogram using FDI two-digit numbering. *v2.1: the full upper and lower arch is presented at 600 px and above. Below that, a quadrant selector (UR / UL / LR / LL) presents eight teeth at a time, because sixteen teeth across a 375 px screen gives each target roughly 21 px against a 48 px accessibility floor. Notation, states and behaviour are identical in both presentations; only the number of teeth on screen changes.*
+* **FR-4.2** — Tooth states: healthy, caries, RCT needed or done, crown or prosthetic, missing. *v2.0: each state is encoded by colour **and** fill pattern **and** text label; colour alone is never the signal.*
+* **FR-4.3** — Selecting clinical conditions auto-populates a phased, multi-sitting treatment plan with procedural steps, estimates, completed treatments and remaining balance.
+* **FR-4.4** — A digital dental lab work-order tracker recording assigned lab, tooth number, shade guide, restoration type and delivery date.
+* **FR-4.5** — One-click dispatch of structured work orders to lab managers over WhatsApp.
+
+#### Module 5: Mental Health Confidentiality Vault
+
+* **FR-5.1** — Psychotherapy notes locked behind an encrypted vault requiring a secondary 4-digit PIN. *v2.0: the key is derived with Argon2id from the PIN combined with a server-held secret released only to a rate-limited authenticated session (Section 4.4.4). The vault is locked by default and re-locks after 10 minutes idle.*
+* **FR-5.2** — When locked, only demographic and payment metadata is visible; all clinical text is masked from front-desk staff. There is no administrator override, because there is no server-side key capable of decryption alone.
+* **FR-5.3** — Structured SOAP progress-note templates, DSM-5 diagnostic coding, and GAD-7 / PHQ-9 psychometric tracking with trend display.
+* **FR-5.4** — Automated weekly recurring reservations linked to upfront UPI pre-payment.
+
+#### Module 6: Visiting MDS Specialist & Calendar Sync Hub
+
+* **FR-6.1** — A unified mobile view of multi-clinic itineraries without multiple logins.
+* **FR-6.2** — Bi-directional synchronization with Google Calendar and Microsoft Outlook.
+* **FR-6.3** — Personal calendar events automatically block clinical availability with titles masked from receptionists. *v2.0: masked at write time, so the private title never enters clinic storage.*
+* **FR-6.4** — An automated fee-split ledger tracking gross billings, lab and consumable deductions, and net payouts.
+
+#### Module 7: Clinic Administration & ABDM Arbitrage
+
+* **FR-7.1** — Reconcile daily collections, balancing physical cash handovers against digital UPI settlements.
+* **FR-7.2** — Track generated ABHA records, M2 clinical pushes, and accrued DHIS subsidy in real time, as a reconcilable ledger rather than a counter.
+* **FR-7.3** — A chair-time profitability calculator analysing fixed clinic overhead against procedure duration to display net margin per chair-minute. *v2.0: computed against minutes actually utilised as well as minutes available, since the two produce materially different rates and utilisation is the lever the owner controls.*
+
+### 8.2 Non-Functional Requirements
+
+* **Performance.** Dashboard interactions load within 200 ms on standard 4G or broadband; cold start completes under 1.5 seconds.
+* **Availability and reliability.** *(Restated in v2.0.)* **99.9% clinic-perceived availability**, delivered by the offline-first client, with an infrastructure recovery time objective of 20 minutes and a recovery point objective of 5 minutes. Because every operational surface reads and writes IndexedDB first, a server outage does not stop the clinic: reception continues checking patients in, the nurse continues logging vitals, and the queue continues advancing. A single virtual machine cannot deliver 99.9% infrastructure uptime, and a clinical product should not make a claim that fails during a customer's busiest hour.
+* **Data sovereignty.** All database instances, backups and media hosted within the territory of India. TLS terminates in Mumbai; DNS is the only third-party service in the request path.
+* **Security.** TLS 1.3 in transit; AES-256-GCM at rest; **Argon2id** for password hashing (superseding SHA-256, which is a hash function rather than a password hashing function); strict field-level role-based access control enforced at the database.
+* **Usability.** Zero-training design: a new front-desk receptionist registers a walk-in patient within five minutes of onboarding, without a manual.
+* **Accessibility.** *(New in v2.0.)* Minimum 48 × 48 px touch targets, rising to 64 × 64 in nurse triage. No information conveyed by colour alone. Script-appropriate line-height for every supported language. `prefers-reduced-motion` honoured.
+* **Device and form factor.** *(New in v2.1.)* **Mobile-first is a requirement, not a preference.** Every screen must be complete and usable at 320 px wide, in portrait, on a mid-range Android phone. Specifically:
+  * **No horizontal overflow at any supported width.** Content may never extend past the right edge of the viewport. Where a dense artefact genuinely needs more width — a wide data table, a long segmented control — it must sit inside an explicitly scrollable container with a visible affordance, never force the page itself sideways. This is verified automatically by `prototype/check-layout.py` across seven widths from 320 to 1280 px, every view and every seeded tenant, and the check exits non-zero on failure.
+  * **No collapsed content.** The converse defect is equally disqualifying: a mis-specified grid can squeeze a screen into a sliver without ever overflowing. The same check asserts that the main content region fills the space available to it.
+  * **Touch is the primary input.** Any interaction expressible only through hover, right-click, a keyboard shortcut or HTML5 drag-and-drop must have an equivalent path reachable with one thumb. Primary actions sit within thumb reach, which in practice means the bottom of the screen rather than the top.
+  * **Tablet and desktop are progressive enhancements.** They add density — more lanes, real tables, the full dental arch — never capability. No task may be possible on a desktop and impossible on a phone.
+  * **Layout is automatic, with a per-device override.** The three layout modes are selected from the viewport by default and may be pinned to Compact, Tablet or Full by the user. The preference is stored on the device and never propagates to other staff. There is exactly one codebase and one set of components; the override changes a single attribute, not a build target.
+  * **No iOS zoom-on-focus.** Text inputs render at a minimum of 16 px on touch layouts.
+  * **Safe areas and dynamic viewports.** `viewport-fit=cover` with `env(safe-area-inset-*)` respected, and `dvh` rather than `vh`, so a collapsing mobile browser chrome does not clip the last row of the queue.
+
+---
+
+## 9. Roadmap & Differentiating Innovations
+
+The following capabilities represent the Phase 2 and Phase 3 pipeline. They expand competitive advantage while preserving interface simplicity.
+
+### 9.1 Feature Descriptions
+
+#### 1. Dynamic Token Radar — WhatsApp live queue tracker
+
+A zero-install tracking link sent over WhatsApp 45 minutes before an appointment, showing the patient their live queue position: *"Dr. Sharma is currently consulting Token #3. You are Token #5. Estimated entry 11:20 AM."* If delayed, the patient taps to request a later arrival, and the system automatically swaps their queue position with a patient already waiting, reducing waiting-room crowding.
+
+#### 2. Vernacular post-care messaging sequences
+
+Automated, specialty-specific post-treatment instructions in the patient's chosen language.
+*Dentistry:* three hours after an extraction — *"Dr. Sharma's care note: the anaesthesia will wear off shortly. Avoid hot drinks, do not rinse hard, and take your medicine after food."*
+*Mental health:* four days after a consultation, an interactive mood check-in whose response updates the therapist's notes for the next session.
+
+#### 3. Vernacular audio informed consent — DPDP and NMC shield
+
+A 15-second audio-recorded informed consent for patients who struggle to read English forms. The tablet plays a clear audio summary of the procedure and risks in Marathi, Telugu, Bengali or Konkani; the patient states their name and speaks their consent. The recording is encrypted, timestamped and linked to the record, creating a legally defensible audit trail.
+
+#### 4. Multilingual ambient voice prescription pad — Speech-to-Rx
+
+An ambient clinical scribe trained on code-mixed Indian medical speech. Clinicians dictate naturally — *"Tab Augmentin 625 BD 5 days, Tab Zerodol-SP TDS after food 3 days, warm saline rinses, call next Thursday"* — and the engine parses this into brand, generic composition, dosage schedule, food instruction and duration, ready for digital signature in under 10 seconds. Fine-tuning of IndicWhisper is funded by Azure GPU credits (Section 5.5).
+
+#### 5. Odontogram-linked treatment acceptance visual explainers
+
+Marking a tooth for a crown or bridge triggers an **Explain to patient** action that sends a 20-second animated explainer to the patient's WhatsApp in their regional language, illustrating why an untreated root-canal tooth can fracture without a crown.
+
+#### 6. Auto-depletion consumable inventory management
+
+Marking a sitting complete automatically deducts its consumables — rotary endodontic file, anaesthetic carpule, rubber dam sheet, sterilisation pouch. Below a configurable buffer, the clinic manager receives a WhatsApp reorder prompt.
+
+#### 7. One-click cashless OPD claims via NHCX
+
+Reception scans the patient's digital insurance card or ABHA ID to verify real-time OPD coverage against the national exchange. At checkout the system submits a structured FHIR claim bundle directly to the insurer, opening the clinic to corporate-insured patients.
+
+### 9.2 Prioritization Matrix
+
+```
+IMPACT
+  ^
+  |                                 [Token Radar]        [Speech-to-Rx Pad]
+  |                                 (High / Med Effort)  (High / High Effort)
+  |
+  |    [Vernacular Care Drip]       [Visual Explainers]  [NHCX Cashless OPD]
+  |    (High / Low Effort)          (High / Med Effort)  (High / High Effort)
+  |
+  |    [Audio Consent Shield]       [Auto Inventory]
+  |    (Med / Low Effort)           (Med / Med Effort)
+  |
+  +------------------------------------------------------------------------>
+  0                              EFFORT / COMPLEXITY
+```
+
+| Feature | Target phase | Engineering complexity | Strategic value |
+| --- | --- | --- | --- |
+| Vernacular care drip journeys | Phase 1 (immediate) | Low — template engine | Eliminates repetitive post-operative phone calls; improves adherence |
+| Dynamic Token Radar | Phase 1 (immediate) | Medium — queue worker | Prevents crowded waiting rooms; reduces friction over delays |
+| Vernacular audio consent | Phase 2 (Q3) | Low — media storage | Legal protection under DPDP for non-English speaking patients |
+| Visual treatment explainers | Phase 2 (Q3) | Medium — content library | Increases acceptance of high-value multi-sitting dental work |
+| Auto-depletion inventory | Phase 2 (Q4) | Medium — relational logic | Prevents inventory leakage without manual data entry |
+| Ambient Speech-to-Rx pad | Phase 3 | High — NLP audio pipeline | Saves 3 to 5 minutes of charting per consultation |
+| One-click NHCX cashless claims | Phase 3 | High — national gateway bridge | Unlocks revenue from corporate OPD insurance |
+
+---
+
+## 10. Delivery Plan & Milestones  *(new in v2.0)*
+
+Milestones are ordered by revenue impact rather than by specification order. Pre-payment and the follow-up engine ship before the odontogram, because deposits stop cash leaking from day one while the odontogram, valuable as it is, does not move money.
+
+| Milestone | Weeks | Scope | Exit criterion |
+| --- | --- | --- | --- |
+| **M0 — Foundations** | 1–3 | Terraform and cloud-init for the OCI host; Docker Compose topology; Postgres with RLS, `btree_gist` and the audit trigger; CI with arm64 builds; Caddy with Coraza; pgBackRest and the weekly restore drill. **In parallel, because of lead time: ABDM sandbox registration and WhatsApp template submission.** | A rebuild from `terraform apply` to serving traffic completes in under 20 minutes, and the restore drill passes unattended |
+| **M1 — Booking and money** | 4–8 | Clinic and practitioner setup; public portal in five languages (FR-1.1, FR-1.2); WhatsApp OTP (FR-1.4); slot search honouring the exclusion constraints (FR-1.5, BR-02); follow-up rule engine (BR-01); UPI deposits with webhook reconciliation; psychotherapy pre-payment and cancellation policy (BR-04) | A patient books, pays and receives a WhatsApp confirmation in Marathi; concurrent booking attempts on one chair produce exactly one appointment |
+| **M2 — The clinic floor** | 9–13 | Reception Kanban with realtime updates (FR-2.1, FR-2.4); two-input walk-in (FR-2.2); phone masking with audited unmask (FR-2.3); nurse vitals and alert tagging (FR-3.1, FR-3.2); **the offline layer** — Dexie mirror, service worker, sync queue, conflict resolution | A receptionist registers a walk-in in under 10 seconds; pulling the network cable leaves check-in, vitals and queue movement fully functional, and everything reconciles on reconnect |
+| **M3 — Dental vertical** | 14–18 | FDI odontogram (FR-4.1, FR-4.2); treatment plan generation (FR-4.3); lab tracker with WhatsApp dispatch (FR-4.4, FR-4.5); visiting consultant hub with calendar sync and fee-split ledger (FR-6.1 to FR-6.4, BR-03) | Charting tooth 16 produces a three-sitting plan, dispatches a lab order and credits the consultant ledger correctly |
+| **M4 — Mental health vertical** | 19–22 | Split-key Argon2id vault (FR-5.1, FR-5.2); SOAP editor with DSM-5 coding; GAD-7 and PHQ-9 tracking (FR-5.3); recurring series linked to pre-payment (FR-5.4) | An independent reviewer with full database access cannot recover note plaintext |
+| **M5 — Administration and ABDM** | 23–27 | Cash and UPI reconciliation (FR-7.1); ABDM M1/M2/M3 in production with the DHIS ledger (FR-7.2); chair-time profitability (FR-7.3); Phase 1 roadmap features — vernacular care drip and Dynamic Token Radar | ABDM production certification granted; a clinic's DHIS accrual reconciles line by line against NHA records |
+
+### 10.1 Compliance workstream
+
+Runs in parallel throughout, not as a phase.
+
+| Item | Requirement | Where satisfied |
+| --- | --- | --- |
+| Data residency | All data in India | OCI `ap-mumbai-1`; TLS terminated in-region (§5) |
+| Tenant isolation | Clinic data cannot cross tenants | Postgres Row-Level Security (§4.4.1) |
+| Contact protection | Reception cannot export patient lists | Column-level `REVOKE` (§4.4.1) |
+| Audit trail | Append-only, covers access and export | `audit_log` with `REVOKE UPDATE, DELETE` (§4.4.3) |
+| Clinical confidentiality | Admin staff cannot read therapy notes | Split-key client-side encryption (§4.4.4) |
+| Consent | Purpose limitation and withdrawal | Consent ledger per patient, M1 |
+| Breach notification | Reportable within the statutory window | Runbook, M5 |
+| ABDM | M1/M2/M3 certification | Sandbox from M0, production in M5 |
+
+---
+
+## 11. Risk Register  *(new in v2.0)*
+
+| # | Risk | Impact | Mitigation |
+| --- | --- | --- | --- |
+| R1 | OCI Ampere capacity unavailable in Mumbai | Blocks provisioning | Pay-as-you-go account from day one; Terraform retry; fallback to paid A1 at ~$55/month, still within budget |
+| R2 | Oracle terminates the account | Total loss of production | Pay-as-you-go with card on file; weekly verified restores; a documented and rehearsed migration to a second Indian provider |
+| R3 | Single host fails | Outage until rebuild | Offline-first client keeps clinics operating (§8.2); 20-minute automated rebuild; 5-minute RPO |
+| R4 | ABDM certification slips | Delays the DHIS revenue story that justifies pricing | Start in M0; the product remains saleable without it, at a weaker ROI pitch |
+| R5 | WhatsApp templates rejected | Blocks launch messaging | Submit in M0; retain a plain-SMS fallback path |
+| R6 | **DHIS scheme revised or withdrawn** | Undermines the core commercial pitch | Do not make DHIS the only ROI argument; chair-time profitability and no-show recovery must stand alone (§3.3) |
+| R7 | Konkani translation quality | Poor experience in a launch language | Budget for a native reviewer; treat Konkani as beta until reviewed |
+| R8 | Azure credits expire with production dependencies attached | Forced migration under pressure | The movable-in-an-afternoon rule (§5.5); production never runs on credits |
+| R9 | Offline sync conflicts corrupt clinical data | Patient safety issue | Per-field last-write-wins with vector clocks for operational data; clinical notes never auto-merge (§4.3) |
+| R10 | 2 OCPU insufficient sooner than projected | Degraded performance | Netdata alerting at 70% sustained CPU; vertical scale to 4/24 is a reboot, not a migration |
+
+### 11.1 Open questions
+
+1. **Payment service provider.** Requires a decision on settlement timing and per-transaction pricing; affects BR-04 refund handling.
+2. **Konkani reviewer.** No established vendor pool; likely requires a direct hire in Goa.
+3. **Microsoft for Startups Investor Network eligibility.** Determines whether $100,000 in Azure credits is available, which changes how much Speech-to-Rx research can be funded in Phase 1.
+4. **Pilot clinics.** Two dental and one mental health practice needed by M2 to validate the offline layer under real conditions.
+
+---
+
+## 12. Strategic Conclusion & Execution Mandate
+
+Generic scheduling tools fail in the Indian healthcare market because of low willingness to pay, commoditized alternatives, and an operational mismatch with high-velocity clinics.
+
+PractixOS establishes an enduring position by executing as a **verticalized Practice Operating System**. By integrating deeply into Indian operational realities — zero-app WhatsApp workflows, Indic languages, operatory chair and visiting consultant allocation, PIN-encrypted mental health documentation, and ABDM DHIS revenue generation — the platform becomes an indispensable practice engine rather than an easily discarded administrative cost.
+
+Version 2.0 adds the discipline that makes this survivable as a business. The architecture is entirely free and open source, running at ₹0 per month at pilot scale on infrastructure inside India, with a stated migration path at each stage of growth. The privacy guarantees are enforced by the database rather than asserted by the application. The availability claim is one the product can actually keep. And the design system gives the product a form that matches its thesis: built for Indian clinics, by people who looked closely at how they work.
+
+The remaining risk is execution speed on the two items with external lead times — **ABDM certification and WhatsApp template approval**. Both start in week one.

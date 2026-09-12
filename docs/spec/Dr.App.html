@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PractixOS — Multilingual Practice Operating System</title>
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-dark: #0369a1;
+      --primary-light: #e0f2fe;
+      --accent-dental: #0d9488;
+      --accent-dental-light: #ccfbf1;
+      --accent-mental: #7c3aed;
+      --accent-mental-light: #ede9fe;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font); }
+    body { background-color: var(--bg); color: var(--text); line-height: 1.5; padding-bottom: 60px; }
+
+    /* Top Global Navigation Bar */
+    .top-nav {
+      background-color: #0f172a;
+      color: white;
+      padding: 12px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand { font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px; color: #38bdf8; }
+    .brand span { color: #94a3b8; font-weight: 400; font-size: 0.8rem; }
+    .persona-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+    .persona-btn {
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .persona-btn:hover { background: #334155; color: white; }
+    .persona-btn.active { background: var(--primary); color: white; border-color: var(--primary-dark); }
+    .persona-btn.dental.active { background: var(--accent-dental); border-color: #0f766e; }
+    .persona-btn.mental.active { background: var(--accent-mental); border-color: #6d28d9; }
+
+    /* Containers */
+    .container { max-width: 1280px; margin: 20px auto; padding: 0 16px; }
+    .view-panel { display: none; }
+    .view-panel.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Card System */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 20px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+    .card-title { font-size: 1.15rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .card-desc { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* Language Switcher Bar */
+    .lang-selector-bar {
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px;
+      margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    }
+    .lang-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .lang-pill {
+      background: white; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 20px;
+      font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: 0.15s;
+    }
+    .lang-pill:hover { border-color: var(--primary); }
+    .lang-pill.active { background: var(--primary); color: white; border-color: var(--primary-dark); }
+
+    /* Badges */
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .badge-warning { background: #fef3c7; color: #b45309; }
+    .badge-danger { background: #fee2e2; color: #b91c1c; }
+    .badge-primary { background: var(--primary-light); color: var(--primary-dark); }
+    .badge-dental { background: var(--accent-dental-light); color: #0f766e; }
+    .badge-mental { background: var(--accent-mental-light); color: #6d28d9; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+      cursor: pointer; border: none; transition: background-color 0.2s, transform 0.1s;
+      min-height: 42px; text-decoration: none;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-dental { background: var(--accent-dental); color: white; }
+    .btn-dental:hover { background: #0f766e; }
+    .btn-mental { background: var(--accent-mental); color: white; }
+    .btn-mental:hover { background: #6d28d9; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: #f1f5f9; }
+    .btn-sm { padding: 5px 10px; font-size: 0.78rem; min-height: 32px; }
+
+    /* Grid helpers */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+
+    /* Forms */
+    .form-group { margin-bottom: 12px; }
+    .form-label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; color: #334155; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 7px; font-size: 0.88rem; background: white;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); }
+
+    /* Reception Kanban */
+    .kanban-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; }
+    .kanban-col { background: #f1f5f9; border-radius: 10px; padding: 12px; border: 1px solid #e2e8f0; }
+    .kanban-col-title { font-size: 0.82rem; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .patient-card {
+      background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px;
+      margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: 0.15s;
+    }
+    .patient-card:hover { border-color: var(--primary); }
+    .patient-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+    .patient-name { font-weight: 700; font-size: 0.92rem; }
+    .patient-meta { font-size: 0.78rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 3px; }
+    .kanban-actions { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0; flex-wrap: wrap; }
+
+    /* Odontogram */
+    .odontogram-wrapper { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin: 16px 0; }
+    .odontogram-grid { display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; overflow-x: auto; padding-bottom: 8px; }
+    .tooth-box {
+      border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 2px; text-align: center;
+      background: white; cursor: pointer; transition: all 0.15s; min-width: 44px;
+    }
+    .tooth-box:hover { border-color: var(--accent-dental); transform: translateY(-2px); }
+    .tooth-num { font-size: 0.72rem; font-weight: 800; color: #475569; }
+    .tooth-icon { font-size: 1.25rem; margin: 2px 0; display: block; }
+    .tooth-status { font-size: 0.62rem; font-weight: 600; padding: 2px 3px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tooth-status.healthy { color: var(--success); background: #f0fdf4; }
+    .tooth-status.decay { color: var(--danger); background: #fef2f2; }
+    .tooth-status.rct { color: var(--warning); background: #fffbeb; }
+    .tooth-status.crown { color: var(--accent-dental); background: #f0fdfa; }
+
+    /* WhatsApp Simulator */
+    .phone-simulator {
+      max-width: 360px; margin: 0 auto; background: #e5ddd5; border-radius: 26px;
+      border: 8px solid #1f2937; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    .phone-notch { background: #1f2937; height: 16px; width: 130px; margin: 0 auto; border-radius: 0 0 10px 10px; }
+    .wa-header { background: #075e54; color: white; padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+    .wa-avatar { width: 34px; height: 34px; border-radius: 50%; background: #25d366; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+    .wa-chat-body { padding: 12px; height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.82rem; }
+    .wa-bubble { max-width: 88%; padding: 8px 10px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative; }
+    .wa-bubble.in { background: white; align-self: flex-start; border-top-left-radius: 0; }
+    .wa-bubble.out { background: #dcf8c6; align-self: flex-end; border-top-right-radius: 0; }
+    .wa-time { font-size: 0.62rem; color: #94a3b8; text-align: right; margin-top: 3px; }
+    .wa-action-btn {
+      display: block; width: 100%; margin-top: 6px; padding: 7px; background: white; border: 1px solid #25d366;
+      color: #075e54; font-weight: 700; border-radius: 5px; text-align: center; cursor: pointer; text-decoration: none; font-size: 0.78rem;
+    }
+    .wa-audio-pill {
+      display: flex; align-items: center; gap: 8px; background: #f0fdf4; border: 1px solid #86efac;
+      padding: 6px 10px; border-radius: 20px; margin-top: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 700; color: #15803d;
+    }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.6);
+      display: none; align-items: center; justify-content: center; z-index: 2000; padding: 16px;
+    }
+    .modal-backdrop.active { display: flex; }
+    .modal-content { background: white; border-radius: 12px; max-width: 520px; width: 100%; padding: 22px; max-height: 90vh; overflow-y: auto; }
+
+    /* Calendar Grid */
+    .calendar-matrix { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .cal-day-header { font-weight: 700; text-align: center; font-size: 0.78rem; color: #64748b; padding: 4px 0; }
+    .cal-cell { min-height: 90px; border: 1px solid var(--border); border-radius: 6px; padding: 6px; background: white; }
+    .cal-cell.today { border-color: var(--primary); background: #f0f9ff; }
+    .cal-date { font-weight: 700; font-size: 0.78rem; margin-bottom: 4px; }
+    .cal-event {
+      font-size: 0.68rem; padding: 3px 4px; border-radius: 4px; margin-bottom: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .cal-event.internal { background: #dbeafe; color: #1e40af; border-left: 2px solid #2563eb; }
+    .cal-event.google { background: #fef3c7; color: #92400e; border-left: 2px solid #d97706; }
+    .cal-event.outlook { background: #e0e7ff; color: #3730a3; border-left: 2px solid #4f46e5; }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .persona-tabs { overflow-x: auto; width: 100%; }
+      .calendar-matrix { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Global Persona Switcher -->
+  <header class="top-nav">
+    <div class="brand">
+      🏥 PractixOS <span>| Indic Multilingual Practice OS</span>
+    </div>
+    <nav class="persona-tabs">
+      <button class="persona-btn active" onclick="switchView('patient-portal-view', this)">
+        🌐 1. Patient Portal & Lookup
+      </button>
+      <button class="persona-btn" onclick="switchView('reception-view', this)">
+        📋 2. Reception & Nurse Queue
+      </button>
+      <button class="persona-btn dental" onclick="switchView('dental-view', this)">
+        🦷 3. Dental & Lab Chamber
+      </button>
+      <button class="persona-btn mental" onclick="switchView('mental-view', this)">
+        🧠 4. Mental Health Vault
+      </button>
+      <button class="persona-btn" onclick="switchView('consultant-view', this)">
+        🚗 5. Visiting MDS Specialist
+      </button>
+      <button class="persona-btn" onclick="switchView('admin-view', this)">
+        📊 6. Admin & ABDM DHIS
+      </button>
+      <button class="persona-btn" onclick="switchView('whatsapp-view', this)">
+        📱 7. Patient WhatsApp & Voice
+      </button>
+    </nav>
+  </header>
+
+  <main class="container">
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 1: PATIENT PUBLIC PORTAL & DOCTOR LOOKUP (MULTILINGUAL)              -->
+    <!-- ========================================================================= -->
+    <section id="patient-portal-view" class="view-panel active">
+      <!-- Language Selector Header -->
+      <div class="lang-selector-bar">
+        <div style="font-size:0.85rem; font-weight:700; color:#1e40af; display:flex; align-items:center; gap:6px;">
+          🗣️ Choose Patient Language / भाषा निवडा / భాషను ఎంచుకోండి / ভাষা নির্বাচন করুন:
+        </div>
+        <div class="lang-pills">
+          <button class="lang-pill active" onclick="setLanguage('en', this)">English</button>
+          <button class="lang-pill" onclick="setLanguage('mr', this)">मराठी (Marathi)</button>
+          <button class="lang-pill" onclick="setLanguage('te', this)">తెలుగు (Telugu)</button>
+          <button class="lang-pill" onclick="setLanguage('bn', this)">বাংলা (Bengali)</button>
+          <button class="lang-pill" onclick="setLanguage('kok', this)">कोंकणी (Konkani)</button>
+        </div>
+      </div>
+
+      <div class="card" style="border-top: 4px solid var(--primary);">
+        <div class="card-header">
+          <div>
+            <span class="badge badge-primary" id="i18n-no-app">Zero App Download Required</span>
+            <h2 class="card-title" id="i18n-clinic-name" style="margin-top:4px;">Aarav Dental Arts & Wellness Polyclinic</h2>
+            <p class="card-desc" id="i18n-clinic-subtitle">Indiranagar 100ft Road, Bengaluru • ⭐ 4.9 (420+ Reviews) • ABDM M2 Certified</p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="alert('Digital ABHA Health Locker linked. ABHA: 91-8842-1920-4102')">🏛️ Link ABHA ID</button>
+          </div>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:16px;">
+          <div class="grid-3">
+            <div>
+              <label class="form-label" id="i18n-search-label">🔍 Search by Concern, Symptom or Doctor:</label>
+              <input type="text" class="form-input" id="doctor-search-input" placeholder="e.g. Toothache, Root Canal, Anxiety..." onkeyup="filterDoctors()">
+            </div>
+            <div>
+              <label class="form-label" id="i18n-cat-label">Specialty Category:</label>
+              <select class="form-select" id="specialty-filter" onchange="filterDoctors()">
+                <option value="all" id="i18n-opt-all">All Specialties</option>
+                <option value="dental" id="i18n-opt-dental">Dentistry & Oral Surgery</option>
+                <option value="mental" id="i18n-opt-mental">Psychology & Counseling</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" id="i18n-mode-label">Consultation Mode:</label>
+              <select class="form-select" id="mode-filter" onchange="filterDoctors()">
+                <option value="all" id="i18n-opt-mode-all">In-Clinic Visit or Video Call</option>
+                <option value="clinic" id="i18n-opt-mode-clinic">In-Clinic Visit Only</option>
+                <option value="video" id="i18n-opt-mode-video">Telehealth Video Call Only</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Doctor Cards Carousel -->
+        <div class="grid-2" id="doctor-list">
+          <!-- Doctor 1 (Dental) -->
+          <div class="card doc-item" data-specialty="dental" data-mode="clinic" data-name="dr aarav sharma bds toothache दातदुखी పంటి నొప్పి দাঁতের ব্যথা दांत दुखप">
+            <div style="display:flex; gap:14px;">
+              <div style="width:60px; height:60px; border-radius:50%; background:#e0f2fe; display:flex; align-items:center; justify-content:center; font-size:1.8rem; flex-shrink:0;">👨‍⚕️</div>
+              <div style="flex:1;">
+                <div style="display:flex; justify-content:space-between;">
+                  <h3 style="font-size:1rem; font-weight:700;" id="i18n-doc1-name">Dr. Aarav Sharma, BDS</h3>
+                  <span class="badge badge-dental" id="i18n-doc1-badge">Dental Lead</span>
+                </div>
+                <p style="font-size:0.78rem; color:#64748b;" id="i18n-doc1-sub">General Dentistry & Implants • 12 Yrs Exp • Speaks: Marathi, Kannada, Hindi, Eng</p>
+                <div style="margin-top:6px; font-size:0.8rem; color:#0f766e; font-weight:600;" id="i18n-doc1-chair">
+                  📍 Operatory Chair 1 • Next Available: Today, 04:30 PM
+                </div>
+                <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:700; font-size:0.9rem;">₹500 <span style="font-weight:400; font-size:0.75rem; color:#64748b;" id="i18n-doc1-fee">(Checkup Fee)</span></span>
+                  <button class="btn btn-dental btn-sm" id="i18n-doc1-btn" onclick="startBookingFlow('Dr. Aarav Sharma', 500)">Select Slot →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Doctor 2 (Mental Health) -->
+          <div class="card doc-item" data-specialty="mental" data-mode="video clinic" data-name="dr ananya iyer phd psychology anxiety मानसिक ताण ఆందోళన উদ্বেগ मनाची चिंता">
+            <div style="display:flex; gap:14px;">
+              <div style="width:60px; height:60px; border-radius:50%; background:#ede9fe; display:flex; align-items:center; justify-content:center; font-size:1.8rem; flex-shrink:0;">👩‍⚕️</div>
+              <div style="flex:1;">
+                <div style="display:flex; justify-content:space-between;">
+                  <h3 style="font-size:1rem; font-weight:700;" id="i18n-doc2-name">Dr. Ananya Iyer, PhD</h3>
+                  <span class="badge badge-mental" id="i18n-doc2-badge">Clinical Psychologist</span>
+                </div>
+                <p style="font-size:0.78rem; color:#64748b;" id="i18n-doc2-sub">CBT, Anxiety & Trauma Care • 9 Yrs Exp • Speaks: Bengali, Telugu, Hindi, Eng</p>
+                <div style="margin-top:6px; font-size:0.8rem; color:#6d28d9; font-weight:600;" id="i18n-doc2-chair">
+                  🔒 Private Suite 1 / Video • Next: Tomorrow 11:30 AM
+                </div>
+                <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:700; font-size:0.9rem;">₹1,800 <span style="font-weight:400; font-size:0.75rem; color:#64748b;" id="i18n-doc2-fee">(50 min Session)</span></span>
+                  <button class="btn btn-mental btn-sm" id="i18n-doc2-btn" onclick="startBookingFlow('Dr. Ananya Iyer', 1800)">Select Slot →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Follow-Up Pricing Simulator -->
+        <div style="margin-top:20px; padding:16px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px;">
+          <h4 style="font-size:0.9rem; font-weight:700; color:#0369a1; margin-bottom:8px;" id="i18n-followup-header">
+            ⚡ Dynamic Follow-Up Rule Check (7-Day Policy Engine)
+          </h4>
+          <div class="grid-2" style="align-items:center;">
+            <div>
+              <label class="form-label" id="i18n-history-label">Select Patient Past History:</label>
+              <select class="form-select" id="patient-history-sim" onchange="runFollowUpRule()">
+                <option value="new" id="i18n-hist-new">New Patient (First Visit)</option>
+                <option value="recent" id="i18n-hist-recent">Returning: Visited 4 Days Ago (Within 7-Day Free Window)</option>
+                <option value="expired" id="i18n-hist-expired">Returning: Visited 12 Days Ago (Beyond 7-Day Window)</option>
+              </select>
+            </div>
+            <div style="background:white; padding:12px; border-radius:6px; border:1px solid #cbd5e1;">
+              <div style="font-size:0.8rem; color:#64748b;" id="i18n-fee-label">Computed Fee by Clinic Policy:</div>
+              <div style="font-size:1.25rem; font-weight:800;" id="portal-computed-fee">₹500</div>
+              <div style="font-size:0.75rem; color:#059669;" id="portal-computed-reason">Standard Consultation Fee</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 2: RECEPTION & NURSE WORKSPACE (KANBAN & DPDP MASKING)               -->
+    <!-- ========================================================================= -->
+    <section id="reception-view" class="view-panel">
+      <div class="card" style="border-left: 4px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h2 style="font-size:1.2rem; font-weight:800; color:#0369a1;">Front-Desk Queue & Clinical Vitals Desk</h2>
+            <p style="font-size:0.82rem; color:#64748b;">
+              Receptionist: <strong>Kavita</strong> | Triage Nurse: <strong>Sister Mary</strong> | Data Masking: <span style="color:#15803d; font-weight:700;">DPDP 2023 Active</span>
+            </p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="togglePhoneMasking()">👁️ Toggle Phone Masking</button>
+            <button class="btn btn-primary btn-sm" onclick="openModal('quick-booking-modal')">⚡ 2-Input Walk-in (+ Book)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reception Kanban -->
+      <div class="kanban-grid">
+        <!-- Col 1: Expected -->
+        <div class="kanban-col">
+          <div class="kanban-col-title">
+            <span>📅 Expected Today (<span id="reception-sched-count">3</span>)</span>
+            <span class="badge badge-primary">Auto-Reminded</span>
+          </div>
+
+          <!-- Patil (Marathi Persona) -->
+          <div class="patient-card" id="card-rec-patil">
+            <div class="patient-card-header">
+              <span class="patient-name">Baburao Patil (59/M)</span>
+              <span class="badge badge-warning">मराठी (PhonePe)</span>
+            </div>
+            <div class="patient-meta">
+              <span>⏰ 10:30 AM (Chair 1 - Dr. Sharma)</span>
+              <span class="phone-masked-text" data-full="+91 98220-44910">📱 +91 98220-•••10</span>
+              <span style="color:#0d9488; font-weight:600;">🦷 Molar Pain / RCT Sitting 1</span>
+              <span style="color:#15803d;">💳 Pre-Paid ₹500 via UPI</span>
+            </div>
+            <div class="kanban-actions">
+              <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openVitalsModal('Baburao Patil')">🩺 Log Vitals</button>
+              <button class="btn btn-primary btn-sm" style="flex:1;" onclick="moveCard('card-rec-patil', 'col-reception-wait', 'Waiting')">Check In →</button>
+            </div>
+          </div>
+
+          <!-- Anjali Das (Bengali Persona) -->
+          <div class="patient-card" id="card-rec-anjali">
+            <div class="patient-card-header">
+              <span class="patient-name">Anjali Das (34/F)</span>
+              <span class="badge badge-primary">বাংলা (Voice Note)</span>
+            </div>
+            <div class="patient-meta">
+              <span>⏰ 11:15 AM (Chair 2 - Dr. Sharma)</span>
+              <span class="phone-masked-text" data-full="+91 94330-88129">📱 +91 94330-•••29</span>
+              <span style="color:#059669; font-weight:600;">⚡ Free Follow-up (Day 4) - ₹0</span>
+              <span class="badge badge-success" style="width:fit-content;">Voice Audio Heard</span>
+            </div>
+            <div class="kanban-actions">
+              <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openVitalsModal('Anjali Das')">🩺 Log Vitals</button>
+              <button class="btn btn-primary btn-sm" style="flex:1;" onclick="moveCard('card-rec-anjali', 'col-reception-wait', 'Waiting')">Check In →</button>
+            </div>
+          </div>
+
+          <!-- Venkat Reddy (Telugu Persona) -->
+          <div class="patient-card" id="card-rec-reddy">
+            <div class="patient-card-header">
+              <span class="patient-name">Venkat S. Reddy (48/M)</span>
+              <span class="badge badge-dental">తెలుగు (Guntur)</span>
+            </div>
+            <div class="patient-meta">
+              <span>⏰ 04:00 PM (Chair 1)</span>
+              <span class="phone-masked-text" data-full="+91 98480-11234">📱 +91 98480-•••34</span>
+              <span style="color:#b45309; font-weight:600;">🦷 Crown Impression check</span>
+            </div>
+            <div class="kanban-actions">
+              <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openVitalsModal('Venkat S. Reddy')">🩺 Log Vitals</button>
+              <button class="btn btn-primary btn-sm" style="flex:1;" onclick="moveCard('card-rec-reddy', 'col-reception-wait', 'Waiting')">Check In →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 2: Waiting -->
+        <div class="kanban-col" id="col-reception-wait">
+          <div class="kanban-col-title">
+            <span>⏳ Waiting Area (<span id="reception-wait-count">1</span>)</span>
+            <span class="badge badge-warning">Tokens Active</span>
+          </div>
+
+          <div class="patient-card" id="card-rec-shenoy">
+            <div class="patient-card-header">
+              <span class="patient-name">P. Shenoy (54/M)</span>
+              <span class="badge badge-warning">कोंकणी Token #4</span>
+            </div>
+            <div class="patient-meta">
+              <span>⏰ Arrived: 10:10 AM (Wait: 12 min)</span>
+              <span class="phone-masked-text" data-full="+91 98230-77112">📱 +91 98230-•••12</span>
+              <span style="color:#0f766e; font-weight:600;">Vitals: BP 128/84 | Pulse 72</span>
+              <span>Visiting MDS Case: Crown Prep</span>
+            </div>
+            <div class="kanban-actions">
+              <button class="btn btn-dental btn-sm" style="flex:1;" onclick="moveCard('card-rec-shenoy', 'col-reception-chamber', 'Chamber')">Call Chair 1 →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 3: In Chamber -->
+        <div class="kanban-col" id="col-reception-chamber">
+          <div class="kanban-col-title">
+            <span>🩺 In Consultation (<span id="reception-chamber-count">1</span>)</span>
+            <span class="badge badge-success">Doctors Active</span>
+          </div>
+
+          <div class="patient-card" id="card-rec-active">
+            <div class="patient-card-header">
+              <span class="patient-name">Sunita Mehra (29/F)</span>
+              <span class="badge badge-mental">Room 2</span>
+            </div>
+            <div class="patient-meta">
+              <span>👩‍⚕️ With: Dr. Ananya Iyer</span>
+              <span>Session: CBT Anxiety (Slot 4/8)</span>
+              <span>In Room: 28 mins</span>
+            </div>
+            <div class="kanban-actions">
+              <button class="btn btn-outline btn-sm" style="flex:1;" onclick="moveCard('card-rec-active', 'col-reception-bill', 'Billing')">Send to Billing →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 4: Billing -->
+        <div class="kanban-col" id="col-reception-bill">
+          <div class="kanban-col-title">
+            <span>💳 Billing & Exit (<span id="reception-bill-count">1</span>)</span>
+            <span class="badge badge-primary">Instant UPI</span>
+          </div>
+
+          <div class="patient-card" id="card-rec-done">
+            <div class="patient-card-header">
+              <span class="patient-name">Rahul Verma (34/M)</span>
+              <span class="badge badge-success">Completed</span>
+            </div>
+            <div class="patient-meta">
+              <span>Total Bill: ₹2,000 | Paid: ₹2,000 (UPI)</span>
+              <span style="color:#059669;">📲 Marathi/English Invoice Sent</span>
+              <span style="color:#2563eb;">🏛️ ABDM FHIR Bundle Pushed (+₹20 DHIS)</span>
+            </div>
+            <div class="kanban-actions">
+              <button class="btn btn-outline btn-sm" style="flex:1;" onclick="alert('Digital receipt resent to WhatsApp: +91 98765-•••21')">Resend WhatsApp</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 3: DENTAL CHAMBER (ODONTOGRAM, LAB, VISITING CONSULTANT)             -->
+    <!-- ========================================================================= -->
+    <section id="dental-view" class="view-panel">
+      <div class="card" style="border-left: 4px solid var(--accent-dental);">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" style="color:var(--accent-dental);">🦷 Dental Operatory Console — Chair 1</h2>
+            <p class="card-desc">Patient: <strong>Baburao Patil (59/M)</strong> | Doctor: <strong>Dr. Aarav Sharma (BDS)</strong> | Assistant: <strong>Sister Mary</strong></p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <span class="badge badge-dental">FDI 2-Digit Chart</span>
+            <button class="btn btn-dental btn-sm" onclick="saveOdontogramPlan()">💾 Save Treatment Sheet</button>
+          </div>
+        </div>
+
+        <!-- Odontogram Chart -->
+        <div class="odontogram-wrapper">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h4 style="font-size:0.85rem; font-weight:700; color:#334155;">Interactive Graphical Odontogram (Click tooth to cycle diagnosis):</h4>
+            <div style="font-size:0.75rem; color:#64748b;">
+              <span style="color:#10b981; font-weight:700;">● Healthy</span> |
+              <span style="color:#ef4444; font-weight:700;">● Caries</span> |
+              <span style="color:#f59e0b; font-weight:700;">● RCT</span> |
+              <span style="color:#0d9488; font-weight:700;">● Crown</span>
+            </div>
+          </div>
+
+          <div style="font-size:0.72rem; font-weight:800; color:#64748b; text-align:center; margin:4px 0;">UPPER ARCH (MAXILLARY)</div>
+          <div class="odontogram-grid" id="upper-teeth-grid"></div>
+
+          <div style="font-size:0.72rem; font-weight:800; color:#64748b; text-align:center; margin:8px 0 4px 0;">LOWER ARCH (MANDIBULAR)</div>
+          <div class="odontogram-grid" id="lower-teeth-grid"></div>
+        </div>
+
+        <!-- Treatment Plan & Lab Tracker -->
+        <div class="grid-2">
+          <!-- Phased Treatment Plan -->
+          <div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:14px;">
+            <h4 style="font-size:0.9rem; font-weight:700; color:var(--accent-dental); margin-bottom:10px;">
+              Phased Multi-Sitting Treatment Schedule
+            </h4>
+            <table style="width:100%; font-size:0.82rem; border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
+                  <th style="padding:6px;">Sitting</th>
+                  <th>Procedure</th>
+                  <th>Fee</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="treatment-table-body">
+                <tr style="border-bottom:1px solid #f1f5f9; background:#f0fdfa;">
+                  <td style="padding:6px;"><strong>Sitting 1 (Today)</strong></td>
+                  <td>Biomechanical Prep & Pulpectomy (#16)</td>
+                  <td>₹2,500</td>
+                  <td><span class="badge badge-warning">In Chair</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                  <td style="padding:6px;"><strong>Sitting 2</strong></td>
+                  <td>Obturation & Composite Core (#16)</td>
+                  <td>₹2,000</td>
+                  <td><span class="badge badge-primary">Next Thu</span></td>
+                </tr>
+                <tr>
+                  <td style="padding:6px;"><strong>Sitting 3</strong></td>
+                  <td>Zirconia Crown Fixation (#16)</td>
+                  <td>₹4,500</td>
+                  <td><span class="badge badge-outline">Pending</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="margin-top:12px; font-weight:700; font-size:0.82rem; display:flex; justify-content:space-between; border-top:1px solid #cbd5e1; padding-top:8px;">
+              <span>Total Estimate: ₹9,000</span>
+              <span style="color:#0f766e;">Marathi Patient Summary Generated</span>
+            </div>
+          </div>
+
+          <!-- Dental Lab Order Tracker -->
+          <div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:14px;">
+            <h4 style="font-size:0.9rem; font-weight:700; color:#0f766e; margin-bottom:10px;">
+              Dental Lab Orders & External Fabrication
+            </h4>
+            <div style="background:white; border:1px solid #cbd5e1; border-radius:6px; padding:10px; margin-bottom:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                  <strong>Apex Dental Ceramics, Pune</strong>
+                  <div style="font-size:0.75rem; color:#64748b;">Job #LAB-904: Tooth #16 Zirconia (Shade A2)</div>
+                  <div style="font-size:0.75rem; color:#64748b;">For: <strong>Premanand Shenoy</strong> • Due: <strong>11 Sep, 02:00 PM</strong></div>
+                </div>
+                <span class="badge badge-warning">In Fabrication</span>
+              </div>
+              <div style="margin-top:8px; display:flex; gap:6px;">
+                <button class="btn btn-outline btn-sm" style="flex:1;" onclick="alert('WhatsApp status ping sent to Apex Lab.')">📲 Ping Lab WhatsApp</button>
+                <button class="btn btn-dental btn-sm" style="flex:1;" onclick="alert('Crown marked received and ready in clinic.')">Mark Received</button>
+              </div>
+            </div>
+
+            <button class="btn btn-outline btn-sm" style="width:100%;" onclick="openModal('new-lab-order-modal')">
+              ➕ Dispatch New Lab Order
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 4: MENTAL HEALTH VAULT (PIN ENCRYPTION & SOAP NOTES)                 -->
+    <!-- ========================================================================= -->
+    <section id="mental-view" class="view-panel">
+      <div class="card" style="border-left: 4px solid var(--accent-mental);">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" style="color:var(--accent-mental);">🧠 Psychotherapy Clinical Vault — Zero-Knowledge Layer</h2>
+            <p class="card-desc">Therapist: <strong>Dr. Ananya Iyer, PhD</strong> | Client: <strong>Sunita Mehra (29/F)</strong> | DPDP Purpose Limitation: <span style="color:#6d28d9; font-weight:700;">Active</span></p>
+          </div>
+          <div>
+            <button class="btn btn-outline btn-sm" id="vault-toggle-btn" onclick="toggleVaultLock()">🔒 Lock Vault</button>
+          </div>
+        </div>
+
+        <!-- Locked Vault State -->
+        <div id="vault-locked-box" style="text-align:center; padding:50px 20px; display:none;">
+          <div style="font-size:3rem; margin-bottom:8px;">🔐</div>
+          <h3 style="font-weight:700; color:#1e293b;">Vault is Sealed for Client Confidentiality</h3>
+          <p style="font-size:0.82rem; color:#64748b; margin-bottom:14px;">Enter your clinical secondary PIN to decrypt psychotherapy formulations and psychometrics.</p>
+          <input type="password" id="vault-pin-field" placeholder="Enter PIN (Demo: 1234)" style="padding:9px; border:1px solid #cbd5e1; border-radius:6px; width:170px; text-align:center; font-size:1.1rem; margin-right:8px;">
+          <button class="btn btn-mental" onclick="unlockVault()">Decrypt Notes</button>
+        </div>
+
+        <!-- Decrypted Vault Content -->
+        <div id="vault-unlocked-box">
+          <div class="grid-3" style="margin-bottom:14px;">
+            <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <span style="font-size:0.72rem; color:#64748b; font-weight:700;">STANDARDIZED ASSESSMENT</span>
+              <div style="font-size:1.1rem; font-weight:800; color:#7c3aed; margin-top:2px;">GAD-7 Score: 14/21</div>
+              <span class="badge badge-warning" style="margin-top:2px;">Moderate Anxiety</span>
+            </div>
+            <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <span style="font-size:0.72rem; color:#64748b; font-weight:700;">SESSION CADENCE</span>
+              <div style="font-size:0.95rem; font-weight:700; margin-top:2px;">Weekly Thursdays, 11:30 AM</div>
+              <span style="font-size:0.75rem; color:#64748b;">Slot 4 of 8 booked • Auto-recurs</span>
+            </div>
+            <div style="background:white; border:1px solid var(--border); border-radius:8px; padding:12px;">
+              <span style="font-size:0.72rem; color:#64748b; font-weight:700;">PRE-PAYMENT / NO-SHOW POLICY</span>
+              <div style="font-size:0.95rem; font-weight:700; color:#15803d; margin-top:2px;">100% Upfront UPI (Paid)</div>
+              <span style="font-size:0.72rem; color:#b91c1c;">No refunds if &lt;24h notice</span>
+            </div>
+          </div>
+
+          <!-- Structured SOAP Note Editor -->
+          <div class="form-group">
+            <label class="form-label" style="font-weight:700;">Psychotherapy Progress Record (SOAP Architecture):</label>
+            <div class="grid-2">
+              <div>
+                <label style="font-size:0.75rem; font-weight:700; color:#64748b;">SUBJECTIVE (Patient Narrative & Mood Log)</label>
+                <textarea class="form-textarea" rows="4">Client reports sleep latency improved. Continues to experience anticipatory work dread regarding upcoming team appraisal presentations.</textarea>
+              </div>
+              <div>
+                <label style="font-size:0.75rem; font-weight:700; color:#64748b;">OBJECTIVE (Observed Affect & Clinical Metrics)</label>
+                <textarea class="form-textarea" rows="4">Punctual. Maintained good eye contact throughout 50 min block. Normal rate/tone of speech. Mild restlessness when discussing career milestones.</textarea>
+              </div>
+            </div>
+            <div class="grid-2" style="margin-top:10px;">
+              <div>
+                <label style="font-size:0.75rem; font-weight:700; color:#64748b;">ASSESSMENT (Clinical Formulation & DSM-5 Mapping)</label>
+                <textarea class="form-textarea" rows="3">F41.1 (Generalized Anxiety Disorder). Catastrophizing cognitive distortion active around workplace appraisals. Good engagement with CBT model.</textarea>
+              </div>
+              <div>
+                <label style="font-size:0.75rem; font-weight:700; color:#64748b;">PLAN (Interventions & Next Session)</label>
+                <textarea class="form-textarea" rows="3">1. Thought-record worksheet for cognitive restructuring.
+2. Progressive muscle relaxation exercises.
+3. Next in-person session confirmed for Thu 17 Sep, 11:30 AM.</textarea>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+            <button class="btn btn-outline" onclick="alert('Session draft saved offline in encrypted IndexedDB.')">💾 Save Offline Draft</button>
+            <button class="btn btn-mental" onclick="alert('Note sealed with digital signature. Hidden from front-desk staff.')">🔒 Encrypt & Seal Clinical Note</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 5: VISITING MDS SPECIALIST HUB (DR. KUNAL MEHTA)                     -->
+    <!-- ========================================================================= -->
+    <section id="consultant-view" class="view-panel">
+      <div class="card" style="border-left: 4px solid #f59e0b;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" style="color:#b45309;">🚗 Visiting MDS Specialist Hub — Dr. Kunal Mehta (Endodontics)</h2>
+            <p class="card-desc">Multi-Clinic Day Itinerary • 2-Way Calendar Engine • Automatic 60/40 Fee Split Settlement</p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <span class="badge badge-warning">6 Partner Clinics</span>
+            <button class="btn btn-outline btn-sm" onclick="openModal('calendar-sync-modal')">🔄 Test Google/Outlook Sync</button>
+          </div>
+        </div>
+
+        <!-- Today's Multi-Clinic Itinerary -->
+        <div class="grid-2" style="margin-bottom:16px;">
+          <div style="background:#fffbeb; border:1px solid #fef3c7; border-radius:8px; padding:14px;">
+            <h4 style="font-size:0.88rem; font-weight:700; color:#92400e; margin-bottom:8px;">📍 Morning Route: Aarav Dental Arts (10:00 AM – 01:30 PM)</h4>
+            <div style="font-size:0.8rem; color:#475569;">
+              <div>• 10:30 AM — Baburao Patil (Chair 1) — Molar RCT Sitting 1</div>
+              <div>• 11:45 AM — Premanand Shenoy (Chair 1) — Crown Preparation</div>
+              <div>• 12:45 PM — Arvind Swamy (Chair 2) — Re-RCT Evaluation</div>
+            </div>
+          </div>
+
+          <div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:14px;">
+            <h4 style="font-size:0.88rem; font-weight:700; color:#334155; margin-bottom:8px;">📍 Afternoon Route: Smile Care Polyclinic (03:00 PM – 07:00 PM)</h4>
+            <div style="font-size:0.8rem; color:#475569;">
+              <div>• 03:15 PM — S. Jayaram (Chair 3) — Rotary Endodontics</div>
+              <div>• 04:30 PM — <em>Blocked (External Calendar Sync: Hospital Duty)</em></div>
+              <div>• 05:45 PM — Anita Das (Chair 1) — Single-Sitting RCT</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visiting Consultant Fee Split Ledger -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title" style="font-size:1rem;">💰 Weekly Fee-Split Collections Ledger</h3>
+            <span style="font-size:0.8rem; color:#64748b;">Agreed Terms: <strong>60% Doctor / 40% Clinic</strong> (After deducting lab costs)</span>
+          </div>
+          <table style="width:100%; font-size:0.82rem; border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:2px solid #e2e8f0; text-align:left;">
+                <th style="padding:6px;">Date</th>
+                <th>Clinic</th>
+                <th>Patient & Procedure</th>
+                <th>Total Collected</th>
+                <th>Lab/Material Deduction</th>
+                <th>Doctor Share (60%)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:6px;">10 Sep</td>
+                <td>Aarav Dental</td>
+                <td>Baburao Patil — RCT Sitting 1</td>
+                <td>₹2,500</td>
+                <td>₹250</td>
+                <td style="font-weight:700; color:#15803d;">₹1,350</td>
+                <td><span class="badge badge-success">Auto-Approved</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:6px;">08 Sep</td>
+                <td>Smile Care</td>
+                <td>Kavita Rao — Molar Retreatment</td>
+                <td>₹4,500</td>
+                <td>₹500</td>
+                <td style="font-weight:700; color:#15803d;">₹2,400</td>
+                <td><span class="badge badge-success">Settled via UPI</span></td>
+              </tr>
+              <tr>
+                <td style="padding:6px;">07 Sep</td>
+                <td>Aarav Dental</td>
+                <td>Premanand Shenoy — Impression</td>
+                <td>₹3,000</td>
+                <td>₹300</td>
+                <td style="font-weight:700; color:#15803d;">₹1,620</td>
+                <td><span class="badge badge-success">Settled via UPI</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top:12px; display:flex; justify-content:space-between; font-weight:700; font-size:0.88rem; padding-top:8px; border-top:1px solid #cbd5e1;">
+            <span>Week Payout Accrued: ₹5,370</span>
+            <button class="btn btn-outline btn-sm" onclick="alert('Payout export generated in PDF/Excel for accountant reconciliation.')">📥 Download Payout Statement</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 6: CLINIC ADMIN, ABDM DHIS ARBITRAGE & CHAIR PROFITABILITY           -->
+    <!-- ========================================================================= -->
+    <section id="admin-view" class="view-panel">
+      <!-- Master Calendar Matrix -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">📅 Master Operatory Calendar & Sync Engine</h2>
+            <p class="card-desc">Real-time two-way synchronization with Google Calendar and Microsoft Outlook.</p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <span class="badge" style="background:#e0e7ff; color:#3730a3;">Outlook Connected</span>
+            <span class="badge" style="background:#fef3c7; color:#92400e;">Google Calendar Connected</span>
+          </div>
+        </div>
+
+        <div class="calendar-matrix">
+          <div class="cal-day-header">Mon 07</div>
+          <div class="cal-day-header">Tue 08</div>
+          <div class="cal-day-header">Wed 09</div>
+          <div class="cal-day-header">Thu 10 (Today)</div>
+          <div class="cal-day-header">Fri 11</div>
+          <div class="cal-day-header">Sat 12</div>
+          <div class="cal-day-header">Sun 13</div>
+
+          <div class="cal-cell">
+            <div class="cal-date">07</div>
+            <div class="cal-event internal">10:00A Patil (Dental)</div>
+            <div class="cal-event google">🔒 01:30P Family (Personal)</div>
+          </div>
+          <div class="cal-cell">
+            <div class="cal-date">08</div>
+            <div class="cal-event internal">11:00A S. Mehra (CBT)</div>
+            <div class="cal-event internal">04:30P Anjali D. (Follow-up)</div>
+          </div>
+          <div class="cal-cell">
+            <div class="cal-date">09</div>
+            <div class="cal-event outlook">🔒 08:30A Hospital Board</div>
+            <div class="cal-event internal">02:00P Walk-in Queue (4)</div>
+          </div>
+          <div class="cal-cell today">
+            <div class="cal-date" style="color:var(--primary);">10 ★</div>
+            <div class="cal-event internal">10:30A B. Patil (RCT 1)</div>
+            <div class="cal-event internal">11:15A Anjali D. (Check)</div>
+            <div class="cal-event internal" id="cal-dynamic-event">04:00P V. Reddy (Token 7)</div>
+          </div>
+          <div class="cal-cell">
+            <div class="cal-date">11</div>
+            <div class="cal-event outlook">🔒 12:00P IDA Meeting</div>
+            <div class="cal-event internal">03:00P Implants (2 Chairs)</div>
+          </div>
+          <div class="cal-cell">
+            <div class="cal-date">12</div>
+            <div class="cal-event internal">10:00A Visiting MDS Shift</div>
+            <div class="cal-event internal">01:00P Crown Fixations</div>
+          </div>
+          <div class="cal-cell">
+            <div class="cal-date">13</div>
+            <div class="cal-event google">🔒 Personal Off-Day</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Financial Reconciliation & ABDM DHIS Payouts -->
+      <div class="grid-3">
+        <!-- Daily Collections -->
+        <div class="card">
+          <h3 class="card-title" style="font-size:0.95rem;">💵 Daily Collections Reconciliation</h3>
+          <p class="card-desc">Cash Handover vs. Digital UPI Webhooks</p>
+          <div style="margin-top:12px;">
+            <div style="font-size:1.6rem; font-weight:800; color:#0f172a;">₹27,300</div>
+            <div style="font-size:0.8rem; color:#64748b; margin-top:4px;">
+              • Cash with Reception (Kavita): <strong>₹7,000</strong><br>
+              • Instant UPI QR Settlements: <strong>₹20,300</strong><br>
+              • Pending Treatment Balances: <strong>₹3,500</strong>
+            </div>
+            <div style="margin-top:10px; border-top:1px solid var(--border); padding-top:8px;">
+              <button class="btn btn-outline btn-sm" style="width:100%;" onclick="alert('Cash register matched! Handover verified with digital signature.')">✅ Reconcile Cash Handover</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ABDM DHIS Revenue Arbitrage -->
+        <div class="card" style="border: 2px solid #10b981;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <h3 class="card-title" style="font-size:0.95rem;">🏛️ ABDM DHIS Subsidy Arbitrage</h3>
+            <span class="badge badge-success">Live Gov Incentive</span>
+          </div>
+          <p class="card-desc">National Health Authority Claim Engine</p>
+          <div style="margin-top:12px;">
+            <div style="font-size:1.6rem; font-weight:800; color:#10b981;">₹3,680 Earned</div>
+            <div style="font-size:0.8rem; color:#64748b; margin-top:4px;">
+              • 184 KYC-verified ABHA M2 bundles pushed.<br>
+              • Qualified at <strong>₹20 per transaction</strong> above threshold.<br>
+              • SaaS Plan Cost: <strong>₹1,999 / month</strong>.
+            </div>
+            <div style="margin-top:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:6px; font-size:0.75rem; color:#15803d; font-weight:700;">
+              🚀 ROI: Government subsidy completely offsets the software fee (+₹1,681 Net Profit)!
+            </div>
+          </div>
+        </div>
+
+        <!-- Dental Chair-Time Profitability -->
+        <div class="card">
+          <h3 class="card-title" style="font-size:0.95rem;">💺 Chair-Time Cost-per-Minute Engine</h3>
+          <p class="card-desc">Clinic Fixed Overhead vs Procedure Times</p>
+          <div style="margin-top:12px;">
+            <div style="font-size:1.6rem; font-weight:800; color:#d97706;">₹14.20 / min</div>
+            <div style="font-size:0.8rem; color:#64748b; margin-top:4px;">
+              • Fixed facility rent & wages: ₹85,000/mo.<br>
+              • Operatory 1 active: 6.2 hours today.<br>
+              • Root Canal (45 min): Base cost ₹639. Margin: <strong>68%</strong>.
+            </div>
+            <div style="margin-top:10px; border-top:1px solid var(--border); padding-top:8px;">
+              <span style="font-size:0.72rem; color:#059669; font-weight:600;">Optimal pricing threshold maintained.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 7: PATIENT WHATSAPP & VOICE NOTE SIMULATOR                           -->
+    <!-- ========================================================================= -->
+    <section id="whatsapp-view" class="view-panel">
+      <div class="card" style="max-width:560px; margin:0 auto;">
+        <div class="card-header">
+          <h2 class="card-title">📱 Indic WhatsApp & Voice Assistant</h2>
+          <span class="badge badge-primary">Meta Cloud API</span>
+        </div>
+        <p class="card-desc" style="margin-bottom:14px; text-align:center;">
+          Test how Baburao (Marathi), Anjali (Bengali), Reddy (Telugu), and Shenoy (Konkani) receive localized text, 1-tap buttons, and voice audio notes.
+        </p>
+
+        <!-- Persona Quick Selector for WhatsApp -->
+        <div style="display:flex; justify-content:center; gap:6px; margin-bottom:14px; flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm active" id="btn-wa-mr" onclick="switchWaPersona('mr')">मराठी (Baburao)</button>
+          <button class="btn btn-outline btn-sm" id="btn-wa-bn" onclick="switchWaPersona('bn')">বাংলা (Anjali Voice)</button>
+          <button class="btn btn-outline btn-sm" id="btn-wa-te" onclick="switchWaPersona('te')">తెలుగు (V. Reddy)</button>
+          <button class="btn btn-outline btn-sm" id="btn-wa-kok" onclick="switchWaPersona('kok')">कोंकणी (P. Shenoy)</button>
+        </div>
+
+        <!-- Smartphone Simulator -->
+        <div class="phone-simulator">
+          <div class="phone-notch"></div>
+          <div class="wa-header">
+            <div class="wa-avatar">P</div>
+            <div>
+              <div style="font-weight:700; font-size:0.9rem;">Practix Medical Assistant</div>
+              <div style="font-size:0.68rem; color:#a7f3d0;">Verified Clinic Account ✓</div>
+            </div>
+          </div>
+          <div class="wa-chat-body" id="wa-chat-box">
+            <!-- Dynamic WhatsApp Content Rendered via JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- MODALS                                                                    -->
+  <!-- ========================================================================= -->
+  
+  <!-- 2-Input Quick Walk-in Registration -->
+  <div class="modal-backdrop" id="quick-booking-modal">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="font-weight:800; font-size:1.1rem;">⚡ Quick Walk-in (10 Seconds)</h3>
+        <button onclick="closeModal('quick-booking-modal')" style="background:none; border:none; font-size:1.4rem; cursor:pointer;">&times;</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">1. Patient Mobile Number (WhatsApp) *</label>
+        <input type="tel" class="form-input" id="quick-phone" placeholder="e.g. 9845012345" value="9845012345">
+        <span style="font-size:0.72rem; color:#64748b;">Phone numbers are masked across reception screens for DPDP compliance.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">2. Patient Full Name *</label>
+        <input type="text" class="form-input" id="quick-name" placeholder="e.g. Ramesh Kumar" value="Ramesh Kumar">
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Preferred Communication Language</label>
+          <select class="form-select" id="quick-lang">
+            <option value="mr">मराठी (Marathi)</option>
+            <option value="te">తెలుగు (Telugu)</option>
+            <option value="bn">বাংলা (Bengali)</option>
+            <option value="kok">कोंकणी (Konkani)</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Consultation Fee</label>
+          <input type="text" class="form-input" id="quick-fee" value="₹500">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="closeModal('quick-booking-modal')">Cancel</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="registerQuickWalkIn()">Book & Send WhatsApp Token</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nurse Vitals & Allergy Entry -->
+  <div class="modal-backdrop" id="nurse-vitals-modal">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="font-weight:800; font-size:1.1rem;">🩺 Nurse Triage Desk — Sister Mary</h3>
+        <button onclick="closeModal('nurse-vitals-modal')" style="background:none; border:none; font-size:1.4rem; cursor:pointer;">&times;</button>
+      </div>
+      <p style="font-size:0.82rem; color:#64748b; margin-bottom:12px;">Logging baseline metrics for: <strong id="vitals-patient-name">Patient</strong></p>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Blood Pressure (mmHg)</label>
+          <input type="text" class="form-input" id="nurse-bp" value="124/82">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pulse (bpm)</label>
+          <input type="number" class="form-input" id="nurse-pulse" value="76">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">⚠️ Critical Medical Alerts / Drug Allergies:</label>
+        <select class="form-select" id="nurse-allergy">
+          <option value="None">No Known Allergies</option>
+          <option value="Penicillin">Allergic to Penicillin / Amoxicillin</option>
+          <option value="Local Anesthesia">History of Reaction to Local Anesthetic</option>
+          <option value="Hypertension">Hypertensive / Bleeding Risk</option>
+        </select>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="closeModal('nurse-vitals-modal')">Cancel</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="saveNurseVitals()">Attach to Clinical Record</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two-Way Calendar Sync Simulator -->
+  <div class="modal-backdrop" id="calendar-sync-modal">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="font-weight:800; font-size:1.1rem;">🔄 Two-Way Calendar Sync Simulator</h3>
+        <button onclick="closeModal('calendar-sync-modal')" style="background:none; border:none; font-size:1.4rem; cursor:pointer;">&times;</button>
+      </div>
+      <p style="font-size:0.82rem; color:#64748b; margin-bottom:12px;">
+        Simulates adding a personal event in <strong>Google Calendar</strong> or <strong>Microsoft Outlook</strong> and tests if PractixOS automatically blocks that clinical slot while preserving privacy.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label">Doctor Personal Calendar Event Title:</label>
+        <input type="text" class="form-input" id="sync-event-title" value="Family Dinner & School Pickup">
+        <span style="font-size:0.72rem; color:#64748b;">Front-desk staff will only see "Doctor Unavailable (External Sync)".</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Time Window to Block:</label>
+        <input type="text" class="form-input" value="Today, 04:00 PM – 05:30 PM" readonly style="background:#f1f5f9;">
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="closeModal('calendar-sync-modal')">Cancel</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="simulateExternalCalendarSync()">Push Event to PractixOS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic UPI Payment Modal -->
+  <div class="modal-backdrop" id="upi-payment-modal">
+    <div class="modal-content" style="text-align:center;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="font-weight:800; font-size:1.1rem;">Instant UPI Reservation</h3>
+        <button onclick="closeModal('upi-payment-modal')" style="background:none; border:none; font-size:1.4rem; cursor:pointer;">&times;</button>
+      </div>
+      <p style="font-size:0.82rem; color:#64748b; margin-bottom:12px;">Pay to: <strong>Aarav Dental & Wellness</strong> (VPA: clinic@icici)</p>
+
+      <div style="width:170px; height:170px; margin:0 auto 14px; background:#f8fafc; border:2px dashed #94a3b8; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div style="font-size:2.2rem; margin-bottom:4px;">📱</div>
+        <span style="font-size:0.78rem; font-weight:700;">Dynamic UPI QR</span>
+        <span style="font-size:0.72rem; color:#0f766e;" id="upi-modal-amount">Amount: ₹500</span>
+      </div>
+
+      <div style="display:flex; gap:8px; justify-content:center; margin-bottom:14px;">
+        <button class="btn btn-outline btn-sm" onclick="completePaymentSimulation('PhonePe')">PhonePe</button>
+        <button class="btn btn-outline btn-sm" onclick="completePaymentSimulation('Google Pay')">GPay</button>
+        <button class="btn btn-outline btn-sm" onclick="completePaymentSimulation('Paytm')">Paytm</button>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;" onclick="completePaymentSimulation('Instant Webhook')">
+        Simulate Successful Payment Clearance
+      </button>
+    </div>
+  </div>
+
+  <!-- New Dental Lab Order Modal -->
+  <div class="modal-backdrop" id="new-lab-order-modal">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="font-weight:800; font-size:1.1rem;">🦷 Dispatch New Dental Lab Order</h3>
+        <button onclick="closeModal('new-lab-order-modal')" style="background:none; border:none; font-size:1.4rem; cursor:pointer;">&times;</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Select Dental Lab:</label>
+        <select class="form-select" id="lab-choice">
+          <option value="Apex">Apex Dental Ceramics, Pune</option>
+          <option value="Illusion">Illusion Dental Craft, Mumbai</option>
+        </select>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Tooth #</label>
+          <input type="number" class="form-input" id="lab-tooth" value="16">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Shade Guide</label>
+          <input type="text" class="form-input" id="lab-shade" value="A2 (VITA classical)">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Restoration Type:</label>
+        <select class="form-select" id="lab-type">
+          <option value="Zirconia">Monolithic High-Translucent Zirconia</option>
+          <option value="PFM">Porcelain Fused to Metal (PFM)</option>
+          <option value="Emax">E.max CAD Lithium Disilicate</option>
+        </select>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="closeModal('new-lab-order-modal')">Cancel</button>
+        <button class="btn btn-dental" style="flex:2;" onclick="dispatchDentalLabOrder()">Dispatch & WhatsApp Order</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT: TRANSLATIONS, LOGIC & SIMULATIONS                             -->
+  <!-- ========================================================================= -->
+  <script>
+    // Indic Language Translations Dictionary
+    const i18n = {
+      en: {
+        noApp: "Zero App Download Required",
+        clinicName: "Aarav Dental Arts & Wellness Polyclinic",
+        clinicSub: "Indiranagar 100ft Road, Bengaluru • ⭐ 4.9 (420+ Reviews) • ABDM M2 Certified",
+        searchLabel: "🔍 Search by Concern, Symptom or Doctor:",
+        searchPlaceholder: "e.g. Toothache, Root Canal, Anxiety, Dr. Sharma...",
+        catLabel: "Specialty Category:",
+        optAll: "All Specialties",
+        optDental: "Dentistry & Oral Surgery",
+        optMental: "Psychology & Counseling",
+        modeLabel: "Consultation Mode:",
+        optModeAll: "In-Clinic Visit or Video Call",
+        optModeClinic: "In-Clinic Visit Only",
+        optModeVideo: "Telehealth Video Call Only",
+        doc1Name: "Dr. Aarav Sharma, BDS",
+        doc1Badge: "Dental Lead",
+        doc1Sub: "General Dentistry & Implants • 12 Yrs Exp • Speaks: Marathi, Kannada, Hindi, Eng",
+        doc1Chair: "📍 Operatory Chair 1 • Next Available: Today, 04:30 PM",
+        doc1Fee: "(Checkup Fee)",
+        doc1Btn: "Select Slot →",
+        doc2Name: "Dr. Ananya Iyer, PhD",
+        doc2Badge: "Clinical Psychologist",
+        doc2Sub: "CBT, Anxiety & Trauma Care • 9 Yrs Exp • Speaks: Bengali, Telugu, Hindi, Eng",
+        doc2Chair: "🔒 Private Suite 1 / Video • Next: Tomorrow 11:30 AM",
+        doc2Fee: "(50 min Session)",
+        doc2Btn: "Select Slot →",
+        followHeader: "⚡ Dynamic Follow-Up Rule Check (7-Day Policy Engine)",
+        histLabel: "Select Patient Past History:",
+        histNew: "New Patient (First Visit)",
+        histRecent: "Returning: Visited 4 Days Ago (Within 7-Day Free Window)",
+        histExpired: "Returning: Visited 12 Days Ago (Beyond 7-Day Window)",
+        feeLabel: "Computed Fee by Clinic Policy:",
+        reasonNew: "Standard Consultation Fee",
+        reasonRecent: "Rule Applied: Complimentary check within 7 days.",
+        reasonExpired: "Rule Applied: Prior visit was > 7 days ago. Standard fee applies."
+      },
+      mr: {
+        noApp: "कोणतेही अ‍ॅप डाऊनलोड करण्याची गरज नाही",
+        clinicName: "आरव डेंटल आर्ट्स आणि वेलनेस क्लिनिक",
+        clinicSub: "इंदिरानगर १०० फूट रोड, बेंगळुरू • ⭐ ४.९ (४२०+ परीक्षणे) • ABDM प्रमाणित",
+        searchLabel: "🔍 आजार, लक्षणे किंवा डॉक्टर शोधा:",
+        searchPlaceholder: "उदा. दातदुखी, रूट कॅनॉल, चिंता, डॉ. शर्मा...",
+        catLabel: "विभाग निवडा:",
+        optAll: "सर्व विभाग",
+        optDental: "दंत चिकित्सा आणि शस्त्रक्रिया",
+        optMental: "मानसोपचार आणि समुपदेशन",
+        modeLabel: "तपासणीचा प्रकार:",
+        optModeAll: "क्लिनिक भेट किंवा व्हिडिओ कॉल",
+        optModeClinic: "फक्त क्लिनिक भेट",
+        optModeVideo: "फक्त व्हिडिओ कॉल",
+        doc1Name: "डॉ. आरव शर्मा, BDS",
+        doc1Badge: "प्रमुख दंतवैद्य",
+        doc1Sub: "दंतचिकित्सा आणि इम्प्लांट्स • १२ वर्षे अनुभव • भाषा: मराठी, कानडी, हिंदी, इंग्रजी",
+        doc1Chair: "📍 डेंटल चेअर १ • उपलब्ध वेळ: आज दुपारी ४:३०",
+        doc1Fee: "(तपासणी शुल्क)",
+        doc1Btn: "वेळ निवडा →",
+        doc2Name: "डॉ. अनन्या अय्यर, PhD",
+        doc2Badge: "मानसोपचार तज्ज्ञ",
+        doc2Sub: "CBT आणि ताणतणाव निवारण • ९ वर्षे अनुभव • भाषा: बंगाली, तेलगू, हिंदी, इंग्रजी",
+        doc2Chair: "🔒 प्रायव्हेट रूम १ / व्हिडिओ • उपलब्ध: उद्या सकाळी ११:३०",
+        doc2Fee: "(५० मिनिटे सत्र)",
+        doc2Btn: "वेळ निवडा →",
+        followHeader: "⚡ मोफत फॉलो-अप तपासणी नियम (७ दिवसांचे धोरण)",
+        histLabel: "रुग्णाचा मागील इतिहास निवडा:",
+        histNew: "नवीन रुग्ण (पहिली भेट)",
+        histRecent: "पुन्हा भेट: ४ दिवसांपूर्वी आले होते (७ दिवसांच्या मोफत सवलतीत)",
+        histExpired: "पुन्हा भेट: १२ दिवसांपूर्वी आले होते (७ दिवसांनंतर)",
+        feeLabel: "क्लिनिक नियमानुसार आकारलेले शुल्क:",
+        reasonNew: "नवीन तपासणीसाठी प्रमाणित शुल्क लागू",
+        reasonRecent: "नियम लागू: मागील ७ दिवसांत उपचार झाल्यामुळे ही तपासणी मोफत आहे.",
+        reasonExpired: "नियम लागू: मागील भेट ७ दिवसांपेक्षा जास्त दिवसांपूर्वी झाली होती."
+      },
+      te: {
+        noApp: "యాప్ డౌన్‌లోడ్ అవసరం లేదు",
+        clinicName: "ఆరవ్ డెంటల్ ఆర్ట్స్ & వెల్నెస్ క్లినిక్",
+        clinicSub: "ఇందిరానగర్ 100 అడుగుల రోడ్డు, బెంగళూరు • ⭐ 4.9 • ABDM సర్టిఫైడ్",
+        searchLabel: "🔍 సమస్య, లక్షణం లేదా డాక్టర్‌ని వెతకండి:",
+        searchPlaceholder: "ఉదా. పంటి నొప్పి, రూట్ కెనాల్, ఆందోళన...",
+        catLabel: "విభాగం:",
+        optAll: "అన్ని విభాగాలు",
+        optDental: "దంత వైద్యం & శస్త్రచికిత్స",
+        optMental: "మానసిక వైద్యం & కౌన్సెలింగ్",
+        modeLabel: "కన్సల్టేషన్ మోడ్:",
+        optModeAll: "క్లినిక్ విజిట్ లేదా వీడియో కాల్",
+        optModeClinic: "క్లినిక్ విజిట్ మాత్రమే",
+        optModeVideo: "వీడియో కాల్ మాత్రమే",
+        doc1Name: "డాక్టర్ ఆరవ్ శర్మ, BDS",
+        doc1Badge: "దంత వైద్య నిపుణులు",
+        doc1Sub: "జనరల్ డెంటిస్ట్రీ & ఇంప్లాంట్స్ • 12 సం. అనుభవం • భాషలు: తెలుగు, కన్నడ, హిందీ, ఇంగ్లీష్",
+        doc1Chair: "📍 డెంటల్ చైర్ 1 • సమయం: ఈరోజు సాయంత్రం 04:30",
+        doc1Fee: "(కన్సల్టేషన్ ఫీజు)",
+        doc1Btn: "సమయం ఎంచుకోండి →",
+        doc2Name: "డాక్టర్ అనన్య అయ్యర్, PhD",
+        doc2Badge: "సైకాలజిస్ట్",
+        doc2Sub: "CBT & యాంగ్జైటీ కౌన్సెలింగ్ • 9 సం. అనుభవం • భాషలు: తెలుగు, హిందీ, ఇంగ్లీష్",
+        doc2Chair: "🔒 ప్రైవేట్ సూట్ 1 • సమయం: రేపు ఉదయం 11:30",
+        doc2Fee: "(50 నిమిషాల సెషన్)",
+        doc2Btn: "సమయం ఎంచుకోండి →",
+        followHeader: "⚡ ఉచిత ఫాలో-అప్ నిబంధన తనిఖీ (7 రోజుల పాలసీ)",
+        histLabel: "రోగి గత చరిత్రను ఎంచుకోండి:",
+        histNew: "కొత్త రోగి (మొదటి విజిట్)",
+        histRecent: "పాత రోగి: 4 రోజుల క్రితం వచ్చారు (7 రోజుల ఉచిత విండోలో)",
+        histExpired: "పాత రోగి: 12 రోజుల క్రితం వచ్చారు (7 రోజుల దాటిన తర్వాత)",
+        feeLabel: "క్లినిక్ నిబంధనల ప్రకారం వర్తించే ఫీజు:",
+        reasonNew: "మొదటి సారి సాధారణ కన్సల్టేషన్ ఫీజు",
+        reasonRecent: "నిబంధన వర్తింపు: గత 7 రోజుల్లో చికిత్స పొందినందున ఈ ఫాలో-అప్ ఉచితం.",
+        reasonExpired: "నిబంధన వర్తింపు: గత విజిట్ 7 రోజులు దాటినందున పూర్తి ఫీజు వర్తిస్తుంది."
+      },
+      bn: {
+        noApp: "কোনো অ্যাপ ডাউনলোড করার প্রয়োজন নেই",
+        clinicName: "আরভ ডেন্টাল আর্টস অ্যান্ড ওয়েলনেস পলিক্লিনিক",
+        clinicSub: "ইন্দিরানগর, বেঙ্গালুরু • ⭐ ৪.৯ • ABDM M2 প্রত্যয়িত",
+        searchLabel: "🔍 উপসর্গ বা ডাক্তার খুঁজুন:",
+        searchPlaceholder: "যেমন দাঁতের ব্যথা, রুট ক্যানেল, উদ্বেগ...",
+        catLabel: "বিভাগ:",
+        optAll: "সকল বিভাগ",
+        optDental: "দাঁতের চিকিৎসা",
+        optMental: "মানসিক স্বাস্থ্য ও কাউন্সেলিং",
+        modeLabel: "পরামর্শের মাধ্যম:",
+        optModeAll: "ক্লিনিকে সাক্ষাৎ বা ভিডিও কল",
+        optModeClinic: "শুধুমাত্র ক্লিনিকে সাক্ষাৎ",
+        optModeVideo: "শুধুমাত্র ভিডিও কল",
+        doc1Name: "ডাঃ আরভ শর্মা, BDS",
+        doc1Badge: "প্রধান দন্ত চিকিৎসক",
+        doc1Sub: "দাঁতের চিকিৎসা ও ইমপ্লান্ট • ১২ বছরের অভিজ্ঞতা • ভাষা: বাংলা, কন্নড়, হিন্দি, ইংরেজি",
+        doc1Chair: "📍 ডেন্টাল চেয়ার ১ • পরবর্তী সময়: আজ বিকেল ০৪:৩০",
+        doc1Fee: "(পরামর্শ ফি)",
+        doc1Btn: "সময় নির্বাচন করুন →",
+        doc2Name: "ডাঃ অনন্যা আইয়ার, PhD",
+        doc2Badge: "ক্লিনিক্যাল সাইকোলজিস্ট",
+        doc2Sub: "উদ্বেগ ও মানসিক স্বাস্থ্য • ৯ বছরের অভিজ্ঞতা • ভাষা: বাংলা, হিন্দি, ইংরেজি",
+        doc2Chair: "🔒 প্রাইভেট স্যুট ১ • সময়: আগামীকাল সকাল ১১:৩০",
+        doc2Fee: "(৫০ মিনিট সেশন)",
+        doc2Btn: "সময় নির্বাচন করুন →",
+        followHeader: "⚡ বিনামূল্যে ফলো-আপ নীতি যাচাই (৭ দিনের নিয়ম)",
+        histLabel: "রোগীর পূর্ববর্তী ইতিহাস নির্বাচন করুন:",
+        histNew: "নতুন রোগী (প্রথম ভিজিট)",
+        histRecent: "পুরাতন রোগী: ৪ দিন আগে এসেছিলেন (৭ দিনের বিনামূল্যে সীমার মধ্যে)",
+        histExpired: "পুরাতন রোগী: ১২ দিন আগে এসেছিলেন (৭ দিনের বেশি সময়)",
+        feeLabel: "ক্লিনিকের নিয়ম অনুযায়ী প্রযোজ্য ফি:",
+        reasonNew: "নতুন রোগীর জন্য সাধারণ পরামর্শ ফি প্রযোজ্য",
+        reasonRecent: "নিয়ম প্রযোজ্য: গত ৭ দিনের মধ্যে চিকিৎসা হওয়ায় এই ফলো-আপ সম্পূর্ণ বিনামূল্যে।",
+        reasonExpired: "নিয়ম প্রযোজ্য: পূর্ববর্তী সাক্ষাতের ৭ দিন অতিক্রান্ত হয়েছে।"
+      },
+      kok: {
+        noApp: "कसलेय अ‍ॅप डाऊनलोड करपाची गरज ना",
+        clinicName: "आरव डेंटल आर्ट्स आनी वेलनेस क्लिनिक",
+        clinicSub: "इंदिरानगर, बेंगळुरू • ⭐ ४.९ • ABDM प्रमाणित क्लिनिक",
+        searchLabel: "🔍 दूख वा दोतोराचें नांव सोदात:",
+        searchPlaceholder: "उदा. दांत दुखप, रूट कॅनॉल, चिंता...",
+        catLabel: "विभाग:",
+        optAll: "सगळे विभाग",
+        optDental: "दांतांची चिकित्सा",
+        optMental: "मानसिक भलायकी आनी समुपदेशन",
+        modeLabel: "तपासणी प्रकार:",
+        optModeAll: "क्लिनिक भेट वा व्हिडिओ कॉल",
+        optModeClinic: "फकत क्लिनिक भेट",
+        optModeVideo: "फकत व्हिडिओ कॉल",
+        doc1Name: "डॉ. आरव शर्मा, BDS",
+        doc1Badge: "मुखेल दंत दोतोर",
+        doc1Sub: "दांतांची चिकित्सा • १२ वर्सांचो अणभव • भासो: कोंकणी, कानडी, हिंदी, इंग्लीश",
+        doc1Chair: "📍 डेंटल चेअर १ • वेळ: आयज दनपरां ०४:३०",
+        doc1Fee: "(तपासणी फी)",
+        doc1Btn: "वेळ वेंचून काढात →",
+        doc2Name: "डॉ. अनन्या अय्यर, PhD",
+        doc2Badge: "मानसोपचार तज्ज्ञ",
+        doc2Sub: "चिंता आनी मानसोपचार • ९ वर्सांचो अणभव • भासो: कोंकणी, हिंदी, इंग्लीश",
+        doc2Chair: "🔒 प्रायव्हेट रूम १ • वेळ: फाल्यां सकाळीं ११:३०",
+        doc2Fee: "(५० मिनिटां सत्र)",
+        doc2Btn: "वेळ वेंचून काढात →",
+        followHeader: "⚡ फुकट तपासणी नेम तपासणी (७ दिसांची पॉलिसी)",
+        histLabel: "दुयेंतीचो फाटलो इतिहास वेंचून काढात:",
+        histNew: "नवो दुयेंती (पयली भेट)",
+        histRecent: "फाटलो दुयेंती: ४ दिसां फाटीं आयिल्ले (७ दिसां भितर)",
+        histExpired: "फाटलो दुयेंती: १२ दिसां फाटीं आयिल्ले (७ दिसां उपरांत)",
+        feeLabel: "क्लिनिकाच्या नेमा प्रमाण लागू जावपी फी:",
+        reasonNew: "पयले तपासणे खातीर सामान्य फी लागू",
+        reasonRecent: "नेम लागू: फाटल्या ७ दिसां भितर उपचार जाल्ल्यान ही भेट फुकट आसा.",
+        reasonExpired: "नेम लागू: फाटली भेट ७ दिसां परस चड दिसां फाटीं जाल्ली."
+      }
+    };
+
+    let currentLang = 'en';
+
+    function setLanguage(lang, btn) {
+      currentLang = lang;
+      document.querySelectorAll('.lang-pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+
+      const t = i18n[lang];
+      document.getElementById('i18n-no-app').innerText = t.noApp;
+      document.getElementById('i18n-clinic-name').innerText = t.clinicName;
+      document.getElementById('i18n-clinic-subtitle').innerText = t.clinicSub;
+      document.getElementById('i18n-search-label').innerText = t.searchLabel;
+      document.getElementById('doctor-search-input').placeholder = t.searchPlaceholder;
+      document.getElementById('i18n-cat-label').innerText = t.catLabel;
+      document.getElementById('i18n-opt-all').innerText = t.optAll;
+      document.getElementById('i18n-opt-dental').innerText = t.optDental;
+      document.getElementById('i18n-opt-mental').innerText = t.optMental;
+      document.getElementById('i18n-mode-label').innerText = t.modeLabel;
+      document.getElementById('i18n-opt-mode-all').innerText = t.optModeAll;
+      document.getElementById('i18n-opt-mode-clinic').innerText = t.optModeClinic;
+      document.getElementById('i18n-opt-mode-video').innerText = t.optModeVideo;
+      
+      document.getElementById('i18n-doc1-name').innerText = t.doc1Name;
+      document.getElementById('i18n-doc1-badge').innerText = t.doc1Badge;
+      document.getElementById('i18n-doc1-sub').innerText = t.doc1Sub;
+      document.getElementById('i18n-doc1-chair').innerText = t.doc1Chair;
+      document.getElementById('i18n-doc1-fee').innerText = t.doc1Fee;
+      document.getElementById('i18n-doc1-btn').innerText = t.doc1Btn;
+
+      document.getElementById('i18n-doc2-name').innerText = t.doc2Name;
+      document.getElementById('i18n-doc2-badge').innerText = t.doc2Badge;
+      document.getElementById('i18n-doc2-sub').innerText = t.doc2Sub;
+      document.getElementById('i18n-doc2-chair').innerText = t.doc2Chair;
+      document.getElementById('i18n-doc2-fee').innerText = t.doc2Fee;
+      document.getElementById('i18n-doc2-btn').innerText = t.doc2Btn;
+
+      document.getElementById('i18n-followup-header').innerText = t.followHeader;
+      document.getElementById('i18n-history-label').innerText = t.histLabel;
+      document.getElementById('i18n-hist-new').innerText = t.histNew;
+      document.getElementById('i18n-hist-recent').innerText = t.histRecent;
+      document.getElementById('i18n-hist-expired').innerText = t.histExpired;
+      document.getElementById('i18n-fee-label').innerText = t.feeLabel;
+
+      runFollowUpRule();
+    }
+
+    function runFollowUpRule() {
+      const sim = document.getElementById('patient-history-sim').value;
+      const feeEl = document.getElementById('portal-computed-fee');
+      const reasonEl = document.getElementById('portal-computed-reason');
+      const t = i18n[currentLang];
+
+      if (sim === 'recent') {
+        feeEl.innerText = '₹0 (Free Follow-up)';
+        feeEl.style.color = '#10b981';
+        reasonEl.innerText = t.reasonRecent;
+      } else if (sim === 'expired') {
+        feeEl.innerText = '₹500';
+        feeEl.style.color = '#0f172a';
+        reasonEl.innerText = t.reasonExpired;
+      } else {
+        feeEl.innerText = '₹500';
+        feeEl.style.color = '#0f172a';
+        reasonEl.innerText = t.reasonNew;
+      }
+    }
+
+    // WhatsApp Multilingual Persona Simulator
+    const waData = {
+      mr: {
+        text: `नमस्कार बाबूराव पाटील जी! 🙏<br><br>तुमची <strong>डॉ. आरव शर्मा</strong> यांच्यासोबत <strong>रूट कॅनॉल (सत्र १)</strong> साठी अपॉइंटमेंट निश्चित झाली आहे.<br><br>⏰ वेळ: <strong>आज सकाळी १०:३० वाजता</strong><br>📍 पत्ता: आरव डेंटल क्लिनिक, १०० फूट रोड, इंदिरानगर.`,
+        btn1: `✅ येण्याची खात्री करा`,
+        btn2: `🔄 वेळ बदला`,
+        btn3: `💳 PhonePe द्वारे ₹५०० भरा`,
+        hasAudio: false
+      },
+      bn: {
+        text: `নমস্কার অঞ্জলি দেবী! 🙏<br><br>ডাক্তার বাবুর সাথে আপনার ফলো-আপ চেকআপ নিশ্চিত হয়েছে।<br><br>⏰ সময়: <strong>আজ সকাল ১১:১৫</strong><br>📍 টোকেন: <strong>#৪</strong> (চেয়ার ২)<br>💰 ফি: <strong>₹০ (সম্পূর্ণ বিনামূল্যে ফলো-আপ)</strong>`,
+        btn1: `✅ আমি আসছি`,
+        btn2: `❌ আসতে পারব না`,
+        btn3: `📍 ক্লিনিকের গুগল ম্যাপ`,
+        hasAudio: true,
+        audioLabel: `▶️ শুনুন (বাংলা অডিও বার্তা - ৮ সেকেণ্ড)`
+      },
+      te: {
+        text: `నమస్కారం వెంకట్ గారు! 🙏<br><br><strong>డాక్టర్ శర్మ</strong>తో మీ అపాయింట్‌మెంట్ వివరాలు:<br><br>⏰ సమయం: <strong>ఈరోజు సాయంత్రం 04:00</strong><br>📍 చిరునామా: ఆరవ్ డెంటల్, ఇందిరానగర్.<br>టోకెన్ సంఖ్య: <strong>#7</strong>`,
+        btn1: `✅ వస్తున్నానని ధృవీకరించండి`,
+        btn2: `🔄 సమయం మార్చండి`,
+        btn3: `💳 UPI ద్వారా చెల్లించండి`,
+        hasAudio: false
+      },
+      kok: {
+        text: `नमस्कार प्रेमानंद शेणॉय जी! 🙏<br><br><strong>डॉ. कुणाल मेहता (MDS)</strong> हांचे कडेन तुमची <strong>दंत क्राउन</strong> तपासणी थारायल्या.<br><br>⏰ वेळ: <strong>बिरेस्तार, सकाळीं १०:३०</strong><br>📍 सुवात: आरव डेंटल आर्ट्स.`,
+        btn1: `✅ खात्री आसा`,
+        btn2: `🔄 वेळ बदलात`,
+        btn3: `💳 ₹३,००० अ‍ॅडव्हान्स जमा करा`,
+        hasAudio: false
+      }
+    };
+
+    function switchWaPersona(lang) {
+      document.querySelectorAll('#whatsapp-view .btn-outline').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('btn-wa-' + lang);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const d = waData[lang];
+      const box = document.getElementById('wa-chat-box');
+      
+      let audioHtml = '';
+      if (d.hasAudio) {
+        audioHtml = `
+          <div class="wa-audio-pill" onclick="simulateAudioPlayback()">
+            <span>🔊</span> ${d.audioLabel}
+          </div>
+        `;
+      }
+
+      box.innerHTML = `
+        <div class="wa-bubble in">
+          ${d.text}
+          ${audioHtml}
+          <div class="wa-time">09:00 AM</div>
+        </div>
+
+        <div class="wa-bubble in">
+          <button class="wa-action-btn" onclick="sendWhatsAppReply('confirm', '${lang}')">${d.btn1}</button>
+          <button class="wa-action-btn" style="border-color:#0284c7; color:#0284c7;" onclick="sendWhatsAppReply('reschedule', '${lang}')">${d.btn2}</button>
+          <button class="wa-action-btn" style="border-color:#10b981; color:#10b981;" onclick="openModal('upi-payment-modal')">${d.btn3}</button>
+        </div>
+
+        <div id="wa-dynamic-responses"></div>
+      `;
+    }
+
+    function simulateAudioPlayback() {
+      alert('🔊 [Audio Playing in Bengali]: "নমস্কার অঞ্জলি দেবী। ডক্টর বাবুর সাথে আপনার পরামর্শ টোকেন নম্বর ৪। পরামর্শ ফি সম্পূর্ণ বিনামূল্যে। আপনি সময়মতো ক্লিনিকে আসুন।"');
+    }
+
+    function sendWhatsAppReply(type, lang) {
+      const resp = document.getElementById('wa-dynamic-responses');
+      if (type === 'confirm') {
+        resp.innerHTML = `
+          <div class="wa-bubble out">
+            ✅ Confirmed.
+            <div class="wa-time">Just now</div>
+          </div>
+          <div class="wa-bubble in">
+            🙏 Thank you! Your token is registered in the front-desk queue. See you shortly!
+            <div class="wa-time">Just now</div>
+          </div>
+        `;
+      } else if (type === 'reschedule') {
+        resp.innerHTML = `
+          <div class="wa-bubble out">
+            🔄 Requesting alternate slot.
+            <div class="wa-time">Just now</div>
+          </div>
+          <div class="wa-bubble in">
+            Please tap below to pick an alternate open slot without calling reception:
+            <button class="wa-action-btn" onclick="alert('Slot picker opened')">📅 Pick New Slot</button>
+            <div class="wa-time">Just now</div>
+          </div>
+        `;
+      }
+    }
+
+    // Standard Prototype Functions (Odontogram, Kanban, Vault, Vitals)
+    let isMasked = true;
+    let isVaultUnlocked = true;
+    const toothData = {};
+    const upperTeeth = [18,17,16,15,14,13,12,11, 21,22,23,24,25,26,27,28];
+    const lowerTeeth = [48,47,46,45,44,43,42,41, 31,32,33,34,35,36,37,38];
+
+    function switchView(viewId, btn) {
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.persona-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    function filterDoctors() {
+      const search = document.getElementById('doctor-search-input').value.toLowerCase();
+      const spec = document.getElementById('specialty-filter').value;
+      const mode = document.getElementById('mode-filter').value;
+
+      document.querySelectorAll('.doc-item').forEach(card => {
+        const itemSpec = card.getAttribute('data-specialty');
+        const itemMode = card.getAttribute('data-mode');
+        const itemName = card.getAttribute('data-name');
+
+        const matchSearch = itemName.includes(search) || search === '';
+        const matchSpec = (spec === 'all') || (itemSpec === spec);
+        const matchMode = (mode === 'all') || (itemMode.includes(mode));
+
+        if (matchSearch && matchSpec && matchMode) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function startBookingFlow(doc, fee) {
+      document.getElementById('upi-modal-amount').innerText = `Amount: ₹${fee}`;
+      openModal('upi-payment-modal');
+    }
+
+    function togglePhoneMasking() {
+      isMasked = !isMasked;
+      document.querySelectorAll('.phone-masked-text').forEach(el => {
+        if (isMasked) {
+          const full = el.getAttribute('data-full');
+          el.innerText = '📱 ' + full.slice(0,9) + '•••' + full.slice(-2);
+        } else {
+          el.innerText = '📱 ' + el.getAttribute('data-full');
+        }
+      });
+      alert(isMasked ? 'DPDP Masking enabled. Staff sees masked numbers.' : 'Admin Override: Full phone numbers unmasked. Logged in audit trail.');
+    }
+
+    function moveCard(cardId, targetColId, actionLabel) {
+      const card = document.getElementById(cardId);
+      const targetCol = document.getElementById(targetColId);
+      targetCol.appendChild(card);
+      
+      const actions = card.querySelector('.kanban-actions');
+      if (targetColId === 'col-reception-wait') {
+        actions.innerHTML = `<button class="btn btn-dental btn-sm" style="flex:1;" onclick="moveCard('${cardId}', 'col-reception-chamber', 'Chamber')">Call Chair →</button>`;
+      } else if (targetColId === 'col-reception-chamber') {
+        actions.innerHTML = `<button class="btn btn-outline btn-sm" style="flex:1;" onclick="moveCard('${cardId}', 'col-reception-bill', 'Billing')">Send to Billing →</button>`;
+      } else if (targetColId === 'col-reception-bill') {
+        actions.innerHTML = `<span class="badge badge-success">Consultation Completed</span>`;
+      }
+    }
+
+    function registerQuickWalkIn() {
+      const name = document.getElementById('quick-name').value;
+      const phone = document.getElementById('quick-phone').value;
+      const lang = document.getElementById('quick-lang').value;
+
+      if (!name || !phone) {
+        alert('Please fill both Name and Phone number.');
+        return;
+      }
+
+      const newCard = document.createElement('div');
+      newCard.className = 'patient-card';
+      const cardId = 'card-dyn-' + Date.now();
+      newCard.id = cardId;
+      newCard.innerHTML = `
+        <div class="patient-card-header">
+          <span class="patient-name">${name}</span>
+          <span class="badge badge-primary">${lang.toUpperCase()}</span>
+        </div>
+        <div class="patient-meta">
+          <span>⏰ Immediate Walk-in</span>
+          <span class="phone-masked-text" data-full="+91 ${phone}">📱 +91 ${phone.slice(0,5)}-•••${phone.slice(-2)}</span>
+          <span style="color:#0284c7; font-weight:600;">⚡ Token Generated</span>
+        </div>
+        <div class="kanban-actions">
+          <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openVitalsModal('${name}')">🩺 Log Vitals</button>
+          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="moveCard('${cardId}', 'col-reception-wait', 'Waiting')">Check In →</button>
+        </div>
+      `;
+
+      document.querySelector('.kanban-col').appendChild(newCard);
+      closeModal('quick-booking-modal');
+      alert(`Patient ${name} booked. WhatsApp confirmation dispatched in selected language to +91 ${phone}`);
+    }
+
+    let activeVitalsPatient = '';
+    function openVitalsModal(patientName) {
+      activeVitalsPatient = patientName;
+      document.getElementById('vitals-patient-name').innerText = patientName;
+      openModal('nurse-vitals-modal');
+    }
+
+    function saveNurseVitals() {
+      const bp = document.getElementById('nurse-bp').value;
+      const pulse = document.getElementById('nurse-pulse').value;
+      const allergy = document.getElementById('nurse-allergy').value;
+      alert(`Sister Mary logged vitals for ${activeVitalsPatient}: BP ${bp}, Pulse ${pulse}. Allergy: ${allergy}. Medical alert updated.`);
+      closeModal('nurse-vitals-modal');
+    }
+
+    function initOdontogram() {
+      const upperCont = document.getElementById('upper-teeth-grid');
+      const lowerCont = document.getElementById('lower-teeth-grid');
+
+      function makeTooth(num) {
+        toothData[num] = 'healthy';
+        const d = document.createElement('div');
+        d.className = 'tooth-box';
+        d.id = 'tooth-' + num;
+        d.onclick = () => cycleTooth(num);
+        d.innerHTML = `
+          <div class="tooth-num">${num}</div>
+          <div class="tooth-icon">🦷</div>
+          <div class="tooth-status healthy" id="status-${num}">Healthy</div>
+        `;
+        return d;
+      }
+
+      upperTeeth.forEach(n => upperCont.appendChild(makeTooth(n)));
+      lowerTeeth.forEach(n => lowerCont.appendChild(makeTooth(n)));
+
+      updateToothView(16, 'rct', 'RCT (Sitting 1)');
+      updateToothView(26, 'decay', 'Caries');
+      updateToothView(11, 'crown', 'Zirconia');
+    }
+
+    function updateToothView(num, status, label) {
+      toothData[num] = status;
+      const tag = document.getElementById('status-' + num);
+      if (tag) {
+        tag.className = 'tooth-status ' + status;
+        tag.innerText = label || status.toUpperCase();
+      }
+    }
+
+    function cycleTooth(num) {
+      const seq = ['healthy', 'decay', 'rct', 'crown'];
+      const labels = ['Healthy', 'Decay', 'RCT', 'Crown'];
+      const idx = seq.indexOf(toothData[num]);
+      const next = (idx + 1) % seq.length;
+      updateToothView(num, seq[next], labels[next]);
+    }
+
+    function saveOdontogramPlan() {
+      alert('Odontogram saved. Phased treatment sheet auto-updated in billing queue.');
+    }
+
+    function dispatchDentalLabOrder() {
+      const lab = document.getElementById('lab-choice').value;
+      const tooth = document.getElementById('lab-tooth').value;
+      alert(`Lab order for Tooth #${tooth} sent to ${lab}. Pushed to dental lab WhatsApp.`);
+      closeModal('new-lab-order-modal');
+    }
+
+    function toggleVaultLock() {
+      if (isVaultUnlocked) {
+        document.getElementById('vault-unlocked-box').style.display = 'none';
+        document.getElementById('vault-locked-box').style.display = 'block';
+        document.getElementById('vault-toggle-btn').innerText = '🔓 Unlock Vault';
+        isVaultUnlocked = false;
+      } else {
+        unlockVault();
+      }
+    }
+
+    function unlockVault() {
+      const pin = document.getElementById('vault-pin-field').value;
+      if (pin === '1234' || pin === '') {
+        document.getElementById('vault-unlocked-box').style.display = 'block';
+        document.getElementById('vault-locked-box').style.display = 'none';
+        document.getElementById('vault-toggle-btn').innerText = '🔒 Lock Vault';
+        isVaultUnlocked = true;
+      } else {
+        alert('Invalid PIN. Encrypted psychotherapy notes remain locked.');
+      }
+    }
+
+    function simulateExternalCalendarSync() {
+      const title = document.getElementById('sync-event-title').value;
+      const calEvent = document.getElementById('cal-dynamic-event');
+      calEvent.className = 'cal-event google';
+      calEvent.innerText = '🔒 04:00P External Sync (Unavailable)';
+      closeModal('calendar-sync-modal');
+      alert(`Conflict Detected in Google Calendar: "${title}". Clinical booking slot 04:00 PM – 05:30 PM is now masked and blocked from patient bookings.`);
+    }
+
+    function completePaymentSimulation(provider) {
+      closeModal('upi-payment-modal');
+      alert(`Payment verified via ${provider}. Transaction ID: TXN-UPI-${Math.floor(Math.random()*90000+10000)}. Token generated and synced to Master Calendar!`);
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      initOdontogram();
+      switchWaPersona('mr');
+    });
+  </script>
+</body>
+</html>

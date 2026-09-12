@@ -1,0 +1,3037 @@
+<!DOCTYPE html>
+<html lang="en" data-lay="phone">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#0B4F4A">
+<title>PractixOS — Practice Operating System</title>
+<style>
+/* ============================================================================
+   CLINICAL INK — design tokens
+   Warm paper, clinic ink, marigold urgency, rubber-stamp statuses.
+   Deliberately not SaaS-blue-on-cool-grey.
+
+   LAYOUT MODEL — mobile first, attribute driven.
+   Base styles are the phone. Wider layouts are opted into via [data-lay="tab"]
+   and [data-lay="desk"] on <html>, set by JS from the viewport and overridable
+   by the user. Using an attribute rather than @media means the manual override
+   costs no duplicated rules, and the layout can be forced in tests.
+   ========================================================================== */
+:root{
+  --paper:#FBFAF7;
+  --paper-2:#F5F2EB;
+  --paper-3:#EDE9DF;
+  --surface:#FFFDF9;
+  --rule:#E2DDD1;
+  --rule-strong:#CFC8B7;
+
+  --ink:#14211F;
+  --ink-2:#3F534F;
+  --ink-3:#6F817C;
+  --ink-4:#9AA8A3;
+
+  /* Per-tenant accent. Overwritten at runtime from the tenant record so the
+     shell genuinely white-labels (FR-1.1). Teal is the fallback. */
+  --accent:#0B4F4A;
+  --accent-2:#0E7C74;
+  --accent-3:#159A8F;
+  --accent-wash:#E2EFED;
+  --accent-ink:#F2FAF8;
+
+  --teal:#0B4F4A;  --teal-2:#0E7C74;  --teal-3:#159A8F;  --teal-wash:#E2EFED;
+  --marigold:#C97A12; --marigold-2:#E8952A; --marigold-wash:#FCF1DF;
+  --vermilion:#B33F33; --vermilion-2:#D2574A; --vermilion-wash:#FAE9E6;
+  --sage:#3F6B46; --sage-wash:#E8F1E8;
+  --indigo:#494A8C; --indigo-2:#6668B5; --indigo-wash:#ECECF7;
+
+  --font-ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-note:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --font-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+
+  --r-s:6px; --r-m:10px; --r-l:16px;
+  --sh-1:0 1px 2px rgba(20,33,31,.06);
+  --sh-2:0 2px 8px rgba(20,33,31,.08),0 1px 2px rgba(20,33,31,.05);
+  --sh-3:0 -8px 40px rgba(20,33,31,.20);
+
+  --tap:48px;      /* NFR floor */
+  --tap-lg:60px;   /* nurse slate */
+  --dur:170ms;
+
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+  --tabbar:64px;
+
+  --pad:14px;      /* canvas gutter, widens with layout */
+  --rail:0px;
+}
+[data-lay="tab"]{  --pad:20px; --rail:62px; }
+[data-lay="desk"]{ --pad:26px; --rail:78px; }
+
+/* ============================================================================
+   Base
+   ========================================================================== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--paper);color:var(--ink);
+  font:400 15px/1.55 var(--font-ui);
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;                      /* belt and braces against overflow */
+}
+[data-lay="desk"] body{font-size:14px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit;max-width:100%}
+button{background:none;border:none;cursor:pointer;touch-action:manipulation}
+svg{display:block}
+img{max-width:100%}
+[hidden]{display:none!important}
+
+/* Indic scripts need more vertical room than a 1.5 line-height allows;
+   Telugu and Bengali conjuncts clip badly otherwise. */
+:lang(mr),:lang(kok){font-family:"Noto Sans Devanagari","Nirmala UI","Kohinoor Devanagari",Mangal,var(--font-ui);line-height:1.78}
+:lang(te){font-family:"Noto Sans Telugu","Kohinoor Telugu",Gautami,"Nirmala UI",var(--font-ui);line-height:1.9}
+:lang(bn){font-family:"Noto Sans Bengali","Kohinoor Bangla",Vrinda,"Nirmala UI",var(--font-ui);line-height:1.9}
+
+/* Two registers: dense for staff who want information, generous for patients
+   who want clarity. */
+.reg-staff{font-size:.9rem;line-height:1.45}
+.reg-patient{font-size:1.05rem;line-height:1.62;max-width:44ch}
+.reg-patient.wide{max-width:none}
+
+h1,h2,h3,h4{line-height:1.22;font-weight:700;letter-spacing:-.011em;overflow-wrap:break-word}
+h1{font-size:1.4rem}h2{font-size:1.14rem}h3{font-size:1rem}h4{font-size:.87rem}
+[data-lay="desk"] h1{font-size:1.5rem}
+p{overflow-wrap:break-word}
+.muted{color:var(--ink-3)}
+.faint{color:var(--ink-4)}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--font-mono);font-size:.82em;overflow-wrap:anywhere}
+.eyebrow{font-size:.66rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-4)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ============================================================================
+   Shell
+   ========================================================================== */
+/* On a phone the rail is display:none, which removes it from the grid entirely
+   and drops the content into the zero-width rail track. So the phone is not a
+   grid at all; the two-column shell begins where the rail actually exists. */
+.app{min-height:100dvh}
+[data-lay="tab"] .app,[data-lay="desk"] .app{display:grid;grid-template-columns:var(--rail) minmax(0,1fr)}
+
+/* -- left rail: tablet and desktop only -- */
+.rail{display:none}
+[data-lay="tab"] .rail,[data-lay="desk"] .rail{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  background:linear-gradient(180deg,#0E2A27,#0A1E1C);
+  padding:10px 0 16px;position:sticky;top:0;height:100dvh;overflow-y:auto;z-index:40;
+}
+.rail-mark{
+  width:42px;height:42px;border-radius:12px;background:var(--accent-3);
+  display:grid;place-items:center;color:#04211E;font-weight:900;font-size:1rem;
+  margin-bottom:10px;flex:none;letter-spacing:-.04em;
+}
+.rail-btn{
+  width:58px;min-height:54px;border-radius:10px;color:#93AFAA;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-size:.56rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+  transition:background var(--dur),color var(--dur);flex:none;text-align:center;padding:5px 2px;
+}
+[data-lay="tab"] .rail-btn{width:48px;min-height:48px;font-size:0;gap:0}
+.rail-btn svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.rail-btn:hover{background:rgba(255,255,255,.07);color:#DCEAE7}
+.rail-btn[aria-current="true"]{background:var(--accent-3);color:#03201D}
+.rail-sep{width:32px;height:1px;background:rgba(255,255,255,.13);margin:7px 0;flex:none}
+
+/* -- bottom tab bar: phone only, inside thumb reach -- */
+.tabbar{
+  display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;
+  background:rgba(10,30,28,.97);backdrop-filter:blur(10px);
+  padding-bottom:var(--safe-b);border-top:1px solid rgba(255,255,255,.08);
+}
+[data-lay="tab"] .tabbar,[data-lay="desk"] .tabbar{display:none}
+.tab-btn{
+  flex:1;min-width:0;min-height:var(--tabbar);color:#8FAAA5;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-size:.58rem;font-weight:700;letter-spacing:.02em;padding:6px 2px;
+}
+.tab-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab-btn span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tab-btn[aria-current="true"]{color:var(--accent-3)}
+.tab-btn[aria-current="true"] svg{stroke-width:2.2}
+
+/* -- header -- */
+.topbar{
+  position:sticky;top:0;z-index:30;background:rgba(251,250,247,.95);
+  backdrop-filter:blur(9px);border-bottom:1px solid var(--rule);
+  display:flex;align-items:center;gap:10px;
+  padding:calc(8px + var(--safe-t)) var(--pad) 8px;min-height:54px;
+}
+.tb-mark{
+  width:32px;height:32px;border-radius:9px;background:var(--accent);color:var(--accent-ink);
+  display:grid;place-items:center;font-weight:900;font-size:.78rem;flex:none;letter-spacing:-.03em;
+}
+.tb-id{min-width:0;flex:1}
+.tb-clinic{font-weight:800;font-size:.88rem;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-sub{font-size:.68rem;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-desk{display:none;align-items:center;gap:8px;flex-wrap:wrap}
+[data-lay="desk"] .tb-desk{display:flex}
+[data-lay="desk"] .tb-more{display:none}
+.tb-chip{
+  display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 11px;
+  border:1px solid var(--rule-strong);border-radius:var(--r-s);background:var(--surface);
+  font-size:.74rem;font-weight:700;cursor:pointer;transition:var(--dur);white-space:nowrap;
+}
+.tb-chip:hover{border-color:var(--accent-2);color:var(--accent)}
+.tb-chip.on{background:var(--sage-wash);border-color:var(--sage);color:var(--sage)}
+.tb-chip.off{background:var(--marigold-wash);border-color:var(--marigold);color:var(--marigold)}
+.tb-more{
+  width:42px;height:42px;border-radius:var(--r-s);border:1px solid var(--rule-strong);
+  background:var(--surface);display:grid;place-items:center;flex:none;position:relative;
+}
+.tb-more svg{width:20px;height:20px;stroke:var(--ink-2);fill:none;stroke-width:1.9;stroke-linecap:round}
+.tb-more .pip{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;border-radius:9px;
+  background:var(--vermilion);color:#fff;font-size:.6rem;font-weight:800;display:grid;place-items:center;padding:0 4px}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.dot.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.32}}
+
+.canvas{padding:var(--pad) var(--pad) calc(var(--tabbar) + var(--safe-b) + 26px);width:100%}
+[data-lay="tab"] .canvas,[data-lay="desk"] .canvas{padding-bottom:70px}
+[data-lay="desk"] .canvas{max-width:1460px;margin:0 auto}
+.canvas.flush{padding-left:0;padding-right:0}
+.flush > .flush-in{padding:0 var(--pad)}
+
+/* ============================================================================
+   Primitives
+   ========================================================================== */
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-l);box-shadow:var(--sh-1);min-width:0}
+.card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:14px 15px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.card-b{padding:15px}
+.card-b.tight{padding:11px 13px}
+
+.grid{display:grid;gap:13px;min-width:0}
+.g2,.g3,.g4,.gauto{grid-template-columns:minmax(0,1fr)}
+[data-lay="tab"] .g2,[data-lay="tab"] .g3,[data-lay="tab"] .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+[data-lay="tab"] .gauto{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+[data-lay="desk"] .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+[data-lay="desk"] .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+[data-lay="desk"] .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+[data-lay="desk"] .gauto{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;min-width:0}
+.row.tight{gap:6px}
+.col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.between{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;min-width:0}
+.mt{margin-top:14px}.mt-s{margin-top:8px}.mb{margin-bottom:14px}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:var(--tap);padding:0 15px;border-radius:var(--r-s);
+  font-size:.84rem;font-weight:700;border:1.5px solid transparent;transition:var(--dur);
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;
+}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2.5px solid var(--accent-3);outline-offset:2px}
+.btn-p{background:var(--accent);color:var(--accent-ink)}
+.btn-p:hover{background:var(--accent-2)}
+.btn-g{background:var(--surface);border-color:var(--rule-strong);color:var(--ink-2)}
+.btn-g:hover{border-color:var(--accent-2);color:var(--accent);background:var(--accent-wash)}
+.btn-w{background:var(--marigold);color:#fff}
+.btn-d{background:var(--vermilion);color:#fff}
+.btn-m{background:var(--indigo);color:#fff}
+.btn-s{min-height:40px;padding:0 11px;font-size:.77rem}
+.btn-xl{min-height:var(--tap-lg);font-size:.98rem;padding:0 20px;border-radius:var(--r-m)}
+.btn-full{width:100%}
+.btn[disabled]{opacity:.42;pointer-events:none}
+
+/* Statuses read as rubber-stamped marks: the native visual language of Indian
+   clinical paperwork, legible to staff never trained on the software. */
+.stamp{
+  display:inline-flex;align-items:center;gap:4px;position:relative;
+  padding:4px 8px;border:1.5px solid currentColor;border-radius:3px;
+  font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  transform:rotate(-1.1deg);white-space:nowrap;max-width:100%;
+}
+.stamp::after{content:"";position:absolute;inset:2px;border:1px solid currentColor;border-radius:1.5px;opacity:.3;pointer-events:none}
+.stamp.flat{transform:none}
+.s-ok{color:var(--sage);background:var(--sage-wash)}
+.s-warn{color:var(--marigold);background:var(--marigold-wash)}
+.s-risk{color:var(--vermilion);background:var(--vermilion-wash)}
+.s-info{color:var(--teal);background:var(--teal-wash)}
+.s-mind{color:var(--indigo);background:var(--indigo-wash)}
+.s-mute{color:var(--ink-3);background:var(--paper-2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:20px;background:var(--paper-2);border:1px solid var(--rule);font-size:.72rem;font-weight:600;color:var(--ink-2);max-width:100%}
+.chip.mini{font-size:.66rem;padding:2px 7px}
+
+.field{display:block;margin-bottom:12px}
+.field > .lbl{display:block;font-size:.76rem;font-weight:700;color:var(--ink-2);margin-bottom:5px}
+.inp,select.inp,textarea.inp{
+  width:100%;min-height:var(--tap);padding:11px 12px;background:var(--surface);
+  border:1.5px solid var(--rule-strong);border-radius:var(--r-s);font-size:16px;transition:var(--dur);
+}                                        /* 16px avoids iOS zoom-on-focus */
+[data-lay="desk"] .inp,[data-lay="desk"] select.inp,[data-lay="desk"] textarea.inp{font-size:.88rem}
+textarea.inp{min-height:82px;resize:vertical;line-height:1.55}
+.inp:focus{outline:none;border-color:var(--accent-2);box-shadow:0 0 0 3px var(--accent-wash)}
+.hint{font-size:.72rem;color:var(--ink-3);margin-top:4px}
+
+/* Table wrapper — the backstop against any table ever forcing the page wide */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+.tbl{border-collapse:collapse;width:100%;font-size:.81rem}
+.tbl th{text-align:left;font-size:.65rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);padding:8px 9px;border-bottom:1.5px solid var(--rule-strong);white-space:nowrap}
+.tbl td{padding:9px;border-bottom:1px solid var(--rule);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl .r{text-align:right}
+.tbl tbody tr:hover{background:var(--paper-2)}
+
+/* Card-list rendering of the same data on phones */
+.dl{display:flex;flex-direction:column;gap:9px}
+.dl-item{border:1px solid var(--rule);border-radius:var(--r-m);padding:11px 12px;background:var(--surface)}
+.dl-t{font-weight:800;font-size:.86rem;margin-bottom:6px}
+.dl-r{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:.78rem;border-top:1px dashed var(--rule)}
+.dl-r:first-of-type{border-top:none}
+.dl-k{color:var(--ink-3);flex:none}
+.dl-v{text-align:right;font-weight:600;min-width:0;overflow-wrap:anywhere}
+
+.kpi{font-size:1.6rem;font-weight:800;letter-spacing:-.028em;line-height:1.1;overflow-wrap:anywhere}
+.kpi.sm{font-size:1.2rem}
+.meter{height:7px;background:var(--paper-3);border-radius:20px;overflow:hidden}
+.meter > i{display:block;height:100%;border-radius:20px;transition:width 400ms}
+
+.callout{border-left:3px solid var(--accent);background:var(--accent-wash);padding:10px 12px;border-radius:0 var(--r-s) var(--r-s) 0;font-size:.79rem;line-height:1.55}
+.callout.warn{border-color:var(--marigold);background:var(--marigold-wash)}
+.callout.risk{border-color:var(--vermilion);background:var(--vermilion-wash)}
+.callout.mind{border-color:var(--indigo);background:var(--indigo-wash)}
+.callout.ok{border-color:var(--sage);background:var(--sage-wash)}
+
+.alert-band{
+  display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:var(--r-m);
+  background:repeating-linear-gradient(135deg,var(--vermilion-wash) 0 12px,#F7DFDB 12px 24px);
+  border:1.5px solid var(--vermilion);color:#7E2A20;font-weight:700;font-size:.81rem;
+}
+.alert-band .bang{width:25px;height:25px;border-radius:50%;background:var(--vermilion);color:#fff;display:grid;place-items:center;font-weight:900;flex:none}
+
+.statgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+[data-lay="desk"] .statgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.stat{padding:10px;background:var(--paper-2);border-radius:var(--r-s);min-width:0}
+.stat .sv{font-size:1.15rem;font-weight:800;letter-spacing:-.02em;margin-top:3px;overflow-wrap:anywhere}
+
+/* ============================================================================
+   Toasts + sheets
+   ========================================================================== */
+#toasts{
+  position:fixed;left:0;right:0;z-index:900;display:flex;flex-direction:column-reverse;gap:8px;
+  padding:0 var(--pad);bottom:calc(var(--tabbar) + var(--safe-b) + 10px);pointer-events:none;
+}
+[data-lay="tab"] #toasts,[data-lay="desk"] #toasts{bottom:18px;left:50%;right:auto;transform:translateX(-50%);width:min(580px,92vw);padding:0}
+.toast{
+  display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:var(--r-m);
+  background:#16302C;color:#EAF4F1;box-shadow:0 10px 34px rgba(20,33,31,.3);font-size:.82rem;
+  animation:rise var(--dur) ease-out;pointer-events:auto;
+}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.toast .t-i{width:23px;height:23px;border-radius:6px;background:var(--accent-3);color:#04211E;display:grid;place-items:center;font-weight:900;flex:none;font-size:.78rem}
+.toast.warn .t-i{background:var(--marigold-2);color:#3A2405}
+.toast.risk .t-i{background:var(--vermilion-2);color:#fff}
+.toast .t-x{flex:1;line-height:1.4;min-width:0}
+.toast .t-sub{display:block;color:#95B3AD;font-size:.73rem;margin-top:2px}
+.toast .t-undo{min-height:36px;padding:0 12px;border-radius:var(--r-s);border:1.5px solid #3E625B;color:#8FE3D6;font-weight:800;font-size:.75rem;flex:none}
+
+/* Bottom sheet on phones, centred dialog above. Same markup. */
+.scrim{position:fixed;inset:0;background:rgba(12,22,20,.55);backdrop-filter:blur(3px);z-index:800;
+  display:none;align-items:flex-end;justify-content:center}
+.scrim.on{display:flex}
+[data-lay="tab"] .scrim,[data-lay="desk"] .scrim{align-items:center;padding:18px}
+.modal{
+  background:var(--surface);width:100%;max-height:92dvh;overflow-y:auto;
+  border-radius:var(--r-l) var(--r-l) 0 0;box-shadow:var(--sh-3);
+  animation:sheet 210ms cubic-bezier(.2,.9,.3,1);padding-bottom:var(--safe-b);
+}
+[data-lay="tab"] .modal,[data-lay="desk"] .modal{width:min(580px,100%);border-radius:var(--r-l);max-height:88dvh;animation:pop var(--dur) ease-out;padding-bottom:0}
+[data-lay="desk"] .modal.wide{width:min(900px,100%)}
+@keyframes sheet{from{transform:translateY(100%)}to{transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.975)}to{opacity:1;transform:none}}
+.grabber{width:38px;height:4px;border-radius:2px;background:var(--rule-strong);margin:9px auto 0}
+[data-lay="tab"] .grabber,[data-lay="desk"] .grabber{display:none}
+.modal-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--surface);z-index:2}
+.modal-b{padding:16px}
+.modal-f{display:flex;gap:9px;padding:13px 16px;border-top:1px solid var(--rule);background:var(--paper-2);position:sticky;bottom:0}
+.x-btn{width:40px;height:40px;border-radius:var(--r-s);display:grid;place-items:center;font-size:1.3rem;color:var(--ink-3);flex:none}
+.x-btn:hover{background:var(--paper-2);color:var(--ink)}
+.sheet-list{display:flex;flex-direction:column;gap:2px}
+.sheet-row{display:flex;align-items:center;gap:11px;min-height:52px;padding:0 13px;border-radius:var(--r-s);font-size:.88rem;font-weight:600;text-align:left;width:100%}
+.sheet-row:hover{background:var(--paper-2)}
+.sheet-row .ic{width:26px;text-align:center;flex:none;color:var(--ink-3)}
+.sheet-row .val{margin-left:auto;color:var(--ink-3);font-size:.78rem;font-weight:700;flex:none}
+
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.keypad button{min-height:56px;border:1.5px solid var(--rule-strong);border-radius:var(--r-s);background:var(--surface);font-size:1.2rem;font-weight:700}
+.keypad button:hover{background:var(--accent-wash);border-color:var(--accent-2)}
+.keypad button.alt{background:var(--paper-2);font-size:.85rem;font-weight:800}
+.kp-display{
+  font:800 1.9rem/1 var(--font-ui);font-variant-numeric:tabular-nums;
+  padding:14px;background:var(--paper-2);border:1.5px solid var(--rule-strong);
+  border-radius:var(--r-s);text-align:center;margin-bottom:12px;min-height:62px;
+  display:flex;align-items:center;justify-content:center;gap:4px;
+}
+.kp-display small{font-size:.8rem;font-weight:600;color:var(--ink-3)}
+
+/* ============================================================================
+   Segmented control — lane switching on phones, and quadrant switching
+   ========================================================================== */
+.seg{display:flex;gap:4px;padding:3px;background:var(--paper-2);border:1px solid var(--rule);
+  border-radius:var(--r-m);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{
+  flex:1 0 auto;min-height:42px;padding:0 12px;border-radius:7px;font-size:.76rem;font-weight:700;
+  color:var(--ink-2);display:inline-flex;align-items:center;gap:6px;justify-content:center;white-space:nowrap;
+}
+.seg button .n{min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--rule-strong);
+  color:var(--ink);font-size:.66rem;font-weight:800;display:grid;place-items:center}
+.seg button.on{background:var(--surface);box-shadow:var(--sh-1);color:var(--accent)}
+.seg button.on .n{background:var(--accent);color:var(--accent-ink)}
+
+/* ============================================================================
+   BOARD — reception
+   ========================================================================== */
+.board{display:grid;gap:12px;grid-template-columns:minmax(0,1fr);align-items:start}
+[data-lay="tab"] .board{grid-template-columns:repeat(2,minmax(0,1fr))}
+[data-lay="desk"] .board{grid-template-columns:repeat(4,minmax(0,1fr))}
+.lane{background:var(--paper-2);border:1px solid var(--rule);border-radius:var(--r-m);padding:10px;min-width:0;transition:var(--dur)}
+.lane.drop{background:var(--accent-wash);border-color:var(--accent-2);border-style:dashed}
+[data-lay="tab"] .lane,[data-lay="desk"] .lane{min-height:180px}
+.lane-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;padding-bottom:7px;border-bottom:1.5px solid var(--rule-strong)}
+.lane-t{font-size:.68rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)}
+.lane-n{min-width:21px;height:21px;padding:0 6px;border-radius:11px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-size:.68rem;font-weight:800}
+
+/* Wait time is perceived as colour temperature, not read as a number. */
+.qcard{
+  background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--heat,var(--accent-2));
+  border-radius:var(--r-s);padding:11px;margin-bottom:9px;box-shadow:var(--sh-1);
+  transition:box-shadow var(--dur),transform var(--dur);touch-action:pan-y;
+}
+.qcard:last-child{margin-bottom:0}
+.qcard.dragging{opacity:.5;transform:scale(.98)}
+.qcard.ghost{position:fixed;z-index:850;width:var(--gw,280px);pointer-events:none;box-shadow:var(--sh-3);opacity:.95;margin:0;transform:rotate(1.5deg)}
+.qcard.landed{animation:land 420ms cubic-bezier(.2,.9,.3,1.2)}
+@keyframes land{from{transform:scale(.94);box-shadow:0 0 0 3px var(--accent-wash)}to{transform:none}}
+.qc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.qc-name{font-weight:800;font-size:.88rem;min-width:0;overflow-wrap:anywhere}
+.qc-meta{display:flex;flex-direction:column;gap:3px;margin-top:6px;font-size:.75rem;color:var(--ink-2)}
+.qc-act{display:flex;gap:6px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--rule-strong)}
+.qc-act .btn{flex:1;min-width:0}
+.grip{width:34px;height:34px;border-radius:6px;display:grid;place-items:center;color:var(--ink-4);flex:none;cursor:grab;touch-action:none}
+.grip:active{cursor:grabbing}
+.token{font-family:var(--font-mono);font-weight:700;font-size:.7rem;padding:2px 6px;background:var(--ink);color:var(--paper);border-radius:3px;flex:none}
+
+/* ============================================================================
+   SLATE — nurse
+   ========================================================================== */
+.slate{background:var(--paper-2);border-radius:var(--r-l);padding:15px;border:1px solid var(--rule)}
+[data-lay="desk"] .slate{padding:22px}
+.vital-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+[data-lay="desk"] .vital-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.vital-tile{
+  background:var(--surface);border:1.5px solid var(--rule-strong);border-radius:var(--r-m);
+  padding:13px;min-height:98px;text-align:left;transition:var(--dur);
+  display:flex;flex-direction:column;justify-content:space-between;min-width:0;
+}
+.vital-tile:hover{border-color:var(--accent-2);background:var(--accent-wash)}
+.vital-tile.set{border-color:var(--sage);background:var(--sage-wash)}
+.vital-tile .vl{font-size:.68rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.vital-tile .vv{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;margin-top:5px;overflow-wrap:anywhere}
+.vital-tile .vv.empty{color:var(--ink-4);font-weight:600;font-size:.95rem}
+.vital-tile .vu{font-size:.7rem;color:var(--ink-3);font-weight:600}
+.alert-pick{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}
+[data-lay="tab"] .alert-pick{grid-template-columns:repeat(2,minmax(0,1fr))}
+[data-lay="desk"] .alert-pick{grid-template-columns:repeat(3,minmax(0,1fr))}
+.alert-opt{
+  display:flex;align-items:center;gap:10px;min-height:var(--tap-lg);padding:0 14px;
+  border:1.5px solid var(--rule-strong);border-radius:var(--r-m);background:var(--surface);
+  font-weight:700;font-size:.86rem;text-align:left;transition:var(--dur);
+}
+.alert-opt:hover{border-color:var(--vermilion);background:var(--vermilion-wash)}
+.alert-opt.on{border-color:var(--vermilion);background:var(--vermilion-wash);color:#7E2A20}
+.alert-opt .tick{width:24px;height:24px;border-radius:6px;border:2px solid currentColor;display:grid;place-items:center;flex:none;font-weight:900;font-size:.8rem}
+
+/* ============================================================================
+   CONSOLE — dental. Dark, for a swing-arm monitor under operatory lights.
+   ========================================================================== */
+.console{background:#0B1413;color:#DCE9E6;border-radius:var(--r-l);padding:14px;border:1px solid #1E312D}
+[data-lay="desk"] .console{padding:19px}
+.console h2,.console h3,.console h4{color:#F0F7F5}
+.console .muted{color:#7D948F}
+.console .faint{color:#5E7570}
+.console .card{background:#111E1B;border-color:#22352F;box-shadow:none}
+.console .card-h{border-color:#22352F}
+.console .tbl th{color:#7D948F;border-color:#2A3F39}
+.console .tbl td{border-color:#1C2E29}
+.console .tbl tbody tr:hover{background:#15251F}
+.console .dl-item{background:#111E1B;border-color:#22352F}
+.console .dl-r{border-color:#22352F}
+.console .dl-k{color:#7D948F}
+.console .btn-g{background:#16251F;border-color:#2E453F;color:#BDD3CE}
+.console .btn-g:hover{background:#1E332C;border-color:var(--teal-3);color:#8FE3D6}
+.console .inp,.console select.inp{background:#0E1A18;border-color:#2A3F39;color:#DCE9E6}
+.console .chip{background:#16251F;border-color:#2E453F;color:#BDD3CE}
+.console .callout{background:#12241F;border-color:var(--teal-3);color:#C6DFDA}
+.console .seg{background:#0E1A18;border-color:#22352F}
+.console .seg button{color:#9BB2AD}
+.console .seg button.on{background:#1E3830;color:#8FE3D6;box-shadow:none}
+.console .seg button .n{background:#2A3F39;color:#CFE3DE}
+.console .alert-band{background:repeating-linear-gradient(135deg,#3A1613 0 12px,#451915 12px 24px);border-color:#D2574A;color:#FFD9D3}
+
+.odo{background:#0E1A18;border:1px solid #22352F;border-radius:var(--r-m);padding:12px}
+.arch-label{font-size:.62rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:#5E7570;text-align:center;margin:10px 0 6px}
+/* Phone: one quadrant, 4x2, big targets. Tablet and desktop: the full arch. */
+.arch{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+[data-lay="tab"] .arch,[data-lay="desk"] .arch{grid-template-columns:repeat(16,minmax(0,1fr));gap:4px}
+.tooth{
+  background:transparent;border:1.5px solid #2A3F39;border-radius:7px;padding:7px 2px 5px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;transition:var(--dur);
+  min-height:80px;min-width:0;
+}
+[data-lay="tab"] .tooth,[data-lay="desk"] .tooth{min-height:68px;padding:5px 1px 4px;gap:2px}
+.tooth:hover{border-color:var(--teal-3);background:#16251F}
+.tooth.sel{border-color:#8FE3D6;background:#17302B;box-shadow:0 0 0 2px rgba(143,227,214,.22)}
+.tooth .tn{font-size:.68rem;font-weight:800;color:#7D948F}
+[data-lay="tab"] .tooth .tn,[data-lay="desk"] .tooth .tn{font-size:.58rem}
+.tooth svg{width:30px;height:34px}
+[data-lay="tab"] .tooth svg,[data-lay="desk"] .tooth svg{width:23px;height:27px}
+.tooth .ts{font-size:.56rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;text-align:center;line-height:1.15}
+[data-lay="tab"] .tooth .ts,[data-lay="desk"] .tooth .ts{font-size:.5rem}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:.68rem;font-weight:700}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:-1px;border:1px solid rgba(255,255,255,.25)}
+.pal{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+[data-lay="tab"] .pal,[data-lay="desk"] .pal{display:flex;flex-wrap:wrap}
+.pal button{
+  display:flex;align-items:center;gap:7px;min-height:46px;padding:0 11px;border-radius:var(--r-s);
+  border:1.5px solid #2E453F;background:#16251F;color:#BDD3CE;font-size:.76rem;font-weight:700;min-width:0;
+}
+.pal button.on{border-color:#8FE3D6;background:#1E3830;color:#DFF7F2}
+.pal button i{width:13px;height:13px;border-radius:3px;border:1px solid rgba(255,255,255,.3);flex:none}
+
+/* ============================================================================
+   QUIET ROOM — therapy
+   ========================================================================== */
+.quiet{background:#FAF7F2;border:1px solid #E6DFD2;border-radius:var(--r-l);padding:16px}
+[data-lay="desk"] .quiet{padding:24px}
+.quiet h2{font-family:var(--font-note);font-weight:600;color:#2C2A26}
+.quiet .lede{font-family:var(--font-note);font-size:.93rem;color:#5C574E;line-height:1.6;max-width:62ch}
+.note-field{margin-bottom:17px}
+.note-label{font-size:.66rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8A8375;margin-bottom:6px}
+.note-area{
+  width:100%;background:#FFFDF9;border:1px solid #E6DFD2;border-radius:var(--r-s);
+  padding:13px 15px;font:400 16px/1.7 var(--font-note);color:#2C2A26;min-height:100px;resize:vertical;max-width:66ch;
+}
+[data-lay="desk"] .note-area{font-size:15px}
+.note-area:focus{outline:none;border-color:#B9AE99;box-shadow:0 0 0 3px rgba(185,174,153,.16)}
+.vault-seal{text-align:center;padding:32px 4px;max-width:430px;width:100%;margin:0 auto}
+[data-lay="desk"] .vault-seal{padding:52px 20px}
+.seal-ring{width:96px;height:96px;border-radius:50%;margin:0 auto 18px;border:2.5px solid var(--indigo);
+  display:grid;place-items:center;background:var(--indigo-wash);position:relative}
+.seal-ring::after{content:"";position:absolute;inset:7px;border:1.5px dashed var(--indigo-2);border-radius:50%;opacity:.5}
+.seal-ring svg{width:40px;height:40px;stroke:var(--indigo);fill:none;stroke-width:1.6}
+.pin-row{display:flex;gap:8px;justify-content:center;margin:16px 0}
+.pin-box{width:clamp(48px,15vw,58px);height:64px;border:1.5px solid var(--rule-strong);border-radius:var(--r-s);
+  background:var(--surface);text-align:center;font-size:1.6rem;font-weight:800;padding:0}
+.pin-box:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 0 3px var(--indigo-wash)}
+.pin-box.bad{border-color:var(--vermilion);background:var(--vermilion-wash);animation:shake 340ms}
+@keyframes shake{10%,90%{transform:translateX(-2px)}30%,70%{transform:translateX(4px)}50%{transform:translateX(-4px)}}
+.cipher{font-family:var(--font-mono);font-size:.66rem;line-height:1.5;color:var(--ink-4);
+  background:var(--paper-2);border:1px dashed var(--rule-strong);border-radius:var(--r-s);
+  padding:10px;word-break:break-all;max-height:74px;overflow:hidden;text-align:left}
+
+/* ============================================================================
+   Device frames — bezels only where the screen is not already a phone
+   ========================================================================== */
+.frame{width:100%;max-width:100%;background:var(--paper);border-radius:var(--r-l);overflow:hidden;border:1px solid var(--rule)}
+[data-lay="desk"] .frame{width:374px;margin:0 auto;border:9px solid #1B1B1E;border-radius:34px}
+.frame-notch{display:none;height:22px;background:#1B1B1E;position:relative}
+[data-lay="desk"] .frame-notch{display:block}
+[data-lay="desk"] .frame-notch::after{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);width:110px;height:15px;background:#1B1B1E;border-radius:0 0 11px 11px}
+/* The route card is a fixed-width artefact; the ledger beside it takes the
+   rest. A plain two-column split starves the ledger and forces it to scroll. */
+.route-grid{display:grid;gap:13px;grid-template-columns:minmax(0,1fr);align-items:start}
+[data-lay="desk"] .route-grid{grid-template-columns:392px minmax(0,1fr)}
+.frame-body{padding:13px;overflow-y:auto}
+[data-lay="desk"] .frame-body{height:560px}
+.frame.dark,.frame.dark .frame-body{background:#0E1A18;color:#DCE9E6}
+.timeline{position:relative;padding-left:24px}
+.timeline::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--rule-strong)}
+.tl-item{position:relative;margin-bottom:13px}
+.tl-item::before{content:"";position:absolute;left:-21px;top:5px;width:11px;height:11px;border-radius:50%;background:var(--surface);border:2.5px solid var(--accent-2)}
+.tl-item.blocked::before{border-color:var(--ink-4);background:var(--paper-3)}
+.tl-item.now::before{border-color:var(--marigold);background:var(--marigold);box-shadow:0 0 0 4px var(--marigold-wash)}
+.tl-time{font-size:.7rem;font-weight:800;color:var(--ink-3)}
+.thumb-bar{display:flex;gap:8px;padding:11px 0 0;margin-top:11px;border-top:1px solid var(--rule)}
+.thumb-bar .btn{flex:1;min-width:0}
+
+/* ============================================================================
+   DOORWAY — patient
+   ========================================================================== */
+.doorway{max-width:620px;margin:0 auto}
+.door-head{text-align:center;padding:4px 0 16px}
+.door-head h1{font-size:1.35rem;letter-spacing:-.02em}
+[data-lay="desk"] .door-head h1{font-size:1.6rem}
+.lang-bar{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-bottom:16px}
+.lang-btn{min-height:var(--tap);padding:0 16px;border-radius:24px;border:1.5px solid var(--rule-strong);background:var(--surface);font-size:.92rem;font-weight:700;transition:var(--dur)}
+.lang-btn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.doc-card{display:flex;gap:12px;padding:14px;border:1.5px solid var(--rule);border-radius:var(--r-m);background:var(--surface);transition:var(--dur);text-align:left;width:100%;min-width:0}
+.doc-card:hover{border-color:var(--accent-2);box-shadow:var(--sh-2)}
+.doc-av{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;font-size:1.4rem;flex:none;background:var(--accent-wash)}
+.doc-av.mind{background:var(--indigo-wash)}
+.slot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.slot{min-height:var(--tap);border:1.5px solid var(--rule-strong);border-radius:var(--r-s);background:var(--surface);font-weight:700;font-size:.85rem;transition:var(--dur)}
+.slot.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.slot:disabled{background:var(--paper-3);color:var(--ink-4);text-decoration:line-through}
+.step-dots{display:flex;gap:5px;justify-content:center;margin-bottom:14px}
+.step-dots i{width:30px;height:4px;border-radius:2px;background:var(--rule-strong)}
+.step-dots i.on{background:var(--accent)}
+.voice-pill{display:inline-flex;align-items:center;gap:8px;min-height:var(--tap);padding:0 15px;border-radius:26px;background:var(--sage-wash);border:1.5px solid var(--sage);color:var(--sage);font-weight:700;font-size:.83rem}
+.sticky-cta{position:sticky;bottom:calc(var(--tabbar) + var(--safe-b) + 8px);z-index:20;padding-top:10px}
+[data-lay="tab"] .sticky-cta,[data-lay="desk"] .sticky-cta{position:static}
+
+/* ============================================================================
+   WhatsApp simulator
+   ========================================================================== */
+.wa-top{background:#0F5F55;color:#fff;padding:10px 13px;display:flex;align-items:center;gap:10px}
+.wa-av{width:33px;height:33px;border-radius:50%;background:#1FBF6F;display:grid;place-items:center;font-weight:900;color:#043D26;flex:none}
+.wa-body{background:#E9E2D9;background-image:radial-gradient(#DCD3C7 1px,transparent 1px);background-size:15px 15px;
+  min-height:340px;max-height:56dvh;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+[data-lay="desk"] .wa-body{height:508px;max-height:none}
+.bub{max-width:88%;padding:9px 11px;border-radius:9px;font-size:.83rem;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.1);animation:rise 200ms;overflow-wrap:anywhere}
+.bub.in{background:#fff;align-self:flex-start;border-top-left-radius:2px}
+.bub.out{background:#DBF5C8;align-self:flex-end;border-top-right-radius:2px}
+.bub .ts{font-size:.62rem;color:#8C9A93;text-align:right;margin-top:3px}
+.wa-btn{display:block;width:100%;margin-top:6px;min-height:40px;background:#fff;border:1px solid #1FBF6F;color:#0F5F55;font-weight:800;border-radius:6px;font-size:.78rem}
+.wa-audio{display:flex;align-items:center;gap:9px;background:#F0FCF5;border:1px solid #9FE3BE;padding:7px 11px;border-radius:22px;margin-top:6px;font-size:.76rem;font-weight:700;color:#0F5F55;width:100%}
+.wa-wave{display:flex;align-items:center;gap:2px;flex:1;height:18px}
+.wa-wave i{flex:1;background:#4FCB8B;border-radius:2px;height:30%}
+.wa-wave.play i{animation:wv 900ms ease-in-out infinite}
+.wa-wave i:nth-child(2n){animation-delay:.1s}.wa-wave i:nth-child(3n){animation-delay:.2s}
+@keyframes wv{0%,100%{height:26%}50%{height:96%}}
+
+/* ============================================================================
+   Panels: feed, coverage, isolation, design reference, roadmap
+   ========================================================================== */
+.feed{max-height:320px;overflow-y:auto;font-size:.78rem}
+.feed-row{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--rule)}
+.feed-row:last-child{border-bottom:none}
+.feed-t{font-family:var(--font-mono);font-size:.66rem;color:var(--ink-4);flex:none}
+.feed-r{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);flex:none;width:66px}
+.cov-row{display:flex;align-items:flex-start;gap:9px;padding:10px 0;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.cov-id{font-family:var(--font-mono);font-size:.71rem;font-weight:700;flex:none;color:var(--accent)}
+.cov-ok{width:19px;height:19px;border-radius:50%;background:var(--sage);color:#fff;display:grid;place-items:center;font-size:.66rem;font-weight:900;flex:none;margin-top:1px}
+.cov-txt{flex:1 1 200px;min-width:0}
+.swatch{height:48px;border-radius:var(--r-s);border:1px solid rgba(0,0,0,.09);display:flex;align-items:flex-end;padding:5px 7px;font-size:.62rem;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.mode-demo{border-radius:var(--r-m);padding:13px;min-height:110px;border:1px solid var(--rule)}
+.rm-card{border:1px solid var(--rule);border-radius:var(--r-m);padding:14px;background:var(--surface);position:relative;overflow:hidden}
+.rm-card::before{content:"PREVIEW";position:absolute;top:11px;right:-30px;transform:rotate(38deg);
+  background:var(--marigold);color:#fff;font-size:.55rem;font-weight:900;letter-spacing:.14em;padding:3px 34px}
+.iso-probe{border:1.5px dashed var(--rule-strong);border-radius:var(--r-m);padding:13px;background:var(--paper-2)}
+.iso-result{font-family:var(--font-mono);font-size:.72rem;line-height:1.6;padding:11px;border-radius:var(--r-s);
+  background:#0E1A18;color:#CFE3DE;overflow-x:auto;white-space:pre-wrap;word-break:break-word}
+.iso-result .deny{color:#FF9C8E;font-weight:700}
+.iso-result .ok{color:#7FE0B0}
+
+/* ============================================================================
+   Tenant gate
+   ========================================================================== */
+.gate{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding:calc(28px + var(--safe-t)) var(--pad) 40px;background:
+  radial-gradient(1200px 500px at 50% -10%,var(--accent-wash),transparent),var(--paper)}
+.gate-in{width:100%;max-width:520px}
+.gate-brand{display:flex;align-items:center;gap:11px;margin-bottom:22px;justify-content:center}
+.gate-brand .m{width:40px;height:40px;border-radius:11px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:900;letter-spacing:-.04em}
+.ws{display:flex;align-items:center;gap:12px;width:100%;padding:13px;border:1.5px solid var(--rule);
+  border-radius:var(--r-m);background:var(--surface);text-align:left;transition:var(--dur);margin-bottom:9px;min-width:0}
+.ws:hover{border-color:var(--accent-2);box-shadow:var(--sh-2)}
+.ws .m{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:900;font-size:.9rem;flex:none;letter-spacing:-.03em}
+.ws .b{flex:1;min-width:0}
+.ws .nm{font-weight:800;font-size:.93rem;overflow-wrap:anywhere}
+.ws .sl{font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);overflow-wrap:anywhere}
+.ws .go{color:var(--ink-4);font-size:1.2rem;flex:none}
+.role-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.role-btn{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:74px;padding:12px;
+  border:1.5px solid var(--rule-strong);border-radius:var(--r-m);background:var(--surface);text-align:left;transition:var(--dur)}
+.role-btn:hover{border-color:var(--accent-2);background:var(--accent-wash)}
+.role-btn b{font-size:.88rem}
+.role-btn span{font-size:.72rem;color:var(--ink-3);line-height:1.35}
+
+/* ============================================================================
+   Print / motion
+   ========================================================================== */
+@media print{
+  .rail,.tabbar,.topbar,#toasts,.no-print{display:none!important}
+  .app{grid-template-columns:1fr}
+  body{background:#fff}
+  .card{break-inside:avoid;box-shadow:none}
+  .canvas{padding:0}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate"></div>
+
+<div class="app" id="app" hidden>
+  <nav class="rail" id="rail" aria-label="Modules"></nav>
+  <div style="min-width:0">
+    <header class="topbar" id="topbar"></header>
+    <main class="canvas" id="canvas" tabindex="-1"></main>
+  </div>
+</div>
+<nav class="tabbar" id="tabbar" aria-label="Modules" hidden></nav>
+
+<div class="scrim" id="scrim" role="dialog" aria-modal="true"><div class="modal" id="modal"></div></div>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+/* ==========================================================================
+   1. I18N — five languages across every patient-facing surface.
+   Each tenant enables a subset (see TENANTS.langs); across the three seeded
+   tenants all five appear, which is how per-tenant configuration is shown.
+   ========================================================================== */
+const I18N = {
+en:{
+  _name:"English",
+  chooseLang:"Choose your language",
+  noApp:"No app to download",
+  findCare:"What do you need help with?",
+  searchPh:"Toothache, root canal, anxiety, fever…",
+  allSpec:"All specialties", dentalSpec:"Dentistry & oral surgery",
+  mentalSpec:"Psychology & counselling", gpSpec:"General medicine",
+  modeAll:"Clinic visit or video call", modeClinic:"Clinic visit only", modeVideo:"Video call only",
+  chooseTime:"Choose a time",
+  yrsExp:"years experience", speaks:"Speaks",
+  back:"Back", next:"Continue", change:"Change",
+  feeLabel:"Your fee for this visit",
+  feeStd:"Standard consultation fee",
+  feeFree:"Free follow-up — you visited within the last {n} days",
+  feeExpired:"Your last visit was {n} days ago, so the standard fee applies",
+  prepayNote:"Counselling sessions are paid in full when booking. Cancel more than 24 hours ahead for a full refund.",
+  otpSent:"We sent a 6-digit code on WhatsApp to {phone}",
+  otpVerify:"Verify",
+  payWith:"Pay with UPI", payScan:"Scan this QR with any UPI app",
+  confirmBooking:"Confirm booking",
+  allDone:"You're booked",
+  bookedWith:"Booked with {doctor}",
+  yourToken:"Your token number",
+  arriveBy:"Please arrive by",
+  waSent:"Confirmation sent on WhatsApp in {lang}",
+  listenAudio:"Listen in {lang}",
+  bookAnother:"Book another appointment",
+  chairNote:"Room availability is checked before the time is offered",
+  waConfirm:"Hello {name}. Your appointment with {doctor} is confirmed for {time}. Token {token}. Address: {clinic}.",
+  waBtnConfirm:"I'll be there", waBtnReschedule:"Change the time",
+  waRadar:"{doctor} is seeing token {current}. You are token {token}. Estimated entry {eta}.",
+  waBtnLate:"I'll be 15 minutes late",
+  waCare:"Care note from {doctor}: the anaesthesia will wear off shortly. Avoid hot drinks, do not rinse hard, and take your medicine after food.",
+  waReceipt:"Receipt: {amount} received. Thank you. Your next sitting is {next}.",
+  waMood:"How is your mood today?",
+  moodLow:"Very low", moodAnx:"Anxious", moodOk:"Steady", moodGood:"Good"
+},
+mr:{
+  _name:"मराठी",
+  chooseLang:"तुमची भाषा निवडा",
+  noApp:"कोणतेही अ‍ॅप डाऊनलोड करण्याची गरज नाही",
+  findCare:"तुम्हाला कशासाठी मदत हवी आहे?",
+  searchPh:"दातदुखी, रूट कॅनॉल, चिंता, ताप…",
+  allSpec:"सर्व विभाग", dentalSpec:"दंत चिकित्सा आणि शस्त्रक्रिया",
+  mentalSpec:"मानसोपचार आणि समुपदेशन", gpSpec:"सामान्य वैद्यकशास्त्र",
+  modeAll:"क्लिनिक भेट किंवा व्हिडिओ कॉल", modeClinic:"फक्त क्लिनिक भेट", modeVideo:"फक्त व्हिडिओ कॉल",
+  chooseTime:"वेळ निवडा",
+  yrsExp:"वर्षांचा अनुभव", speaks:"भाषा",
+  back:"मागे", next:"पुढे", change:"बदला",
+  feeLabel:"या भेटीसाठी तुमचे शुल्क",
+  feeStd:"नेहमीचे तपासणी शुल्क",
+  feeFree:"मोफत फॉलो-अप — तुम्ही मागील {n} दिवसांत येऊन गेला आहात",
+  feeExpired:"तुमची मागील भेट {n} दिवसांपूर्वी झाली, त्यामुळे नेहमीचे शुल्क लागू आहे",
+  prepayNote:"समुपदेशन सत्रांचे पैसे बुकिंगच्या वेळीच भरावे लागतात. २४ तासांपूर्वी रद्द केल्यास पूर्ण परतावा मिळेल.",
+  otpSent:"आम्ही {phone} या नंबरवर व्हॉट्सअ‍ॅपवर ६ अंकी कोड पाठवला आहे",
+  otpVerify:"तपासा",
+  payWith:"UPI ने पैसे भरा", payScan:"कोणत्याही UPI अ‍ॅपने हा QR स्कॅन करा",
+  confirmBooking:"बुकिंग निश्चित करा",
+  allDone:"तुमची अपॉइंटमेंट निश्चित झाली",
+  bookedWith:"{doctor} यांच्यासोबत अपॉइंटमेंट निश्चित",
+  yourToken:"तुमचा टोकन क्रमांक",
+  arriveBy:"कृपया या वेळेपर्यंत पोहोचा",
+  waSent:"{lang} भाषेत व्हॉट्सअ‍ॅपवर संदेश पाठवला आहे",
+  listenAudio:"{lang} मध्ये ऐका",
+  bookAnother:"आणखी एक अपॉइंटमेंट घ्या",
+  chairNote:"वेळ दाखवण्यापूर्वी खोली उपलब्ध आहे का ते तपासले जाते",
+  waConfirm:"नमस्कार {name}. {doctor} यांच्यासोबत तुमची अपॉइंटमेंट {time} वाजता निश्चित झाली आहे. टोकन {token}. पत्ता: {clinic}.",
+  waBtnConfirm:"मी येईन", waBtnReschedule:"वेळ बदला",
+  waRadar:"{doctor} सध्या टोकन {current} पाहत आहेत. तुमचे टोकन {token} आहे. अंदाजे वेळ {eta}.",
+  waBtnLate:"मला १५ मिनिटे उशीर होईल",
+  waCare:"{doctor} यांची सूचना: भूल थोड्या वेळात उतरेल. गरम पेय टाळा, जोरात चूळ भरू नका, आणि जेवणानंतर औषध घ्या.",
+  waReceipt:"पावती: {amount} मिळाले. धन्यवाद. तुमचे पुढील सत्र {next} रोजी आहे.",
+  waMood:"आज तुमचा मूड कसा आहे?",
+  moodLow:"खूप उदास", moodAnx:"चिंतेत", moodOk:"ठीक", moodGood:"छान"
+},
+te:{
+  _name:"తెలుగు",
+  chooseLang:"మీ భాషను ఎంచుకోండి",
+  noApp:"యాప్ డౌన్‌లోడ్ అవసరం లేదు",
+  findCare:"మీకు ఏ విషయంలో సహాయం కావాలి?",
+  searchPh:"పంటి నొప్పి, రూట్ కెనాల్, ఆందోళన, జ్వరం…",
+  allSpec:"అన్ని విభాగాలు", dentalSpec:"దంత వైద్యం & శస్త్రచికిత్స",
+  mentalSpec:"మానసిక వైద్యం & కౌన్సెలింగ్", gpSpec:"సాధారణ వైద్యం",
+  modeAll:"క్లినిక్ సందర్శన లేదా వీడియో కాల్", modeClinic:"క్లినిక్ సందర్శన మాత్రమే", modeVideo:"వీడియో కాల్ మాత్రమే",
+  chooseTime:"సమయాన్ని ఎంచుకోండి",
+  yrsExp:"సంవత్సరాల అనుభవం", speaks:"భాషలు",
+  back:"వెనుకకు", next:"కొనసాగించు", change:"మార్చు",
+  feeLabel:"ఈ సందర్శనకు మీ ఫీజు",
+  feeStd:"సాధారణ కన్సల్టేషన్ ఫీజు",
+  feeFree:"ఉచిత ఫాలో-అప్ — మీరు గత {n} రోజుల్లో వచ్చారు",
+  feeExpired:"మీ గత సందర్శన {n} రోజుల క్రితం, కాబట్టి సాధారణ ఫీజు వర్తిస్తుంది",
+  prepayNote:"కౌన్సెలింగ్ సెషన్‌లకు బుకింగ్ సమయంలోనే పూర్తి చెల్లింపు అవసరం. 24 గంటల ముందు రద్దు చేస్తే పూర్తి వాపసు.",
+  otpSent:"మేము {phone}కి వాట్సాప్‌లో 6 అంకెల కోడ్ పంపాము",
+  otpVerify:"ధృవీకరించు",
+  payWith:"UPI ద్వారా చెల్లించండి", payScan:"ఏదైనా UPI యాప్‌తో ఈ QR స్కాన్ చేయండి",
+  confirmBooking:"బుకింగ్ ఖరారు చేయండి",
+  allDone:"మీ అపాయింట్‌మెంట్ ఖరారైంది",
+  bookedWith:"{doctor}తో బుక్ చేయబడింది",
+  yourToken:"మీ టోకెన్ సంఖ్య",
+  arriveBy:"దయచేసి ఈ సమయానికి చేరుకోండి",
+  waSent:"{lang}లో వాట్సాప్ సందేశం పంపబడింది",
+  listenAudio:"{lang}లో వినండి",
+  bookAnother:"మరో అపాయింట్‌మెంట్ బుక్ చేయండి",
+  chairNote:"సమయం చూపించే ముందు గది అందుబాటు తనిఖీ చేయబడుతుంది",
+  waConfirm:"నమస్కారం {name}. {doctor}తో మీ అపాయింట్‌మెంట్ {time}కి ఖరారైంది. టోకెన్ {token}. చిరునామా: {clinic}.",
+  waBtnConfirm:"నేను వస్తాను", waBtnReschedule:"సమయం మార్చండి",
+  waRadar:"{doctor} ప్రస్తుతం టోకెన్ {current} చూస్తున్నారు. మీది టోకెన్ {token}. అంచనా సమయం {eta}.",
+  waBtnLate:"నాకు 15 నిమిషాలు ఆలస్యం",
+  waCare:"{doctor} సూచన: మత్తు త్వరలో తగ్గుతుంది. వేడి పానీయాలు వద్దు, గట్టిగా పుక్కిలించవద్దు, భోజనం తర్వాత మందు వేసుకోండి.",
+  waReceipt:"రసీదు: {amount} అందింది. ధన్యవాదాలు. మీ తదుపరి సిట్టింగ్ {next}.",
+  waMood:"ఈరోజు మీ మానసిక స్థితి ఎలా ఉంది?",
+  moodLow:"చాలా తక్కువ", moodAnx:"ఆందోళన", moodOk:"స్థిరం", moodGood:"బాగుంది"
+},
+bn:{
+  _name:"বাংলা",
+  chooseLang:"আপনার ভাষা বেছে নিন",
+  noApp:"কোনো অ্যাপ ডাউনলোড করতে হবে না",
+  findCare:"আপনার কী বিষয়ে সাহায্য দরকার?",
+  searchPh:"দাঁতের ব্যথা, রুট ক্যানেল, উদ্বেগ, জ্বর…",
+  allSpec:"সকল বিভাগ", dentalSpec:"দাঁতের চিকিৎসা ও সার্জারি",
+  mentalSpec:"মানসিক স্বাস্থ্য ও কাউন্সেলিং", gpSpec:"সাধারণ চিকিৎসা",
+  modeAll:"ক্লিনিকে সাক্ষাৎ বা ভিডিও কল", modeClinic:"শুধু ক্লিনিকে সাক্ষাৎ", modeVideo:"শুধু ভিডিও কল",
+  chooseTime:"সময় বেছে নিন",
+  yrsExp:"বছরের অভিজ্ঞতা", speaks:"ভাষা",
+  back:"পিছনে", next:"এগিয়ে যান", change:"পরিবর্তন",
+  feeLabel:"এই সাক্ষাতের জন্য আপনার ফি",
+  feeStd:"সাধারণ পরামর্শ ফি",
+  feeFree:"বিনামূল্যে ফলো-আপ — আপনি গত {n} দিনের মধ্যে এসেছিলেন",
+  feeExpired:"আপনার শেষ সাক্ষাৎ {n} দিন আগে, তাই সাধারণ ফি প্রযোজ্য",
+  prepayNote:"কাউন্সেলিং সেশনের পুরো টাকা বুকিংয়ের সময়ে দিতে হয়। ২৪ ঘণ্টা আগে বাতিল করলে সম্পূর্ণ ফেরত।",
+  otpSent:"আমরা {phone} নম্বরে হোয়াটসঅ্যাপে ৬ সংখ্যার কোড পাঠিয়েছি",
+  otpVerify:"যাচাই করুন",
+  payWith:"UPI দিয়ে টাকা দিন", payScan:"যেকোনো UPI অ্যাপ দিয়ে এই QR স্ক্যান করুন",
+  confirmBooking:"বুকিং নিশ্চিত করুন",
+  allDone:"আপনার অ্যাপয়েন্টমেন্ট নিশ্চিত হয়েছে",
+  bookedWith:"{doctor}-এর সাথে বুক করা হয়েছে",
+  yourToken:"আপনার টোকেন নম্বর",
+  arriveBy:"অনুগ্রহ করে এই সময়ের মধ্যে পৌঁছান",
+  waSent:"{lang} ভাষায় হোয়াটসঅ্যাপে বার্তা পাঠানো হয়েছে",
+  listenAudio:"{lang} ভাষায় শুনুন",
+  bookAnother:"আরেকটি অ্যাপয়েন্টমেন্ট নিন",
+  chairNote:"সময় দেখানোর আগে ঘর খালি আছে কিনা যাচাই করা হয়",
+  waConfirm:"নমস্কার {name}। {doctor}-এর সাথে আপনার অ্যাপয়েন্টমেন্ট {time}-এ নিশ্চিত হয়েছে। টোকেন {token}। ঠিকানা: {clinic}।",
+  waBtnConfirm:"আমি আসছি", waBtnReschedule:"সময় বদলান",
+  waRadar:"{doctor} এখন টোকেন {current} দেখছেন। আপনার টোকেন {token}। আনুমানিক সময় {eta}।",
+  waBtnLate:"আমার ১৫ মিনিট দেরি হবে",
+  waCare:"{doctor}-এর পরামর্শ: অবশ ভাব শীঘ্রই কমবে। গরম পানীয় এড়িয়ে চলুন, জোরে কুলকুচি করবেন না, খাবারের পরে ওষুধ নিন।",
+  waReceipt:"রসিদ: {amount} পাওয়া গেছে। ধন্যবাদ। আপনার পরবর্তী বসা {next}।",
+  waMood:"আজ আপনার মন কেমন?",
+  moodLow:"খুব খারাপ", moodAnx:"উদ্বিগ্ন", moodOk:"স্থিতিশীল", moodGood:"ভালো"
+},
+kok:{
+  _name:"कोंकणी",
+  chooseLang:"तुमची भास वेंचून काढात",
+  noApp:"कसलेंच अ‍ॅप डाऊनलोड करपाची गरज ना",
+  findCare:"तुमकां कसल्या गजालीक मदत जाय?",
+  searchPh:"दांत दुखप, रूट कॅनॉल, चिंता, ताप…",
+  allSpec:"सगळे विभाग", dentalSpec:"दांतांची चिकित्सा आनी शस्त्रक्रिया",
+  mentalSpec:"मानसिक भलायकी आनी समुपदेशन", gpSpec:"सामान्य वैजकी",
+  modeAll:"क्लिनिक भेट वा व्हिडिओ कॉल", modeClinic:"फकत क्लिनिक भेट", modeVideo:"फकत व्हिडिओ कॉल",
+  chooseTime:"वेळ वेंचून काढात",
+  yrsExp:"वर्सांचो अणभव", speaks:"भासो",
+  back:"फाटीं", next:"फुडें", change:"बदलात",
+  feeLabel:"ह्या भेटीखातीर तुमची फी",
+  feeStd:"सामान्य तपासणी फी",
+  feeFree:"फुकट फॉलो-अप — तुमी फाटल्या {n} दिसांनी आयिल्ले",
+  feeExpired:"तुमची फाटली भेट {n} दिसां आदीं जाल्ली, देखून सामान्य फी लागू",
+  prepayNote:"समुपदेशन सत्रांचे पयशे बुकिंगाच्या वेळार भरचे पडटात. २४ वरां आदीं रद्द केल्यार पुराय परतावो.",
+  otpSent:"आमी {phone} हाचेर व्हॉट्सअ‍ॅपार ६ आंकड्यांचो कोड धाडला",
+  otpVerify:"तपासात",
+  payWith:"UPI वरवीं पयशे भरात", payScan:"खंयच्याय UPI अ‍ॅपान हो QR स्कॅन करात",
+  confirmBooking:"बुकिंग थारायात",
+  allDone:"तुमची अपॉइंटमेंट थारली",
+  bookedWith:"{doctor} हांचे कडेन बुकिंग जालें",
+  yourToken:"तुमचो टोकन क्रमांक",
+  arriveBy:"उपकार करून ह्या वेळा भितर पावात",
+  waSent:"{lang} भाशेन व्हॉट्सअ‍ॅपार संदेश धाडला",
+  listenAudio:"{lang} भाशेन आयकात",
+  bookAnother:"आनीक एक अपॉइंटमेंट घेयात",
+  chairNote:"वेळ दाखोवचे आदीं कूड मेकळी आसा काय ना तें तपासतात",
+  waConfirm:"नमस्कार {name}. {doctor} हांचे कडेन तुमची अपॉइंटमेंट {time} वाजता थारल्या. टोकन {token}. सुवात: {clinic}.",
+  waBtnConfirm:"हांव येतलों", waBtnReschedule:"वेळ बदलात",
+  waRadar:"{doctor} आतां टोकन {current} पळयतात. तुमचो टोकन {token}. अदमासाची वेळ {eta}.",
+  waBtnLate:"म्हाका १५ मिनटां उशीर जातलो",
+  waCare:"{doctor} हांची सुचोवणी: भूल थोड्या वेळान देंवतली. हुनहुनीत पेयां न्हय, जोरान चूळ भरची न्हय, जेवणा उपरांत वखद घेयात.",
+  waReceipt:"पावती: {amount} मेळ्ळे. देव बरें करूं. तुमचें फुडलें सत्र {next}.",
+  waMood:"आयज तुमचो मूड कसो आसा?",
+  moodLow:"चड उदास", moodAnx:"चिंतेंत", moodOk:"थीर", moodGood:"बरो"
+}
+};
+/* ==========================================================================
+   2. CLINICAL REFERENCE DATA — shared code, never shared patient data
+   ========================================================================== */
+function at(h,m){ return new Date(2026,8,11,h,m,0); }
+function daysAgo(n){ const d=new Date(2026,8,11,10,0,0); d.setDate(d.getDate()-n); return d; }
+
+const FDI_UPPER = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
+const FDI_LOWER = [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
+const QUADRANTS = [
+  {id:"q1", short:"UR", label:"Upper right", teeth:[18,17,16,15,14,13,12,11]},
+  {id:"q2", short:"UL", label:"Upper left",  teeth:[21,22,23,24,25,26,27,28]},
+  {id:"q4", short:"LR", label:"Lower right", teeth:[48,47,46,45,44,43,42,41]},
+  {id:"q3", short:"LL", label:"Lower left",  teeth:[31,32,33,34,35,36,37,38]}
+];
+
+/* Each state carries colour AND pattern AND text — roughly 8% of Indian men
+   have a colour vision deficiency, so colour alone is never the signal. */
+const TOOTH_STATES = {
+  healthy:{label:"Healthy", short:"OK",     colour:"#4E8A5B", fill:"#1B2E24", pattern:null},
+  caries: {label:"Caries",  short:"Caries", colour:"#D2574A", fill:"#3A1A16", pattern:"hatch"},
+  rct:    {label:"RCT",     short:"RCT",    colour:"#E8952A", fill:"#3A2A10", pattern:"cross"},
+  crown:  {label:"Crown",   short:"Crown",  colour:"#3FB8AC", fill:"#0F2E2B", pattern:"dots"},
+  missing:{label:"Missing", short:"Absent", colour:"#7D948F", fill:"transparent", pattern:null}
+};
+
+const PROTOCOLS = {
+  caries:[{n:"Composite restoration", fee:1800, mins:30, consumables:["Composite kit","LA carpule"]}],
+  rct:[
+    {n:"Biomechanical prep & pulpectomy", fee:2500, mins:45, consumables:["Rotary endo file","LA carpule","Rubber dam","Sterilisation pouch"]},
+    {n:"Obturation & composite core",     fee:2000, mins:40, consumables:["Gutta-percha","Sealer"]},
+    {n:"Zirconia crown fixation",         fee:4500, mins:35, consumables:["Luting cement"], lab:true}
+  ],
+  crown:[
+    {n:"Crown preparation & impression", fee:3000, mins:40, consumables:["Impression material","Retraction cord"], lab:true},
+    {n:"Crown cementation",              fee:4500, mins:25, consumables:["Luting cement"]}
+  ],
+  missing:[{n:"Implant assessment & CBCT", fee:1200, mins:20, consumables:[]}]
+};
+
+const DSM5 = [
+  {code:"F41.1", label:"Generalised Anxiety Disorder"},
+  {code:"F32.1", label:"Major Depressive Disorder, moderate"},
+  {code:"F43.1", label:"Post-Traumatic Stress Disorder"},
+  {code:"F40.1", label:"Social Anxiety Disorder"},
+  {code:"F42.2", label:"Obsessive-Compulsive Disorder"}
+];
+
+const ALERT_TAGS = ["Penicillin allergy","Local anaesthetic reaction","Hypertension","Diabetes","Bleeding risk","Asthma","Pregnancy"];
+
+/* Modules are a function of the tenant's vertical. A dental workspace has no
+   therapy module at all — verticalization made structural, not cosmetic. */
+const MODULES_BY_VERTICAL = {
+  dental:        ["reception","nurse","dental","consultant","owner","patient"],
+  mental_health: ["reception","therapy","owner","patient"],
+  polyclinic:    ["reception","nurse","dental","therapy","consultant","owner","patient"]
+};
+const UTILITY_MODULES = ["whatsapp","roadmap","isolation","system","coverage"];
+
+/* The same mobile number, deliberately present in two workspaces as two
+   entirely unrelated records. This is the isolation proof. */
+const SHARED_PHONE = "+91 98220-44910";
+const PROVISIONED  = 1000;
+
+/* -- terse seed helpers ---------------------------------------------------- */
+function P(id,name,age,sex,lang,phone,since,alerts,vitals,abha){
+  return {id,name,age,sex,lang,phone,abha:abha||null,
+          lastVisit: since===null?null:daysAgo(since),
+          alerts:alerts||[], vitals:vitals||null};
+}
+function A(id,pid,doc,room,h,m,mins,reason,lane,fee,paid,token,x){
+  return Object.assign({id,pid,doc,chair:room,start:at(h,m),mins,reason,lane,fee,paid,token,mode:"clinic"}, x||{});
+}
+
+/* ==========================================================================
+   3. TENANT REGISTRY
+   In production the tenant resolves from the subdomain and its configuration
+   comes from the clinics table. Here it resolves from ?clinic=<slug>, and only
+   the resolved tenant's slice is ever materialised — the client-side mirror of
+   the server only returning rows for current_setting('app.clinic_id').
+   ========================================================================== */
+const TENANTS = [
+{
+  id:"aarav-dental", mark:"AD",
+  name:"Aarav Dental Arts", legal:"Aarav Dental Arts LLP",
+  host:"aaravdental.practix.in", city:"Indiranagar, Bengaluru",
+  vertical:"dental", verticalLabel:"Dental practice",
+  accent:{a:"#0B4F4A", b:"#0E7C74", c:"#159A8F", wash:"#E2EFED", ink:"#F2FAF8"},
+  langs:["en","mr","te"], followupDays:7, overhead:85000, vpa:"aaravdental@icici",
+  since:"2019", chairsLabel:"chair",
+  staff:{reception:"Priya Nair", nurse:"Sr. Kavita Pawar", dental:"Dr. Aarav Sharma",
+         consultant:"Dr. Kunal Mehta", owner:"Dr. Aarav Sharma"},
+  seed(){ return {
+    practitioners:[
+      {id:"sharma", name:"Dr. Aarav Sharma", qual:"BDS", kind:"dental", exp:12, fee:500, room:"Chair 1",
+       langs:["Marathi","Kannada","Hindi","English"], blurb:"General dentistry & implants"},
+      {id:"mehta",  name:"Dr. Kunal Mehta", qual:"MDS", kind:"dental", exp:15, fee:1200, room:"Visiting",
+       langs:["Hindi","Gujarati","English"], blurb:"Endodontics — visiting consultant", visiting:true, split:0.60}
+    ],
+    chairs:[{id:"c1",label:"Chair 1",caps:["rct","crown","implant"]},
+            {id:"c2",label:"Chair 2",caps:["rct","crown"]}],
+    patients:[
+      P("patil","Baburao Patil",59,"M","mr",SHARED_PHONE,null,["Penicillin allergy"],null,"91-8842-1920-4102"),
+      P("shalini","Shalini Rao",31,"F","te","+91 99012-33455",4,[],null,"91-7731-5520-8891"),
+      P("reddy","Venkat S. Reddy",48,"M","te","+91 98480-11234",12,["Hypertension"],null,null),
+      P("shenoy","Premanand Shenoy",54,"M","mr","+91 98230-77112",21,[],{bp:"128/84",pulse:72,sugar:104,weight:71},"91-2214-9087-3310"),
+      P("verma","Rahul Verma",34,"M","mr","+91 98765-43321",2,[],{bp:"118/76",pulse:68,sugar:96,weight:78},"91-3390-7781-2245")
+    ],
+    appointments:[
+      A("a1","patil","sharma","c1",10,30,45,"Molar pain — RCT sitting 1","expected",500,500,3),
+      A("a2","shalini","sharma","c2",11,15,20,"Post-treatment review","expected",0,0,5,{feeNote:"Free follow-up (day 4)"}),
+      A("a3","reddy","sharma","c1",16,0,30,"Crown impression check","expected",500,0,7),
+      A("a4","shenoy","mehta","c1",11,45,40,"Crown preparation","waiting",3000,3000,4,{arrived:at(10,10)}),
+      A("a5","verma","sharma","c2",9,30,30,"Scaling & polishing","billing",2000,0,1,{abdmPushed:true})
+    ],
+    external:[{doc:"mehta",start:at(16,0),mins:90,source:"google",masked:"Doctor Unavailable (External Sync)"},
+              {doc:"sharma",start:at(13,30),mins:60,source:"outlook",masked:"Doctor Unavailable (External Sync)"}],
+    teeth:{patil:{16:"rct",26:"caries",11:"crown"}, shenoy:{36:"crown"}, reddy:{24:"caries"}},
+    plans:{patil:[
+      {tooth:16,step:1,name:"Biomechanical prep & pulpectomy",fee:2500,mins:45,status:"chair",consumables:["Rotary endo file","LA carpule","Rubber dam","Sterilisation pouch"]},
+      {tooth:16,step:2,name:"Obturation & composite core",fee:2000,mins:40,status:"planned",consumables:["Gutta-percha","Sealer"]},
+      {tooth:16,step:3,name:"Zirconia crown fixation",fee:4500,mins:35,status:"planned",lab:true,consumables:["Luting cement"]}]},
+    labOrders:[{id:"LAB-904",lab:"Apex Dental Ceramics, Pune",pid:"shenoy",tooth:36,
+                type:"Monolithic zirconia",shade:"A2 (VITA classical)",due:"12 Sep, 2:00 PM",status:"fabricating",cost:1400}],
+    labs:["Apex Dental Ceramics, Pune","Illusion Dental Craft, Mumbai","Meridian Prosthetics, Bengaluru"],
+    inventory:[{item:"Rotary endodontic file",stock:14,buffer:6},{item:"LA carpule (Lignocaine)",stock:52,buffer:20},
+               {item:"Rubber dam sheet",stock:31,buffer:15},{item:"Sterilisation pouch",stock:88,buffer:40},
+               {item:"Composite kit",stock:7,buffer:5},{item:"Luting cement",stock:9,buffer:4}],
+    ledger:[
+      {date:"10 Sep",clinic:"Aarav Dental",pid:"patil",desc:"RCT sitting 1",gross:2500,lab:0,consum:250,status:"approved"},
+      {date:"08 Sep",clinic:"Smile Care",pid:null,desc:"Molar retreatment (K. Rao)",gross:4500,lab:0,consum:500,status:"settled"},
+      {date:"07 Sep",clinic:"Aarav Dental",pid:"shenoy",desc:"Crown impression",gross:3000,lab:1400,consum:300,status:"settled"}],
+    vault:null,
+    abdm:{bundles:184,ratePerBundle:20,monthlyTarget:450,m1Verified:212,m3Consents:37},
+    cash:{cash:7000,upi:20300,pending:2000},
+    roomUse:{c1:372,c2:248}, roomMinutesPerDay:480,
+    audit:[], feed:[], wa:{}
+  };}
+},
+{
+  id:"anandi-wellness", mark:"AW",
+  name:"Anandi Mind & Wellness", legal:"Anandi Wellness Studio",
+  host:"anandi.practix.in", city:"Kothrud, Pune",
+  vertical:"mental_health", verticalLabel:"Counselling practice",
+  accent:{a:"#3E3F7D", b:"#565899", c:"#7B7DC8", wash:"#ECECF7", ink:"#F5F5FC"},
+  langs:["en","mr","kok"], followupDays:10, overhead:42000, vpa:"anandiwellness@hdfc",
+  since:"2022", chairsLabel:"room",
+  staff:{reception:"Meghana Bhosale", therapy:"Dr. Ananya Iyer", owner:"Dr. Ananya Iyer"},
+  seed(){ return {
+    practitioners:[
+      {id:"iyer", name:"Dr. Ananya Iyer", qual:"PhD", kind:"mental", exp:9, fee:1800, room:"Consulting Room 1",
+       langs:["Marathi","Konkani","Hindi","English"], blurb:"CBT, anxiety & trauma care", prepay:true, minutes:50},
+      {id:"naik", name:"Rohan Naik", qual:"MPhil", kind:"mental", exp:5, fee:1400, room:"Consulting Room 2",
+       langs:["Konkani","Marathi","English"], blurb:"Adolescent & family counselling", prepay:true, minutes:45}
+    ],
+    chairs:[{id:"s1",label:"Consulting Room 1",caps:["counselling"]},
+            {id:"s2",label:"Consulting Room 2",caps:["counselling"]}],
+    patients:[
+      P("sunita","Sunita Mehra",29,"F","en","+91 99450-63321",7,[],null,"91-5567-2210-4498"),
+      P("kamat","Prasad Kamat",41,"M","kok","+91 98221-30045",14,[],null,null),
+      P("joshi","Vaishnavi Joshi",23,"F","mr","+91 90280-71190",3,[],null,"91-6690-3312-7745"),
+      P("fern","Maria Fernandes",36,"F","kok","+91 98600-42218",null,[],null,null)
+    ],
+    appointments:[
+      A("b1","sunita","iyer","s1",10,15,50,"CBT session 4 of 8","consult",1800,1800,2,{arrived:at(10,5),startedAt:at(10,15)}),
+      A("b2","joshi","naik","s2",11,30,45,"Session 2 — exam stress","waiting",1400,1400,3,{arrived:at(11,10)}),
+      A("b3","kamat","iyer","s1",12,0,50,"Review after 2 weeks","expected",1800,1800,4),
+      A("b4","fern","naik","s2",17,0,45,"Intake assessment","expected",1400,1400,5,{mode:"video"})
+    ],
+    external:[{doc:"iyer",start:at(15,0),mins:120,source:"google",masked:"Doctor Unavailable (External Sync)"}],
+    teeth:{}, plans:{}, labOrders:[], labs:[], inventory:[],
+    ledger:[],
+    vault:{
+      pid:"sunita", locked:true, attempts:0, cipher:null, salt:null, iv:null, autoLockAt:null,
+      meta:{gad7:14,phq9:11,dsm:"F41.1",cadence:"Weekly, Thursdays 11:30",slot:"4 of 8",fee:1800},
+      history:[{d:"14 Aug",g:19,p:16},{d:"21 Aug",g:18,p:15},{d:"28 Aug",g:16,p:13},{d:"04 Sep",g:15,p:12},{d:"11 Sep",g:14,p:11}],
+      draft:{
+        s:"Client reports sleep latency improved from ~90 to ~35 minutes. Continues to experience anticipatory dread regarding the upcoming team appraisal presentation.",
+        o:"Punctual. Good eye contact sustained through the 50-minute block. Normal rate and tone of speech. Mild psychomotor restlessness when discussing career milestones.",
+        a:"F41.1 Generalised Anxiety Disorder. Catastrophising remains the dominant cognitive distortion, now largely confined to the workplace domain. Good engagement with the CBT model.",
+        p:"1. Thought-record worksheet for cognitive restructuring.\n2. Progressive muscle relaxation, nightly.\n3. Next session Thursday 18 Sep, 11:30."
+      }
+    },
+    abdm:{bundles:46,ratePerBundle:20,monthlyTarget:120,m1Verified:58,m3Consents:9},
+    cash:{cash:1400,upi:16400,pending:0},
+    roomUse:{s1:190,s2:135}, roomMinutesPerDay:360,
+    audit:[], feed:[], wa:{}
+  };}
+},
+{
+  id:"sushrut-polyclinic", mark:"SP",
+  name:"Sushrut Family Polyclinic", legal:"Sushrut Healthcare Pvt Ltd",
+  host:"sushrut.practix.in", city:"Banjara Hills, Hyderabad",
+  vertical:"polyclinic", verticalLabel:"Multi-specialty polyclinic",
+  accent:{a:"#98570A", b:"#C97A12", c:"#E8952A", wash:"#FCF1DF", ink:"#FFFBF3"},
+  langs:["en","te","bn"], followupDays:5, overhead:128000, vpa:"sushrutclinic@sbi",
+  since:"2016", chairsLabel:"room",
+  staff:{reception:"Fatima Begum", nurse:"Sr. Jyothi Reddy", dental:"Dr. Imran Qureshi",
+         therapy:"Dr. Lakshmi Prasad", consultant:"Dr. Nadeem Shaikh", owner:"Dr. Sarita Rao"},
+  seed(){ return {
+    practitioners:[
+      {id:"rao", name:"Dr. Sarita Rao", qual:"MBBS", kind:"gp", exp:18, fee:400, room:"Consulting Room 1",
+       langs:["Telugu","Hindi","English"], blurb:"General medicine & paediatrics"},
+      {id:"qureshi", name:"Dr. Imran Qureshi", qual:"BDS", kind:"dental", exp:8, fee:600, room:"Dental Chair",
+       langs:["Telugu","Urdu","English"], blurb:"Restorative dentistry"},
+      {id:"lakshmi", name:"Dr. Lakshmi Prasad", qual:"PhD", kind:"mental", exp:11, fee:1500, room:"Counselling Room",
+       langs:["Telugu","Bengali","English"], blurb:"Clinical psychology", prepay:true, minutes:45},
+      {id:"nadeem", name:"Dr. Nadeem Shaikh", qual:"MDS", kind:"dental", exp:13, fee:1500, room:"Visiting",
+       langs:["Urdu","Hindi","English"], blurb:"Oral surgery — visiting", visiting:true, split:0.55}
+    ],
+    chairs:[{id:"r1",label:"Consulting Room 1",caps:["gp"]},
+            {id:"dc",label:"Dental Chair",caps:["rct","crown"]},
+            {id:"cr",label:"Counselling Room",caps:["counselling"]}],
+    /* Baburao Patil again — same mobile number, a completely separate record.
+       No allergy, no chart, no history. That is correct, and it is exactly why
+       ABDM M3 consent exists. */
+    patients:[
+      P("patil","Baburao Patil",59,"M","en",SHARED_PHONE,null,[],null,null),
+      P("padma","Padma Sridhar",44,"F","te","+91 98495-22110",3,[],{bp:"134/86",pulse:78,sugar:132,weight:66},"91-4417-8890-2231"),
+      P("tanmoy","Tanmoy Ghosh",37,"M","bn","+91 98305-66471",9,["Diabetes"],null,"91-9902-4471-6650"),
+      P("arjun","Arjun Varma",8,"M","te","+91 90000-11223",null,["Asthma"],null,null)
+    ],
+    appointments:[
+      A("c1a","padma","rao","r1",10,0,15,"Diabetes review","consult",0,0,2,{arrived:at(9,50),startedAt:at(10,0),feeNote:"Free follow-up (day 3)"}),
+      A("c2a","arjun","rao","r1",10,45,20,"Wheezing — paediatric review","waiting",400,0,4,{arrived:at(10,20)}),
+      A("c3a","tanmoy","qureshi","dc",11,30,40,"Upper molar restoration","expected",600,600,5),
+      A("c4a","patil","rao","r1",12,15,15,"First visit — general check","expected",400,0,6),
+      A("c5a","padma","lakshmi","cr",16,30,45,"Counselling session 2","expected",1500,1500,8)
+    ],
+    external:[{doc:"nadeem",start:at(14,0),mins:120,source:"outlook",masked:"Doctor Unavailable (External Sync)"}],
+    teeth:{tanmoy:{26:"caries",36:"rct"}},
+    plans:{tanmoy:[
+      {tooth:26,step:1,name:"Composite restoration",fee:1800,mins:30,status:"chair",consumables:["Composite kit","LA carpule"]}]},
+    labOrders:[],
+    labs:["Deccan Dental Lab, Hyderabad","Apex Dental Ceramics, Pune"],
+    inventory:[{item:"Composite kit",stock:11,buffer:5},{item:"LA carpule (Lignocaine)",stock:64,buffer:20},
+               {item:"Rotary endodontic file",stock:4,buffer:6},{item:"Sterilisation pouch",stock:120,buffer:40},
+               {item:"Nebuliser mask (paediatric)",stock:18,buffer:10},{item:"Luting cement",stock:6,buffer:4}],
+    ledger:[
+      {date:"11 Sep",clinic:"Sushrut Polyclinic",pid:"tanmoy",desc:"Surgical extraction 48",gross:4200,lab:0,consum:400,status:"approved"},
+      {date:"09 Sep",clinic:"Sushrut Polyclinic",pid:null,desc:"Impaction removal (M. Reddy)",gross:6500,lab:0,consum:700,status:"settled"}],
+    vault:{
+      pid:"padma", locked:true, attempts:0, cipher:null, salt:null, iv:null, autoLockAt:null,
+      meta:{gad7:9,phq9:7,dsm:"F32.1",cadence:"Fortnightly, Fridays 16:30",slot:"2 of 6",fee:1500},
+      history:[{d:"01 Aug",g:14,p:12},{d:"15 Aug",g:13,p:11},{d:"29 Aug",g:11,p:9},{d:"11 Sep",g:9,p:7}],
+      draft:{
+        s:"Reports the diabetes diagnosis has become less preoccupying. Sleeping through the night four days out of seven.",
+        o:"Bright affect. Engaged readily. No psychomotor slowing observed this session.",
+        a:"F32.1 Major Depressive Disorder, moderate — improving. Adjustment reaction to chronic illness diagnosis is resolving.",
+        p:"1. Continue behavioural activation schedule.\n2. Coordinate with Dr. Rao on glycaemic review.\n3. Next session 25 Sep, 16:30."
+      }
+    },
+    abdm:{bundles:302,ratePerBundle:20,monthlyTarget:640,m1Verified:388,m3Consents:71},
+    cash:{cash:11200,upi:28900,pending:6400},
+    roomUse:{r1:305,dc:210,cr:135}, roomMinutesPerDay:480,
+    audit:[], feed:[], wa:{}
+  };}
+}
+];
+const tenantById = id => TENANTS.find(t=>t.id===id);
+const tenantByHost = h => TENANTS.find(t=>t.host===h || t.id===h);
+
+/* ==========================================================================
+   4. STATE — a session, plus one materialised slice per signed-in tenant
+   ========================================================================== */
+const S = {
+  session:{ tenantId:null, role:null, staff:null, at:null },
+  tenants:{},                       // id -> slice; only the resolved tenant
+  gate:"workspace",                 // workspace | signin
+  gatePick:null, gateQuery:"",
+
+  lay:"phone", layMode:"auto",      // auto | phone | tab | desk
+  lang:"en", clock:at(10,42), online:true, syncQueue:[], masked:true,
+  toasts:[], undo:null, toastSeq:0, scenarioStep:0,
+
+  view:"reception",
+  booking:{step:0,pid:null,docId:null,slot:null,code:"",verified:false,q:"",spec:"all",mode:"all",token:null},
+  kp:{key:null,label:"",unit:"",mode:"num",buf:""},
+  nursePatient:null, dentalPatient:null, waPid:null,
+  selectedTooth:null, activeDiagnosis:"caries", quadrant:"q1", laneTab:"expected",
+  isoResult:null
+};
+
+/* The only way any view reaches clinic data. There is no global patient list. */
+const T = () => S.tenants[S.session.tenantId] || null;
+const TENANT = () => tenantById(S.session.tenantId);
+/* ==========================================================================
+   5. CORE — formatting, layout mode, chrome, overlays, business rules
+   ========================================================================== */
+const $  = s => document.getElementById(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const inr = n => "₹" + Number(n||0).toLocaleString("en-IN");
+const hhmm = d => d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true}).replace(/\s/," ");
+const plus = (d,m) => new Date(d.getTime()+m*60000);
+
+function t(key, vars){
+  const dict = I18N[S.lang] || I18N.en;
+  let s = dict[key] != null ? dict[key] : (I18N.en[key] != null ? I18N.en[key] : key);
+  if(vars) for(const k in vars) s = s.split("{"+k+"}").join(vars[k]);
+  return s;
+}
+function langName(code){ return (I18N[code]||{})._name || code; }
+function phone(p){
+  if(!S.masked) return p;
+  const d = String(p).replace(/\D/g,"");
+  return "+91 " + d.slice(2,4) + "•••-••" + d.slice(-3);
+}
+
+/* -- tenant-scoped lookups. Nothing reads across the session boundary. ----- */
+function pat(id){ const s=T(); return s ? s.patients.find(p=>p.id===id) : null; }
+function doc(id){ const s=T(); return s ? s.practitioners.find(p=>p.id===id) : null; }
+function room(id){ const s=T(); const r=s&&s.chairs.find(c=>c.id===id); return r?r.label:"—"; }
+function patName(id){ const p=pat(id); return p?p.name:"Unknown"; }
+
+/* -- BR-01: the free follow-up window, configured per tenant --------------- */
+function feeFor(patientId, practitionerId){
+  const p = pat(patientId), d = doc(practitionerId), cfg = TENANT();
+  const std = d ? d.fee : 0, win = cfg.followupDays;
+  if(!p || !p.lastVisit) return {fee:std, free:false, reason:t("feeStd"), days:null};
+  const days = Math.floor((S.clock - p.lastVisit)/86400000);
+  if(days <= win) return {fee:0, free:true, reason:t("feeFree",{n:win}), days};
+  return {fee:std, free:false, reason:t("feeExpired",{n:days}), days};
+}
+
+/* -- BR-02: no practitioner and no room may ever be double-booked ---------- */
+function slotFree(practitionerId, roomId, start, minutes){
+  const s = T(); if(!s) return {ok:false, why:"No workspace"};
+  const end = plus(start, minutes);
+  const clash = a => start < plus(a.start, a.mins) && a.start < end;
+  for(const a of s.appointments){
+    if(a.lane === "cancelled") continue;
+    if(!clash(a)) continue;
+    if(a.doc === practitionerId) return {ok:false, why:"Practitioner busy"};
+    if(roomId && a.chair === roomId) return {ok:false, why:room(roomId)+" occupied"};
+  }
+  for(const x of s.external){
+    if(x.doc !== practitionerId) continue;
+    if(start < plus(x.start, x.mins) && x.start < end) return {ok:false, why:x.masked};
+  }
+  return {ok:true};
+}
+
+/* -- append-only audit; the feed is its human-readable projection ---------- */
+function audit(action, what, detail){
+  const s = T(); if(!s) return;
+  const row = {ts:new Date(S.clock), action, what, detail:detail||"",
+               role:S.session.role||"system", actor:S.session.staff||"system", tenant:S.session.tenantId};
+  s.audit.push(row);
+  s.feed.unshift(row);
+  if(s.feed.length > 40) s.feed.pop();
+}
+
+/* -- layout ---------------------------------------------------------------- */
+function computeLay(){
+  if(S.layMode !== "auto") return S.layMode;
+  const w = window.innerWidth || 360;
+  return w >= 1024 ? "desk" : w >= 600 ? "tab" : "phone";
+}
+function applyLay(){
+  const l = computeLay();
+  const changed = l !== S.lay;
+  S.lay = l;
+  document.documentElement.dataset.lay = l;
+  return changed;
+}
+function setLayMode(m){
+  S.layMode = m;
+  try{ localStorage.setItem("practix.lay", m); }catch(e){}
+  applyLay(); closeModal(); render();
+  toast("Layout set to "+(m==="auto"?"Automatic":m==="phone"?"Compact":m==="tab"?"Tablet":"Full"),
+        m==="auto"?"Follows the screen width":"Pinned on this device only");
+}
+
+/* -- tenant theming: the shell genuinely takes the tenant's colour --------- */
+function applyTheme(){
+  const cfg = TENANT(), r = document.documentElement.style;
+  const a = cfg ? cfg.accent : {a:"#0B4F4A",b:"#0E7C74",c:"#159A8F",wash:"#E2EFED",ink:"#F2FAF8"};
+  r.setProperty("--accent",a.a); r.setProperty("--accent-2",a.b);
+  r.setProperty("--accent-3",a.c); r.setProperty("--accent-wash",a.wash);
+  r.setProperty("--accent-ink",a.ink);
+  const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute("content",a.a);
+}
+
+/* -- icons ----------------------------------------------------------------- */
+const PATHS = {
+  grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  clipboard:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/><path d="M9 11h6M9 15h4"/>',
+  tooth:'<path d="M12 3c-2 0-2.6 1-4.4 1S4 3.4 4 6c0 3.4 1.4 5 2 8 .5 2.4.4 6 2 6s1.6-4 4-4 2.4 4 4 4 1.5-3.6 2-6c.6-3 2-4.6 2-8 0-2.6-1.8-2-3.6-2S14 3 12 3z"/>',
+  leaf:'<path d="M4 20c0-8 5-14 16-15 1 10-4 16-12 16-2 0-4-.4-4-1z"/><path d="M9 17c1.5-4 4-7 8-9"/>',
+  route:'<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 010 6H9a3 3 0 000 6h6.5"/>',
+  chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  door:'<path d="M4 21V4a1 1 0 011-1h9a1 1 0 011 1v17"/><path d="M2 21h18"/><circle cx="12" cy="12" r="1"/><path d="M18 21V8l4 2v11"/>',
+  chat:'<path d="M21 12a8 8 0 01-11.6 7.1L4 21l1.9-5.4A8 8 0 1121 12z"/>',
+  shield:'<path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z"/><path d="M9 12l2 2 4-4"/>',
+  check:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.6L16 9.5"/>',
+  map:'<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
+  cog:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  more:'<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
+  lock:'<rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/>'
+};
+const ICON = n => '<svg viewBox="0 0 24 24" aria-hidden="true">'+(PATHS[n]||PATHS.grid)+'</svg>';
+
+const MODULES = {
+  reception:{tab:"Board",    title:"Reception Board",       sub:"Front desk — queue and payments",              icon:"grid"},
+  nurse:    {tab:"Slate",    title:"Nurse Slate",           sub:"Triage — vitals and clinical alerts",          icon:"clipboard"},
+  dental:   {tab:"Chairside",title:"Chairside Console",     sub:"Operatory — odontogram and treatment plans",   icon:"tooth"},
+  therapy:  {tab:"Quiet",    title:"Quiet Room",            sub:"Counselling — encrypted session notes",        icon:"leaf"},
+  consultant:{tab:"Route",   title:"Route Card",            sub:"Visiting consultant — multi-clinic day",       icon:"route"},
+  owner:    {tab:"Ledger",   title:"Owner Ledger",          sub:"Practice economics and utilisation",           icon:"chart"},
+  patient:  {tab:"Doorway",  title:"Patient Doorway",       sub:"What your patients see — no app required",     icon:"door"},
+  whatsapp: {tab:"Messages", title:"WhatsApp Journey",      sub:"Every message the patient receives",           icon:"chat"},
+  isolation:{tab:"Isolation",title:"Tenant Isolation",      sub:"Proof that workspaces cannot see each other",  icon:"shield"},
+  coverage: {tab:"Coverage", title:"Requirement Coverage",  sub:"Every FR and BR, and where it lives",          icon:"check"},
+  roadmap:  {tab:"Roadmap",  title:"Phase 2 & 3 Preview",   sub:"Where this is going next",                     icon:"map"},
+  system:   {tab:"System",   title:"System & Audit",        sub:"Offline queue, audit trail, architecture",     icon:"cog"}
+};
+function modules(){
+  const cfg = TENANT(); if(!cfg) return [];
+  return MODULES_BY_VERTICAL[cfg.vertical] || MODULES_BY_VERTICAL.polyclinic;
+}
+function allModules(){ return modules().concat(UTILITY_MODULES); }
+
+/* -- chrome ---------------------------------------------------------------- */
+function railHTML(){
+  const cfg = TENANT(), mods = modules();
+  return '<div class="rail-mark" title="'+esc(cfg.name)+'">'+esc(cfg.mark)+'</div>'
+    + mods.map(m=>navBtn(m,"rail-btn")).join("")
+    + '<div class="rail-sep"></div>'
+    + UTILITY_MODULES.map(m=>navBtn(m,"rail-btn")).join("");
+}
+function navBtn(m, cls){
+  const d = MODULES[m];
+  return '<button class="'+cls+'" data-go="'+m+'" aria-current="'+(S.view===m)+'" title="'+esc(d.title)+'">'
+       + ICON(d.icon) + '<span>'+esc(d.tab)+'</span></button>';
+}
+function tabbarHTML(){
+  const mods = modules().slice(0,4);
+  const pending = S.syncQueue.length;
+  return mods.map(m=>navBtn(m,"tab-btn")).join("")
+    + '<button class="tab-btn" data-act="more" aria-current="false">'+ICON("more")
+    + (pending?'<span class="sr">'+pending+' pending</span>':'')+'<span>More</span></button>';
+}
+function topbarHTML(){
+  const cfg = TENANT(), d = MODULES[S.view];
+  const pending = S.syncQueue.length;
+  return '<div class="tb-mark">'+esc(cfg.mark)+'</div>'
+  + '<div class="tb-id"><div class="tb-clinic">'+esc(d.title)+'</div>'
+  + '<div class="tb-sub">'+esc(cfg.name)+' · '+hhmm(S.clock)+'</div></div>'
+  + '<div class="tb-desk">'
+    + '<button class="tb-chip '+(S.online?"on":"off")+'" data-act="toggle-online"><span class="dot '+(S.online?"":"pulse")+'"></span>'
+      + (S.online?"Online":"Offline · "+pending+" queued")+'</button>'
+    + '<button class="tb-chip" data-act="lang">'+esc(langName(S.lang))+'</button>'
+    + '<button class="tb-chip'+(S.masked?" on":"")+'" data-act="toggle-mask">'+(S.masked?"Numbers masked":"Numbers visible")+'</button>'
+    + '<button class="tb-chip" data-act="layout">Layout: '+(S.layMode==="auto"?"Auto":S.layMode==="phone"?"Compact":S.layMode==="tab"?"Tablet":"Full")+'</button>'
+    + '<button class="tb-chip" data-act="signout">Sign out</button>'
+  + '</div>'
+  + '<button class="tb-more" data-act="more" aria-label="More options">'+ICON("more")
+    + (!S.online&&pending?'<span class="pip">'+pending+'</span>':'')+'</button>';
+}
+
+/* -- overlays -------------------------------------------------------------- */
+function modal(o){
+  $("modal").className = "modal" + (o.wide?" wide":"");
+  $("modal").innerHTML = '<div class="grabber"></div>'
+    + '<div class="modal-h"><h3>'+esc(o.title)+'</h3><button class="x-btn" data-act="close">×</button></div>'
+    + '<div class="modal-b">'+o.body+'</div>'
+    + (o.footer?'<div class="modal-f">'+o.footer+'</div>':'');
+  $("scrim").classList.add("on");
+  const f = $("modal").querySelector("input,textarea,select"); if(f && S.lay!=="phone") f.focus();
+}
+function sheet(title, rows){
+  modal({title, body:'<div class="sheet-list">'+rows.join("")+'</div>'});
+}
+function sheetRow(icon, label, act, value, arg){
+  return '<button class="sheet-row" data-act="'+act+'"'+(arg!=null?' data-arg="'+esc(arg)+'"':'')+'>'
+       + '<span class="ic">'+icon+'</span><span>'+esc(label)+'</span>'
+       + (value?'<span class="val">'+esc(value)+'</span>':'')+'</button>';
+}
+function closeModal(){ $("scrim").classList.remove("on"); $("modal").innerHTML=""; }
+
+function toast(msg, sub, kind, undo){
+  const id = "toast"+(++S.toastSeq);
+  const el = document.createElement("div");
+  el.className = "toast"+(kind?" "+kind:""); el.id = id;
+  el.innerHTML = '<span class="t-i">'+(kind==="risk"?"!":kind==="warn"?"!":"✓")+'</span>'
+    + '<span class="t-x">'+esc(msg)+(sub?'<span class="t-sub">'+esc(sub)+'</span>':'')+'</span>'
+    + (undo?'<button class="t-undo" data-act="undo">Undo</button>':'');
+  $("toasts").appendChild(el);
+  if(undo) S.undo = undo;
+  setTimeout(()=>{ const n=$(id); if(n) n.remove(); if(undo && S.undo===undo) S.undo=null; }, undo?7000:4200);
+}
+
+/* -- table that becomes a card list on a phone ----------------------------- */
+function dataTable(cols, rows, opts){
+  opts = opts || {};
+  if(rows.length === 0) return '<p class="muted" style="padding:14px 0">'+esc(opts.empty||"Nothing here yet.")+'</p>';
+  if(S.lay === "phone"){
+    return '<div class="dl">' + rows.map(r=>{
+      const title = opts.title ? r[opts.title] : null;
+      const body = cols.filter(c=>c.k !== opts.title)
+        .map(c => '<div class="dl-r"><span class="dl-k">'+esc(c.h)+'</span><span class="dl-v">'+(r[c.k]!=null?r[c.k]:"—")+'</span></div>').join("");
+      return '<div class="dl-item">'+(title?'<div class="dl-t">'+title+'</div>':'')+body+'</div>';
+    }).join("") + '</div>';
+  }
+  return '<div class="tw"><table class="tbl"><thead><tr>'
+    + cols.map(c=>'<th'+(c.r?' class="r"':'')+'>'+esc(c.h)+'</th>').join("")
+    + '</tr></thead><tbody>'
+    + rows.map(r=>'<tr>'+cols.map(c=>'<td'+(c.r?' class="r"':'')+'>'+(r[c.k]!=null?r[c.k]:"—")+'</td>').join("")+'</tr>').join("")
+    + '</tbody></table></div>';
+}
+
+function sectionHead(title, sub, right){
+  return '<div class="between mb"><div><h2>'+esc(title)+'</h2>'
+       + (sub?'<p class="muted" style="font-size:.8rem;margin-top:2px">'+esc(sub)+'</p>':'')+'</div>'
+       + (right||"")+'</div>';
+}
+
+/* -- render ---------------------------------------------------------------- */
+function render(){
+  applyLay();
+  if(!S.session.tenantId){
+    $("gate").hidden = false; $("app").hidden = true; $("tabbar").hidden = true;
+    renderGate(); return;
+  }
+  $("gate").hidden = true; $("app").hidden = false;
+  $("tabbar").hidden = (S.lay !== "phone");
+  applyTheme();
+  $("rail").innerHTML   = railHTML();
+  $("tabbar").innerHTML = tabbarHTML();
+  $("topbar").innerHTML = topbarHTML();
+  const v = VIEWS[S.view] || VIEWS.reception;
+  $("canvas").innerHTML = v();
+  document.title = MODULES[S.view].title + " · " + TENANT().name + " · PractixOS";
+}
+function go(view){
+  if(!allModules().includes(view)) return;
+  S.view = view;
+  history.replaceState(null,"", "?clinic="+TENANT().id+"#"+view);
+  closeModal(); render();
+  $("canvas").scrollIntoView({block:"start"});
+}
+/* ==========================================================================
+   6. THE GATE — workspace resolution and sign-in
+   In production the tenant comes from the subdomain, the picker below never
+   appears, and the session cookie is scoped to that host. Here the picker
+   stands in for it so all three workspaces can be walked through in one file.
+   ========================================================================== */
+function staffFor(mod, cfg){
+  cfg = cfg || TENANT() || tenantById(S.gatePick);
+  if(mod === "patient") return "Patient (public link)";
+  const s = cfg.staff || {};
+  return s[mod] || s.owner || s.reception || cfg.name;   // utility modules borrow the owner's identity
+}
+function roleBlurb(mod, cfg){
+  const map = {
+    reception:"Queue, walk-ins, payments",
+    nurse:"Vitals and clinical alerts",
+    dental:"Odontogram and treatment plans",
+    therapy:"Encrypted session notes",
+    consultant:"Your multi-clinic day",
+    owner:"Revenue, "+cfg.chairsLabel+" use, ABDM",
+    patient:"Book without an app"
+  };
+  return map[mod] || "";
+}
+
+function renderGate(){
+  const g = $("gate");
+  if(S.gate === "signin" && S.gatePick){ g.innerHTML = gateSignIn(tenantById(S.gatePick)); applyGateTheme(tenantById(S.gatePick)); }
+  else { g.innerHTML = gateWorkspaces(); applyGateTheme(null); }
+}
+function applyGateTheme(cfg){
+  const r = document.documentElement.style;
+  const a = cfg ? cfg.accent : {a:"#14211F",b:"#3F534F",c:"#6F817C",wash:"#EDE9DF",ink:"#FBFAF7"};
+  r.setProperty("--accent",a.a); r.setProperty("--accent-2",a.b);
+  r.setProperty("--accent-3",a.c); r.setProperty("--accent-wash",a.wash); r.setProperty("--accent-ink",a.ink);
+}
+
+function gateWorkspaces(){
+  const q = S.gateQuery.trim().toLowerCase();
+  const hits = TENANTS.filter(x => !q || (x.name+" "+x.host+" "+x.city+" "+x.verticalLabel).toLowerCase().includes(q));
+  return '<div class="gate-in">'
+  + '<div class="gate-brand"><div class="m">Px</div><div>'
+    + '<div style="font-weight:800;font-size:1.05rem;letter-spacing:-.02em">PractixOS</div>'
+    + '<div class="muted" style="font-size:.74rem">Practice Operating System</div></div></div>'
+  + '<div class="card"><div class="card-b">'
+    + '<div class="eyebrow mb">Open a workspace</div>'
+    + '<input class="inp" id="wsq" placeholder="Search by clinic, city or specialty…" value="'+esc(S.gateQuery)+'" oninput="gateSearch(this.value)" autocomplete="off">'
+    + '<div style="margin-top:12px">'
+    + (hits.length ? hits.map(x =>
+        '<button class="ws" data-act="pick" data-arg="'+x.id+'">'
+        + '<span class="m" style="background:'+x.accent.wash+';color:'+x.accent.a+'">'+esc(x.mark)+'</span>'
+        + '<span class="b"><span class="nm">'+esc(x.name)+'</span>'
+        + '<span class="sl">'+esc(x.host)+'</span>'
+        + '<span class="muted" style="font-size:.72rem">'+esc(x.verticalLabel)+' · '+esc(x.city)+'</span></span>'
+        + '<span class="go">›</span></button>').join("")
+      : '<p class="muted" style="padding:14px 0">No workspace matches “'+esc(S.gateQuery)+'”.</p>')
+    + '</div>'
+  + '</div></div>'
+  + '<div class="callout mt"><b>3 seeded of '+PROVISIONED.toLocaleString("en-IN")+' provisioned.</b> '
+    + 'A real clinic never sees this list. It reaches <span class="mono">aaravdental.practix.in</span> and the tenant is resolved from the host '
+    + 'before a single row is read. This prototype resolves it from <span class="mono">?clinic=</span> instead — try '
+    + '<span class="mono">?clinic=anandi-wellness</span> in the address bar.</div>'
+  + '<div class="callout ok mt"><b>Data isolation.</b> Signing in materialises exactly one workspace. '
+    + 'The other two are never loaded into memory — the client-side mirror of Postgres row-level security refusing to return rows '
+    + 'outside <span class="mono">current_setting(\'app.clinic_id\')</span>.</div>'
+  + '</div>';
+}
+
+function gateSignIn(cfg){
+  const mods = MODULES_BY_VERTICAL[cfg.vertical];
+  return '<div class="gate-in">'
+  + '<div class="gate-brand"><div class="m">'+esc(cfg.mark)+'</div><div>'
+    + '<div style="font-weight:800;font-size:1.05rem;letter-spacing:-.02em">'+esc(cfg.name)+'</div>'
+    + '<div class="muted mono" style="font-size:.72rem">'+esc(cfg.host)+'</div></div></div>'
+  + '<div class="card"><div class="card-b">'
+    + '<div class="between mb"><div class="eyebrow">Sign in as</div>'
+      + '<span class="stamp s-info flat">'+esc(cfg.verticalLabel)+'</span></div>'
+    + '<div class="role-grid">'
+    + mods.map(m => {
+        const who = m === "patient" ? "Patient or visitor" : ((cfg.staff && cfg.staff[m]) || MODULES[m].title);
+        return '<button class="role-btn" data-act="signin" data-arg="'+m+'">'
+             + '<b>'+esc(who)+'</b>'
+             + '<span>'+esc(MODULES[m].title)+' · '+esc(roleBlurb(m,cfg))+'</span></button>';
+      }).join("")
+    + '</div>'
+    + '<div class="callout mt"><b>Demo sign-in.</b> Production uses a phone number and a one-time code, '
+      + 'with the session bound to this workspace only. Switching clinics requires signing out.</div>'
+  + '</div></div>'
+  + '<div class="row mt" style="justify-content:space-between">'
+    + '<button class="btn btn-g" data-act="back-ws">‹ Choose another workspace</button>'
+    + '<span class="muted" style="font-size:.74rem">'+esc(cfg.city)+' · since '+esc(cfg.since)+'</span>'
+  + '</div></div>';
+}
+
+function gateSearch(v){
+  S.gateQuery = v; renderGate();
+  const i = $("wsq"); if(i){ i.focus(); i.setSelectionRange(v.length, v.length); }
+}
+
+function signIn(mod){
+  const cfg = tenantById(S.gatePick); if(!cfg) return;
+  S.session = {tenantId:cfg.id, role:mod, staff:staffFor(mod, cfg), at:new Date(S.clock)};
+  S.tenants = {};                       // discard anything previously held
+  S.tenants[cfg.id] = cfg.seed();       // materialise exactly one workspace
+  S.lang = cfg.langs[0];
+  S.view = mod;
+  S.nursePatient = null; S.dentalPatient = null; S.selectedTooth = null;
+  S.waPid = null; S.laneTab = "expected"; S.quadrant = "q1"; S.isoResult = null;
+  S.syncQueue = []; S.scenarioStep = 0;
+  S.booking = {step:0,pid:null,docId:null,slot:null,code:"",verified:false,q:"",spec:"all",mode:"all",token:null};
+  audit("session.start","Signed in as "+MODULES[mod].title, cfg.name+" · "+cfg.host);
+  history.replaceState(null,"","?clinic="+cfg.id+"#"+mod);
+  render();
+  if(T().vault) encryptVault("1234").then(()=>{ if(S.view==="therapy") render(); }).catch(()=>{});
+}
+
+function signOut(){
+  const cfg = TENANT();
+  if(cfg) audit("session.end","Signed out", cfg.name);
+  S.tenants = {};                        // the slice is gone, not hidden
+  S.session = {tenantId:null, role:null, staff:null, at:null};
+  S.gate = "workspace"; S.gatePick = null; S.gateQuery = "";
+  closeModal();
+  history.replaceState(null,"","?");
+  render();
+  toast("Signed out of "+(cfg?cfg.name:"workspace"), "Workspace data cleared from memory");
+}
+
+function resolveTenant(){
+  const qs = new URLSearchParams(location.search);
+  const want = qs.get("clinic") || qs.get("tenant");
+  const cfg = want ? tenantByHost(want) : null;
+  if(cfg){ S.gatePick = cfg.id; S.gate = "signin"; }
+  else { S.gate = "workspace"; }
+}
+/* ==========================================================================
+   7. VIEWS
+   ========================================================================== */
+const VIEWS = {};
+
+const LANES = [
+  {id:"expected", label:"Expected",   heat:"#159A8F"},
+  {id:"waiting",  label:"Waiting",    heat:"#C97A12"},
+  {id:"consult",  label:"In consult", heat:"#0B4F4A"},
+  {id:"billing",  label:"Billing",    heat:"#3F6B46"}
+];
+const laneOf = id => LANES.find(l=>l.id===id) || LANES[0];
+function waited(a){ return a.arrived ? Math.max(0, Math.floor((S.clock - a.arrived)/60000)) : null; }
+function heatOf(a){
+  if(a.lane !== "waiting") return laneOf(a.lane).heat;
+  const m = waited(a) || 0;
+  return m > 30 ? "#B33F33" : m > 15 ? "#C97A12" : "#3F6B46";
+}
+function inLane(id){ return T().appointments.filter(a => a.lane === id); }
+
+/* -- one queue card, identical on every screen size ------------------------ */
+function qcard(a){
+  const p = pat(a.pid), d = doc(a.doc), w = waited(a);
+  const alerts = p && p.alerts.length ? p.alerts : [];
+  return '<article class="qcard" data-card="'+a.id+'" style="--heat:'+heatOf(a)+'">'
+  + '<div class="qc-top"><div style="min-width:0">'
+    + '<div class="qc-name">'+esc(p?p.name:"Walk-in")+'</div>'
+    + '<div class="row tight" style="margin-top:4px">'
+      + '<span class="token">T'+a.token+'</span>'
+      + (a.mode==="video"?'<span class="chip mini">Video</span>':'')
+      + (alerts.length?'<span class="stamp s-risk" style="font-size:.55rem;padding:2px 5px">'+esc(alerts[0])+'</span>':'')
+    + '</div></div>'
+    + '<button class="grip" data-drag="'+a.id+'" aria-label="Move '+esc(p?p.name:"card")+'">⠿</button>'
+  + '</div>'
+  + '<div class="qc-meta">'
+    + '<span>'+hhmm(a.start)+' · '+esc(a.reason)+'</span>'
+    + '<span class="muted">'+esc(d?d.name:"—")+' · '+esc(room(a.chair))+'</span>'
+    + (w!=null && a.lane==="waiting" ? '<span style="color:'+heatOf(a)+';font-weight:700">Waiting '+w+' min</span>' : '')
+    + (a.feeNote ? '<span style="color:var(--sage);font-weight:700">'+esc(a.feeNote)+'</span>' : '')
+  + '</div>'
+  + '<div class="qc-act">' + laneActions(a) + '</div>'
+  + '</article>';
+}
+function laneActions(a){
+  const more = '<button class="btn btn-g btn-s" data-act="card-menu" data-arg="'+a.id+'" style="flex:0 0 44px">⋯</button>';
+  if(a.lane === "expected") return '<button class="btn btn-p btn-s" data-act="advance" data-arg="'+a.id+'">Mark arrived</button>'+more;
+  if(a.lane === "waiting")  return '<button class="btn btn-p btn-s" data-act="advance" data-arg="'+a.id+'">Send in</button>'+more;
+  if(a.lane === "consult")  return '<button class="btn btn-p btn-s" data-act="advance" data-arg="'+a.id+'">To billing</button>'+more;
+  return '<button class="btn btn-w btn-s" data-act="collect" data-arg="'+a.id+'">Collect '+inr(a.fee-(a.paid||0))+'</button>'+more;
+}
+
+/* -- RECEPTION BOARD ------------------------------------------------------- */
+VIEWS.reception = function(){
+  const s = T();
+  const risky = s.appointments.filter(a => ["waiting","consult"].includes(a.lane) && pat(a.pid) && pat(a.pid).alerts.length);
+  const collected = s.cash.cash + s.cash.upi;
+  const waits = inLane("waiting").map(waited).filter(x=>x!=null);
+  const avg = waits.length ? Math.round(waits.reduce((x,y)=>x+y,0)/waits.length) : 0;
+
+  const head = sectionHead("Today at the front desk", s.appointments.length+" appointments · "+hhmm(S.clock),
+    '<button class="btn btn-p" data-act="walkin">+ Walk-in</button>');
+
+  const band = risky.length
+    ? '<div class="alert-band mb"><span class="bang">!</span><span>'
+      + risky.map(a=>esc(pat(a.pid).name)+" — "+esc(pat(a.pid).alerts.join(", "))).join(" · ")
+      + '</span></div>' : '';
+
+  const stats = '<div class="statgrid mb">'
+    + stat("Waiting now", inLane("waiting").length)
+    + stat("Average wait", avg+" min")
+    + stat("Collected", inr(collected))
+    + stat("Pending", inr(s.cash.pending))
+    + '</div>';
+
+  /* On a phone one lane fills the screen and the segmented control switches
+     between them. On a tablet and above every lane is visible at once. */
+  let board;
+  if(S.lay === "phone"){
+    const seg = '<div class="seg mb">' + LANES.map(l =>
+      '<button class="'+(S.laneTab===l.id?"on":"")+'" data-act="lane" data-arg="'+l.id+'">'
+      + esc(l.label)+'<span class="n">'+inLane(l.id).length+'</span></button>').join("") + '</div>';
+    const l = laneOf(S.laneTab);
+    const cards = inLane(l.id);
+    board = seg + '<div class="lane" data-lane="'+l.id+'">'
+      + (cards.length ? cards.map(qcard).join("")
+         : '<p class="muted" style="padding:22px 4px;text-align:center">No one in '+esc(l.label.toLowerCase())+'.</p>')
+      + '</div>';
+  } else {
+    board = '<div class="board">' + LANES.map(l => {
+      const cards = inLane(l.id);
+      return '<section class="lane" data-lane="'+l.id+'">'
+        + '<div class="lane-h"><span class="lane-t">'+esc(l.label)+'</span><span class="lane-n">'+cards.length+'</span></div>'
+        + (cards.length ? cards.map(qcard).join("") : '<p class="faint" style="font-size:.76rem;padding:8px 2px">Empty</p>')
+        + '</section>';
+    }).join("") + '</div>';
+  }
+
+  return head + band + stats + board
+  + '<div class="callout mt"><b>BR-01 runs before money is named.</b> The fee shown on each card already accounts for the '
+    + TENANT().followupDays+'-day free follow-up window configured for '+esc(TENANT().name)
+    + '. Staff never calculate it, so staff can never get it wrong.</div>'
+  + activityCard();
+};
+function stat(label, value){
+  return '<div class="stat"><div class="eyebrow">'+esc(label)+'</div><div class="sv">'+esc(String(value))+'</div></div>';
+}
+function activityCard(){
+  const s = T();
+  return '<div class="card mt"><div class="card-h"><div><h3>Activity</h3>'
+    + '<p class="muted" style="font-size:.76rem">Append-only. Every row is signed with role and workspace.</p></div>'
+    + '<span class="stamp s-mute flat">'+s.audit.length+' entries</span></div>'
+    + '<div class="card-b"><div class="feed">'
+    + (s.feed.length ? s.feed.slice(0,12).map(f =>
+        '<div class="feed-row"><span class="feed-t">'+hhmm(f.ts)+'</span>'
+        + '<span class="feed-r">'+esc(f.role)+'</span>'
+        + '<span style="min-width:0"><b>'+esc(f.what)+'</b>'
+        + (f.detail?'<br><span class="muted">'+esc(f.detail)+'</span>':'')+'</span></div>').join("")
+      : '<p class="muted">Nothing recorded yet in this session.</p>')
+    + '</div></div></div>';
+}
+
+/* -- NURSE SLATE ----------------------------------------------------------- */
+VIEWS.nurse = function(){
+  const s = T();
+  const queue = s.appointments.filter(a => ["waiting","consult"].includes(a.lane));
+  if(!S.nursePatient && queue.length) S.nursePatient = queue[0].pid;
+  const p = pat(S.nursePatient);
+
+  const picker = '<div class="seg mb">' + (queue.length ? queue.map(a =>
+      '<button class="'+(S.nursePatient===a.pid?"on":"")+'" data-act="nurse-pick" data-arg="'+a.pid+'">'
+      + esc(patName(a.pid).split(" ")[0])+'<span class="n">T'+a.token+'</span></button>').join("")
+    : '<button class="on">Nobody waiting</button>') + '</div>';
+
+  if(!p) return sectionHead("Triage slate","Nobody is waiting for vitals right now.") + picker;
+
+  const v = p.vitals || {};
+  const tiles = [
+    {k:"bp",    l:"Blood pressure", u:"mmHg", mode:"bp"},
+    {k:"pulse", l:"Pulse",          u:"per min"},
+    {k:"sugar", l:"Random sugar",   u:"mg/dL"},
+    {k:"weight",l:"Weight",         u:"kg"}
+  ].map(x => '<button class="vital-tile'+(v[x.k]!=null?" set":"")+'" data-act="vital" data-arg="'+x.k+'" data-label="'+esc(x.l)+'" data-unit="'+esc(x.u)+'" data-mode="'+(x.mode||"num")+'">'
+    + '<span class="vl">'+esc(x.l)+'</span>'
+    + '<span class="vv'+(v[x.k]==null?" empty":"")+'">'+(v[x.k]!=null?esc(String(v[x.k])):"Tap to record")+'</span>'
+    + '<span class="vu">'+esc(x.u)+'</span></button>').join("");
+
+  const chips = ALERT_TAGS.map(tag =>
+    '<button class="alert-opt'+(p.alerts.includes(tag)?" on":"")+'" data-act="alert" data-arg="'+esc(tag)+'">'
+    + '<span class="tick">'+(p.alerts.includes(tag)?"✓":"")+'</span>'+esc(tag)+'</button>').join("");
+
+  const ready = v.bp && v.pulse;
+
+  return sectionHead("Triage slate", p.name+" · "+p.age+"/"+p.sex+" · "+phone(p.phone))
+  + picker
+  + (p.alerts.length ? '<div class="alert-band mb"><span class="bang">!</span><span>'+esc(p.alerts.join(" · "))+'</span></div>' : '')
+  + '<div class="slate mb">'
+    + '<div class="eyebrow mb">Vitals — tap a tile, use the keypad</div>'
+    + '<div class="vital-grid">'+tiles+'</div>'
+    + '<p class="hint" style="margin-top:11px">Targets are 60 px because this is used standing up, often with gloves on. '
+      + 'Nothing here needs a keyboard.</p>'
+  + '</div>'
+  + '<div class="card mb"><div class="card-h"><h3>Clinical alerts</h3>'
+    + '<span class="muted" style="font-size:.76rem">Shown to every clinician who opens this record</span></div>'
+    + '<div class="card-b"><div class="alert-pick">'+chips+'</div></div></div>'
+  + '<button class="btn btn-p btn-xl btn-full" data-act="to-doctor"'+(ready?"":" disabled")+'>'
+    + (ready ? "Send "+esc(p.name.split(" ")[0])+" in to the doctor" : "Record blood pressure and pulse first")+'</button>';
+};
+
+/* -- CHAIRSIDE CONSOLE ----------------------------------------------------- */
+function toothSVG(state){
+  const st = TOOTH_STATES[state || "healthy"];
+  const body = '<path d="M12 2C8.4 2 7.3 3.6 4.6 3.6 2.6 3.6 1.6 5 1.6 7.4c0 3.2 1.3 4.7 1.9 7.5.5 2.3.4 5.6 1.9 5.6s1.5-3.8 3.8-3.8 2.3 3.8 3.8 3.8 1.4-3.3 1.9-5.6c.6-2.8 1.9-4.3 1.9-7.5 0-2.4-1-3.8-3-3.8C11.1 3.6 10 2 12 2z" '
+    + 'transform="translate(2.6,0)" fill="'+st.fill+'" stroke="'+st.colour+'" stroke-width="1.5" stroke-linejoin="round"'
+    + (state==="missing"?' stroke-dasharray="2.5 2"':'')+'/>';
+  let mark = "";
+  if(st.pattern === "hatch") mark = '<path d="M8 8l8 8M8 13l5 5" stroke="'+st.colour+'" stroke-width="1.4"/>';
+  if(st.pattern === "cross") mark = '<path d="M9 8l6 8M15 8l-6 8" stroke="'+st.colour+'" stroke-width="1.6"/>';
+  if(st.pattern === "dots")  mark = '<circle cx="12" cy="9" r="1.3" fill="'+st.colour+'"/><circle cx="9.5" cy="13" r="1.3" fill="'+st.colour+'"/><circle cx="14.5" cy="13" r="1.3" fill="'+st.colour+'"/>';
+  return '<svg viewBox="0 0 24 24" aria-hidden="true">'+body+mark+'</svg>';
+}
+function toothBtn(n, chart){
+  const st = chart[n] || "healthy", meta = TOOTH_STATES[st];
+  return '<button class="tooth'+(S.selectedTooth===n?" sel":"")+'" data-act="tooth" data-arg="'+n+'" '
+    + 'aria-label="Tooth '+n+', '+meta.label+'"><span class="tn">'+n+'</span>'
+    + toothSVG(st)+'<span class="ts" style="color:'+meta.colour+'">'+esc(meta.short)+'</span></button>';
+}
+
+VIEWS.dental = function(){
+  const s = T();
+  const dentalDocs = s.practitioners.filter(d=>d.kind==="dental").map(d=>d.id);
+  const chairQ = s.appointments.filter(a => dentalDocs.includes(a.doc) && a.lane !== "done");
+  if(!S.dentalPatient) S.dentalPatient = (chairQ[0] && chairQ[0].pid) || s.patients[0].id;
+  const p = pat(S.dentalPatient);
+  const chart = s.teeth[p.id] || {};
+  const plan = s.plans[p.id] || [];
+
+  const picker = '<div class="seg mb">' + s.patients.map(x =>
+    '<button class="'+(S.dentalPatient===x.id?"on":"")+'" data-act="dental-pick" data-arg="'+x.id+'">'
+    + esc(x.name.split(" ")[0])+'</button>').join("") + '</div>';
+
+  /* Odontogram. A 32-tooth arch cannot be tapped accurately on a phone, so the
+     phone gets a quadrant at a time with 8 large teeth. FDI numbering, which is
+     what every Indian dental graduate already reads. */
+  let odo;
+  if(S.lay === "phone"){
+    const q = QUADRANTS.find(x=>x.id===S.quadrant) || QUADRANTS[0];
+    odo = '<div class="seg mb">' + QUADRANTS.map(x =>
+        '<button class="'+(S.quadrant===x.id?"on":"")+'" data-act="quadrant" data-arg="'+x.id+'">'+esc(x.short)+'</button>').join("")
+      + '</div>'
+      + '<div class="arch-label">'+esc(q.label)+' — FDI '+q.teeth[q.teeth.length-1]+'–'+q.teeth[0]+'</div>'
+      + '<div class="arch">'+q.teeth.map(n=>toothBtn(n,chart)).join("")+'</div>';
+  } else {
+    odo = '<div class="arch-label">Upper arch</div><div class="arch">'+FDI_UPPER.map(n=>toothBtn(n,chart)).join("")+'</div>'
+        + '<div class="arch-label">Lower arch</div><div class="arch">'+FDI_LOWER.map(n=>toothBtn(n,chart)).join("")+'</div>';
+  }
+
+  const palette = '<div class="pal">' + Object.keys(TOOTH_STATES).map(k =>
+    '<button class="'+(S.activeDiagnosis===k?"on":"")+'" data-act="diagnosis" data-arg="'+k+'">'
+    + '<i style="background:'+TOOTH_STATES[k].colour+'"></i>'+esc(TOOTH_STATES[k].label)+'</button>').join("") + '</div>';
+
+  const legend = '<div class="legend">' + Object.keys(TOOTH_STATES).map(k =>
+    '<span style="color:'+TOOTH_STATES[k].colour+'"><i style="background:'+TOOTH_STATES[k].colour+'"></i>'+esc(TOOTH_STATES[k].label)+'</span>').join("") + '</div>';
+
+  const planRows = plan.map((x,i) => ({
+    step:'<b>'+x.step+'</b>',
+    what:esc(x.name)+'<br><span class="muted" style="font-size:.72rem">Tooth '+x.tooth+(x.lab?' · lab work':'')+'</span>',
+    mins:x.mins+" min",
+    fee:'<b>'+inr(x.fee)+'</b>',
+    status:'<span class="stamp '+(x.status==="done"?"s-ok":x.status==="chair"?"s-warn":"s-mute")+'">'
+      + (x.status==="done"?"Done":x.status==="chair"?"In chair":"Planned")+'</span>',
+    act:x.status==="chair" ? '<button class="btn btn-p btn-s" data-act="complete-step" data-arg="'+i+'">Complete</button>' : ""
+  }));
+
+  const consum = plan.filter(x=>x.status==="chair").flatMap(x=>x.consumables||[]);
+  const stock = s.inventory;
+
+  const planned = plan.reduce((n,x)=>n+x.fee,0);
+  const done = plan.filter(x=>x.status==="done").reduce((n,x)=>n+x.fee,0);
+
+  return '<div class="console">'
+  + sectionHead("Chairside console", p.name+" · "+p.age+"/"+p.sex+" · FDI two-digit notation")
+  + picker
+  + (p.alerts.length ? '<div class="alert-band mb"><span class="bang">!</span><span>'+esc(p.alerts.join(" · "))+'</span></div>'
+     : '<div class="callout mb">No clinical alerts recorded for this patient.</div>')
+  + '<div class="odo mb">'+odo
+    + '<div class="mt"><div class="eyebrow mb" style="color:#5E7570">Mark selected tooth as</div>'+palette+'</div>'
+    + '<div class="mt">'+legend+'</div>'
+    + (S.selectedTooth
+        ? '<div class="callout mt">Tooth <b>'+S.selectedTooth+'</b> selected — '+esc(TOOTH_STATES[chart[S.selectedTooth]||"healthy"].label)
+          + '. <button class="btn btn-g btn-s" data-act="build-plan" style="margin-left:6px">Generate plan from protocol</button></div>'
+        : '<p class="faint mt" style="font-size:.76rem">Tap a tooth to record a finding.</p>')
+  + '</div>'
+  + '<div class="card mb"><div class="card-h"><div><h3>Treatment plan</h3>'
+    + '<p class="muted" style="font-size:.76rem">'+inr(done)+' of '+inr(planned)+' completed</p></div>'
+    + (plan.length?'<span class="stamp s-info flat">'+plan.length+' sittings</span>':'')+'</div>'
+    + '<div class="card-b">'
+    + dataTable([{k:"step",h:"#"},{k:"what",h:"Procedure"},{k:"mins",h:"Time"},{k:"fee",h:"Fee",r:true},{k:"status",h:"Status"},{k:"act",h:""}],
+                planRows, {title:"what", empty:"No plan yet. Select a tooth and generate one from the protocol library."})
+    + '</div></div>'
+  + '<div class="grid g2">'
+    + '<div class="card"><div class="card-h"><h3>Consumables this sitting</h3></div><div class="card-b">'
+      + (consum.length ? consum.map(c => {
+          const it = stock.find(i=>i.item===c);
+          const low = it && it.stock <= it.buffer;
+          return '<div class="between" style="padding:6px 0;border-bottom:1px solid #22352F">'
+            + '<span>'+esc(c)+'</span><span class="'+(low?"":"muted")+'" style="'+(low?"color:#E8952A;font-weight:700":"")+'">'
+            + (it ? it.stock+" left"+(low?" · reorder":"") : "not tracked")+'</span></div>';
+        }).join("") : '<p class="muted">Nothing consumed yet.</p>')
+      + '<button class="btn btn-g btn-full mt" data-act="deduct">Deduct from inventory</button></div></div>'
+    + '<div class="card"><div class="card-h"><h3>Lab orders</h3></div><div class="card-b">'
+      + (s.labOrders.length ? s.labOrders.map(o =>
+          '<div style="padding:7px 0;border-bottom:1px solid #22352F"><div class="between">'
+          + '<b>'+esc(o.id)+'</b><span class="stamp s-warn">'+esc(o.status)+'</span></div>'
+          + '<div class="muted" style="font-size:.76rem;margin-top:3px">'+esc(o.type)+' · shade '+esc(o.shade)+'<br>'
+          + esc(patName(o.pid))+' · tooth '+o.tooth+' · due '+esc(o.due)+'</div></div>').join("")
+        : '<p class="muted">No open lab orders.</p>')
+      + '<button class="btn btn-g btn-full mt" data-act="lab-order">Raise a lab order</button></div></div>'
+  + '</div>'
+  + '</div>';
+};
+/* -- QUIET ROOM ------------------------------------------------------------ */
+VIEWS.therapy = function(){
+  const s = T(), vault = s.vault;
+  if(!vault) return sectionHead("Quiet Room","This workspace does not run a counselling service.")
+    + '<div class="callout">Modules follow the vertical. '+esc(TENANT().name)+' is configured as a '
+    + esc(TENANT().verticalLabel.toLowerCase())+', so the encrypted notes module is not provisioned.</div>';
+
+  const p = pat(vault.pid);
+
+  if(vault.locked){
+    return '<div class="quiet"><div class="vault-seal">'
+      + '<div class="seal-ring">'+ICON("lock").replace("<svg","<svg style=\"width:40px;height:40px;stroke:var(--indigo);fill:none\"")+'</div>'
+      + '<h2>Session notes are sealed</h2>'
+      + '<p class="lede" style="margin:8px auto 0">'+esc(p.name)+'’s notes are encrypted with a key derived from your PIN. '
+        + 'They are unreadable to the front desk, to the practice owner, and to anyone holding a copy of the database.</p>'
+      + '<div class="pin-row">'+[0,1,2,3].map(i =>
+          '<input class="pin-box'+(vault.attempts?" bad":"")+'" id="pin'+i+'" inputmode="numeric" maxlength="1" '
+          + 'aria-label="PIN digit '+(i+1)+'" oninput="pinStep('+i+',this)">').join("")+'</div>'
+      + (vault.attempts ? '<p style="color:var(--vermilion);font-weight:700;font-size:.82rem">Incorrect PIN — '
+          + vault.attempts+' failed attempt'+(vault.attempts>1?"s":"")+' recorded in the audit trail.</p>' : '')
+      + '<p class="hint">Demo PIN is <b>1234</b>. Real AES-256-GCM, key derived with PBKDF2 at 210,000 iterations.</p>'
+      + '<div class="mt"><div class="eyebrow mb">What the database actually stores</div>'
+        + '<div class="cipher">'+esc(vault.cipher || "encrypting — deriving the key takes a moment on purpose…")+'</div></div>'
+      + '<div class="callout mind mt" style="text-align:left"><b>Production hardens this.</b> A four-digit PIN is only 10,000 '
+        + 'combinations, so no key-derivation function alone protects a stolen database. The shipped design derives the key from '
+        + 'Argon2id over the PIN concatenated with a server-held secret that is released only to a rate-limited authenticated session.</div>'
+      + '</div></div>';
+  }
+
+  const d = vault.draft, m = vault.meta;
+  const spark = vault.history.map((h,i)=>{
+    const x = 6 + i*(100/(vault.history.length-1))*0.88;
+    return {x, g:100-(h.g/21)*100, p:100-(h.p/27)*100, d:h.d};
+  });
+  const line = k => spark.map((s2,i)=>(i?"L":"M")+s2.x.toFixed(1)+","+(6+s2[k]*0.78).toFixed(1)).join(" ");
+
+  return '<div class="quiet">'
+  + '<div class="between mb"><div><h2>'+esc(p.name)+'</h2>'
+    + '<p class="muted" style="font-size:.8rem">'+esc(m.cadence)+' · session '+esc(m.slot)+'</p></div>'
+    + '<button class="btn btn-g btn-s" data-act="lock-vault">Seal notes</button></div>'
+  + '<div class="callout mind mb">Auto-seals after 5 minutes without input, and immediately if this device is locked. '
+    + 'Nothing on this screen is visible in the Reception Board or the Owner Ledger.</div>'
+  + '<div class="grid g2 mb">'
+    + '<div class="card"><div class="card-b">'
+      + '<div class="eyebrow mb">Symptom trajectory</div>'
+      + '<svg viewBox="0 0 100 92" style="width:100%;height:120px" role="img" aria-label="GAD-7 and PHQ-9 over five sessions">'
+        + '<path d="'+line("g")+'" fill="none" stroke="#494A8C" stroke-width="2" stroke-linecap="round"/>'
+        + '<path d="'+line("p")+'" fill="none" stroke="#C97A12" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 2.5"/>'
+        + spark.map(s2=>'<circle cx="'+s2.x.toFixed(1)+'" cy="'+(6+s2.g*0.78).toFixed(1)+'" r="1.8" fill="#494A8C"/>').join("")
+      + '</svg>'
+      + '<div class="row tight" style="font-size:.72rem;font-weight:700">'
+        + '<span style="color:#494A8C">— GAD-7 now '+m.gad7+'</span><span style="color:#C97A12">-- PHQ-9 now '+m.phq9+'</span></div>'
+    + '</div></div>'
+    + '<div class="card"><div class="card-b">'
+      + '<div class="eyebrow mb">Working formulation</div>'
+      + '<select class="inp" data-act="dsm">'+DSM5.map(x =>
+          '<option value="'+x.code+'"'+(m.dsm===x.code?" selected":"")+'>'+esc(x.code+" — "+x.label)+'</option>').join("")+'</select>'
+      + '<div class="row mt">'+['GAD-7 '+m.gad7,'PHQ-9 '+m.phq9,'Prepaid '+inr(m.fee)].map(x=>'<span class="chip">'+esc(x)+'</span>').join("")+'</div>'
+    + '</div></div>'
+  + '</div>'
+  + '<div class="card"><div class="card-b">'
+    + [["s","Subjective — what the client reports"],["o","Objective — what you observed"],
+       ["a","Assessment — your formulation"],["p","Plan — what happens next"]].map(([k,l]) =>
+      '<div class="note-field"><div class="note-label">'+esc(l)+'</div>'
+      + '<textarea class="note-area" data-note="'+k+'" oninput="noteEdit(\''+k+'\',this.value)">'+esc(d[k])+'</textarea></div>').join("")
+    + '<button class="btn btn-m btn-xl btn-full" data-act="save-note">Encrypt and save this session</button>'
+  + '</div></div></div>';
+};
+
+/* -- ROUTE CARD ------------------------------------------------------------ */
+VIEWS.consultant = function(){
+  const s = T();
+  const visiting = s.practitioners.find(d=>d.visiting) || s.practitioners[0];
+  const mine = s.appointments.filter(a=>a.doc===visiting.id);
+  const blocks = s.external.filter(x=>x.doc===visiting.id);
+
+  const stops = mine.map(a=>({t:a.start, kind:"appt", a}))
+    .concat(blocks.map(b=>({t:b.start, kind:"block", b})))
+    .sort((x,y)=>x.t-y.t);
+
+  const rows = s.ledger.map(l=>{
+    const net = Math.round((l.gross - l.lab - l.consum) * visiting.split);
+    return {
+      when:'<b>'+esc(l.date)+'</b><br><span class="muted" style="font-size:.72rem">'+esc(l.clinic)+'</span>',
+      what:esc(l.desc),
+      gross:inr(l.gross),
+      ded:'<span class="muted">−'+inr(l.lab+l.consum)+'</span>',
+      net:'<b>'+inr(net)+'</b>',
+      status:'<span class="stamp '+(l.status==="settled"?"s-ok":"s-warn")+'">'+esc(l.status)+'</span>'
+    };
+  });
+  const owed = s.ledger.filter(l=>l.status!=="settled")
+    .reduce((n,l)=>n+Math.round((l.gross-l.lab-l.consum)*visiting.split),0);
+
+  const route = '<div class="timeline">' + (stops.length ? stops.map(st => {
+      if(st.kind === "block"){
+        return '<div class="tl-item blocked"><div class="tl-time">'+hhmm(st.b.start)+' – '+hhmm(plus(st.b.start,st.b.mins))+'</div>'
+          + '<div style="font-weight:700">'+esc(st.b.masked)+'</div>'
+          + '<div class="muted" style="font-size:.75rem">Synced from '+esc(st.b.source)+'. '
+          + 'PractixOS reads free/busy only — it never sees what this is.</div></div>';
+      }
+      const a = st.a, p = pat(a.pid), live = a.lane==="waiting"||a.lane==="consult";
+      return '<div class="tl-item'+(live?" now":"")+'"><div class="tl-time">'+hhmm(a.start)+' · '+a.mins+' min</div>'
+        + '<div style="font-weight:700">'+esc(p.name)+' <span class="token">T'+a.token+'</span></div>'
+        + '<div class="muted" style="font-size:.78rem">'+esc(a.reason)+' · '+esc(room(a.chair))+'</div>'
+        + (p.alerts.length?'<div class="stamp s-risk mt-s">'+esc(p.alerts.join(", "))+'</div>':'')
+        + '</div>';
+    }).join("") : '<p class="muted">No stops on today’s route.</p>') + '</div>';
+
+  /* On a phone this IS the phone, so no bezel. On a desktop the bezel is
+     honest signalling that this screen is designed for a pocket. */
+  const card = '<div class="frame"><div class="frame-notch"></div><div class="frame-body">'
+    + '<div class="between mb"><div><h3>'+esc(visiting.name)+'</h3>'
+      + '<p class="muted" style="font-size:.74rem">'+esc(visiting.qual)+' · '+esc(TENANT().name)+'</p></div>'
+      + '<span class="stamp s-info">'+mine.length+' stops</span></div>'
+    + route + '</div></div>';
+
+  return sectionHead("Route card", "Today across every clinic on your circuit",
+      '<span class="stamp s-warn flat">'+inr(owed)+' awaiting settlement</span>')
+  + '<div class="route-grid mb">' + card
+    + '<div class="col">'
+      + '<div class="card"><div class="card-h"><div><h3>Earnings ledger</h3>'
+        + '<p class="muted" style="font-size:.76rem">'+Math.round(visiting.split*100)
+        + '% of gross, after lab work and consumables</p></div></div><div class="card-b">'
+        + dataTable([{k:"when",h:"When"},{k:"what",h:"Procedure"},{k:"gross",h:"Gross",r:true},
+                     {k:"ded",h:"Deductions",r:true},{k:"net",h:"Your share",r:true},{k:"status",h:"Status"}],
+                    rows, {title:"what", empty:"No procedures billed yet."})
+      + '</div></div>'
+      + '<div class="callout"><b>The split is arithmetic, not a conversation.</b> '
+        + Math.round(visiting.split*100)+'% of gross after lab work and consumables, agreed once and applied every time. '
+        + 'This single screen replaces the WhatsApp thread most visiting consultants currently use to chase payment.</div>'
+      + '<button class="btn btn-p btn-full" data-act="request-settle">Request settlement of '+inr(owed)+'</button>'
+    + '</div>'
+  + '</div>';
+};
+
+/* -- OWNER LEDGER ---------------------------------------------------------- */
+VIEWS.owner = function(){
+  const s = T(), cfg = TENANT();
+  const collected = s.cash.cash + s.cash.upi;
+  const roomIds = Object.keys(s.roomUse);
+  const totalMins = roomIds.length * s.roomMinutesPerDay;
+  const usedMins = roomIds.reduce((n,k)=>n+s.roomUse[k],0);
+  const util = Math.round(usedMins/totalMins*100);
+  const perDay = Math.round(cfg.overhead/26);
+  const abdmEarned = s.abdm.bundles * s.abdm.ratePerBundle;
+  const abdmPct = Math.round(s.abdm.bundles/s.abdm.monthlyTarget*100);
+
+  const kpis = '<div class="grid g4 mb">'
+    + kpi("Collected today", inr(collected), (collected>=perDay?"Break-even cleared":"Break-even is "+inr(perDay)), collected>=perDay?"s-ok":"s-warn")
+    + kpi("Outstanding", inr(s.cash.pending), s.cash.pending?"Across "+inLane("billing").length+" open bills":"Nothing owed", s.cash.pending?"s-warn":"s-ok")
+    + kpi(cfg.chairsLabel==="chair"?"Chair utilisation":"Room utilisation", util+"%", usedMins+" of "+totalMins+" minutes", util>=70?"s-ok":"s-warn")
+    + kpi("ABDM incentive", inr(abdmEarned), s.abdm.bundles+" bundles this month", abdmPct>=70?"s-ok":"s-warn")
+    + '</div>';
+
+  const roomRows = roomIds.map(k => {
+    const pct = Math.round(s.roomUse[k]/s.roomMinutesPerDay*100);
+    return {
+      room:'<b>'+esc(room(k))+'</b>',
+      mins:s.roomUse[k]+" / "+s.roomMinutesPerDay+" min",
+      bar:'<div class="meter" style="min-width:90px"><i style="width:'+Math.min(100,pct)+'%;background:'
+        +(pct>=70?"var(--sage)":pct>=45?"var(--marigold)":"var(--vermilion)")+'"></i></div>',
+      pct:'<b>'+pct+'%</b>'
+    };
+  });
+
+  const docRows = s.practitioners.map(d => {
+    const mine = s.appointments.filter(a=>a.doc===d.id);
+    const billed = mine.reduce((n,a)=>n+a.fee,0);
+    return {
+      who:'<b>'+esc(d.name)+'</b><br><span class="muted" style="font-size:.72rem">'+esc(d.qual)+' · '+esc(d.blurb)+'</span>',
+      appts:String(mine.length),
+      billed:inr(billed),
+      share:d.visiting ? Math.round(d.split*100)+'% to consultant' : 'In-house'
+    };
+  });
+
+  /* A seven-column week is unreadable below a tablet, so on a phone the same
+     data becomes a vertical day list. */
+  const days = ["Mon 7","Tue 8","Wed 9","Thu 10","Fri 11","Sat 12","Sun 13"];
+  const load = [82,64,91,73,88,96,0];
+  const week = S.lay === "phone"
+    ? '<div class="dl">'+days.map((d,i)=>'<div class="dl-item"><div class="between">'
+        + '<b>'+esc(d)+'</b><span class="'+(load[i]>=85?"":"muted")+'" style="font-weight:800">'+load[i]+'%</span></div>'
+        + '<div class="meter mt-s"><i style="width:'+load[i]+'%;background:'
+        + (load[i]>=85?"var(--vermilion)":load[i]>=60?"var(--marigold)":"var(--sage)")+'"></i></div></div>').join("")+'</div>'
+    : '<div class="grid" style="grid-template-columns:repeat(7,minmax(0,1fr));gap:7px">'
+      + days.map((d,i)=>'<div style="text-align:center">'
+        + '<div class="eyebrow" style="font-size:.6rem">'+esc(d)+'</div>'
+        + '<div style="height:88px;display:flex;align-items:flex-end;margin-top:5px">'
+        + '<div style="width:100%;height:'+Math.max(4,load[i])+'%;border-radius:4px;background:'
+        + (load[i]>=85?"var(--vermilion)":load[i]>=60?"var(--marigold)":"var(--paper-3)")+'"></div></div>'
+        + '<div style="font-size:.7rem;font-weight:800;margin-top:4px">'+load[i]+'%</div></div>').join("")+'</div>';
+
+  return sectionHead("Practice ledger", cfg.name+" · "+cfg.city,
+      '<button class="btn btn-g" data-act="export">Export month</button>')
+  + kpis
+  + '<div class="card mb"><div class="card-h"><div><h3>ABDM incentive tracker</h3>'
+    + '<p class="muted" style="font-size:.76rem">'+inr(s.abdm.ratePerBundle)+' per health record bundle linked to an ABHA</p></div>'
+    + '<span class="stamp '+(abdmPct>=70?"s-ok":"s-warn")+'">'+abdmPct+'% of target</span></div>'
+    + '<div class="card-b">'
+    + '<div class="meter" style="height:11px"><i style="width:'+Math.min(100,abdmPct)+'%;background:var(--accent-2)"></i></div>'
+    + '<div class="between mt-s" style="font-size:.78rem"><span class="muted">'+s.abdm.bundles+' of '+s.abdm.monthlyTarget+' bundles</span>'
+      + '<span><b>'+inr(abdmEarned)+'</b> earned</span></div>'
+    + '<div class="statgrid mt">'+stat("M1 ABHA verified", s.abdm.m1Verified)+stat("M3 consents", s.abdm.m3Consents)
+      + stat("Rate per bundle", inr(s.abdm.ratePerBundle))+stat("Monthly ceiling", inr(s.abdm.monthlyTarget*s.abdm.ratePerBundle))+'</div>'
+    + '<div class="callout mt">This is revenue the clinic is entitled to and almost never claims, because claiming it means '
+      + 'pushing structured FHIR bundles that paper records cannot produce. It typically covers the software’s own cost several times over.</div>'
+    + '</div></div>'
+  + '<div class="grid g2 mb">'
+    + '<div class="card"><div class="card-h"><h3>'+(cfg.chairsLabel==="chair"?"Chair":"Room")+' utilisation</h3></div><div class="card-b">'
+      + dataTable([{k:"room",h:"Where"},{k:"mins",h:"Booked"},{k:"bar",h:""},{k:"pct",h:"",r:true}], roomRows, {title:"room"})
+      + '<div class="callout warn mt">Idle '+cfg.chairsLabel+' time is the largest silent loss in an independent practice. '
+      + 'At '+util+'% you are giving away roughly '+inr(Math.round((totalMins-usedMins)/60*900))+' of capacity a day.</div>'
+      + '</div></div>'
+    + '<div class="card"><div class="card-h"><h3>By practitioner</h3></div><div class="card-b">'
+      + dataTable([{k:"who",h:"Practitioner"},{k:"appts",h:"Today",r:true},{k:"billed",h:"Billed",r:true},{k:"share",h:"Arrangement"}],
+                  docRows, {title:"who"})
+      + '</div></div>'
+  + '</div>'
+  + '<div class="card"><div class="card-h"><div><h3>This week</h3>'
+    + '<p class="muted" style="font-size:.76rem">Booked minutes as a share of open hours</p></div></div>'
+    + '<div class="card-b">'+week+'</div></div>';
+};
+function kpi(label, value, sub, stampClass){
+  return '<div class="card"><div class="card-b tight">'
+    + '<div class="eyebrow">'+esc(label)+'</div>'
+    + '<div class="kpi">'+esc(value)+'</div>'
+    + '<div class="mt-s"><span class="stamp '+stampClass+'" style="font-size:.55rem">'+esc(sub)+'</span></div>'
+    + '</div></div>';
+}
+
+/* -- PATIENT DOORWAY ------------------------------------------------------- */
+VIEWS.patient = function(){
+  const s = T(), cfg = TENANT(), b = S.booking;
+  const langBar = '<div class="lang-bar">' + cfg.langs.map(c =>
+    '<button class="lang-btn'+(S.lang===c?" on":"")+'" data-act="lang-set" data-arg="'+c+'" lang="'+c+'">'
+    + esc(langName(c))+'</button>').join("") + '</div>';
+
+  const dots = '<div class="step-dots">'+[0,1,2,3,4].map(i=>'<i class="'+(i<=b.step?"on":"")+'"></i>').join("")+'</div>';
+
+  const head = '<div class="door-head"><h1 lang="'+S.lang+'">'+esc(cfg.name)+'</h1>'
+    + '<p class="muted" lang="'+S.lang+'" style="font-size:.85rem">'+esc(cfg.city)+' · '+esc(t("noApp"))+'</p></div>';
+
+  let body = "";
+
+  if(b.step === 0){
+    const specs = [["all",t("allSpec")]].concat(
+      cfg.vertical==="dental" ? [["dental",t("dentalSpec")]]
+      : cfg.vertical==="mental_health" ? [["mental",t("mentalSpec")]]
+      : [["gp",t("gpSpec")],["dental",t("dentalSpec")],["mental",t("mentalSpec")]]);
+    const list = s.practitioners.filter(d => (b.spec==="all"||d.kind===b.spec) &&
+        (!b.q || (d.name+" "+d.blurb).toLowerCase().includes(b.q.toLowerCase())));
+    body = '<div class="field"><span class="lbl" lang="'+S.lang+'">'+esc(t("findCare"))+'</span>'
+      + '<input class="inp" id="pq" placeholder="'+esc(t("searchPh"))+'" value="'+esc(b.q)+'" lang="'+S.lang+'" oninput="bookSet(\'q\',this.value)"></div>'
+      + '<div class="seg mb">'+specs.map(([k,l])=>'<button class="'+(b.spec===k?"on":"")+'" data-act="spec" data-arg="'+k+'" lang="'+S.lang+'">'+esc(l)+'</button>').join("")+'</div>'
+      + '<div class="col">' + (list.length ? list.map(d =>
+          '<button class="doc-card" data-act="pick-doc" data-arg="'+d.id+'">'
+          + '<span class="doc-av'+(d.kind==="mental"?" mind":"")+'">'+(d.kind==="mental"?"🧠":d.kind==="dental"?"🦷":"🩺")+'</span>'
+          + '<span style="min-width:0;flex:1">'
+            + '<span style="display:block;font-weight:800">'+esc(d.name)+', '+esc(d.qual)+'</span>'
+            + '<span class="muted" style="display:block;font-size:.78rem">'+esc(d.blurb)+'</span>'
+            + '<span class="muted" style="display:block;font-size:.74rem;margin-top:3px" lang="'+S.lang+'">'
+              + d.exp+' '+esc(t("yrsExp"))+' · '+esc(t("speaks"))+': '+esc(d.langs.join(", "))+'</span>'
+            + '<span class="row tight" style="margin-top:6px"><span class="chip mini">'+inr(d.fee)+'</span>'
+            + '<span class="chip mini">📍 '+esc(d.room)+'</span>'
+            + (d.prepay?'<span class="chip mini">Prepaid</span>':'')+'</span>'
+          + '</span></button>').join("")
+        : '<p class="muted">No practitioner matches that search.</p>') + '</div>';
+  }
+
+  if(b.step === 1){
+    const d = doc(b.docId);
+    const slots = [[9,30],[10,0],[11,15],[12,0],[15,30],[16,0],[16,45],[17,30]].map(([h,m]) => {
+      const st = at(h,m), free = slotFree(d.id, d.visiting?null:s.chairs[0].id, st, d.minutes||30);
+      return {st, free:free.ok, why:free.why};
+    });
+    body = '<div class="card mb"><div class="card-b tight"><div class="row">'
+      + '<span class="doc-av'+(d.kind==="mental"?" mind":"")+'" style="width:40px;height:40px;font-size:1.1rem">'
+      + (d.kind==="mental"?"🧠":d.kind==="dental"?"🦷":"🩺")+'</span>'
+      + '<span style="flex:1;min-width:0"><b>'+esc(d.name)+'</b><br><span class="muted" style="font-size:.76rem">'+esc(d.blurb)+'</span></span>'
+      + '<button class="btn btn-g btn-s" data-act="step" data-arg="0" lang="'+S.lang+'">'+esc(t("change"))+'</button></div></div></div>'
+      + '<div class="eyebrow mb" lang="'+S.lang+'">'+esc(t("chooseTime"))+'</div>'
+      + '<div class="slot-grid">'+slots.map(x =>
+          '<button class="slot'+(b.slot && b.slot.getTime()===x.st.getTime()?" on":"")+'" '
+          + (x.free?'data-act="pick-slot" data-arg="'+x.st.getTime()+'"':'disabled title="'+esc(x.why)+'"')+'>'
+          + hhmm(x.st)+'</button>').join("")+'</div>'
+      + '<div class="callout mt" lang="'+S.lang+'">'+esc(t("chairNote"))+'</div>'
+      + '<div class="callout warn mt"><b>BR-02.</b> Struck-through times are not styling. Each one failed a real overlap check '
+        + 'against this practitioner and the '+esc(cfg.chairsLabel)+' before the page rendered.</div>';
+  }
+
+  if(b.step === 2){
+    body = '<div class="card"><div class="card-b">'
+      + '<div class="eyebrow mb">Who is this appointment for?</div>'
+      + '<select class="inp" data-act="pick-patient">'
+        + '<option value="">New patient — first visit</option>'
+        + s.patients.map(p => '<option value="'+p.id+'"'+(b.pid===p.id?" selected":"")+'>'+esc(p.name)+' — '
+          + (p.lastVisit ? "last visit "+Math.floor((S.clock-p.lastVisit)/86400000)+" days ago" : "no previous visit")+'</option>').join("")
+      + '</select>'
+      + '<div class="field mt"><span class="lbl">Mobile number</span>'
+        + '<input class="inp" inputmode="tel" value="'+esc(b.pid?pat(b.pid).phone:"+91 ")+'" '+(b.pid?"readonly":"")+'></div>'
+      + (b.verified
+          ? '<div class="callout ok"><b>Verified.</b> This number is confirmed on WhatsApp.</div>'
+          : '<div class="callout" lang="'+S.lang+'">'+esc(t("otpSent",{phone:b.pid?phone(pat(b.pid).phone):"+91 ·····"}))+'</div>'
+            + '<div class="row mt"><input class="inp" style="flex:1;min-width:120px" inputmode="numeric" maxlength="6" placeholder="······" value="'+esc(b.code)+'" oninput="bookSet(\'code\',this.value)">'
+            + '<button class="btn btn-p" data-act="verify" lang="'+S.lang+'">'+esc(t("otpVerify"))+'</button></div>'
+            + '<p class="hint">Any six digits work in this demo.</p>')
+      + '</div></div>';
+  }
+
+  if(b.step === 3){
+    const d = doc(b.docId), f = feeFor(b.pid, b.docId);
+    body = '<div class="card mb"><div class="card-b">'
+      + '<div class="eyebrow mb" lang="'+S.lang+'">'+esc(t("feeLabel"))+'</div>'
+      + '<div class="kpi" style="color:'+(f.free?"var(--sage)":"var(--ink)")+'">'+(f.free?"₹0":inr(f.fee))+'</div>'
+      + '<p class="mt-s" lang="'+S.lang+'" style="font-size:.85rem;color:'+(f.free?"var(--sage)":"var(--ink-2)")+';font-weight:600">'+esc(f.reason)+'</p>'
+      + (d.prepay?'<div class="callout mt" lang="'+S.lang+'">'+esc(t("prepayNote"))+'</div>':'')
+      + '</div></div>'
+      + (f.fee > 0
+        ? '<div class="card mb"><div class="card-b" style="text-align:center">'
+          + '<div class="eyebrow mb" lang="'+S.lang+'">'+esc(t("payWith"))+'</div>'
+          + qrSVG(cfg.vpa)
+          + '<p class="mono" style="font-size:.74rem;margin-top:8px">'+esc(cfg.vpa)+'</p>'
+          + '<p class="hint" lang="'+S.lang+'">'+esc(t("payScan"))+'</p></div></div>'
+        : '')
+      + '<div class="card mb"><div class="card-b">'
+      + [["Practitioner", d.name],["When", b.slot?hhmm(b.slot)+", 11 September 2026":"—"],
+         ["Where", cfg.name+", "+cfg.city],["Duration", (d.minutes||30)+" minutes"]]
+        .map(([k,v])=>'<div class="between" style="padding:6px 0;border-bottom:1px solid var(--rule)"><span class="muted">'+esc(k)+'</span><b style="text-align:right">'+esc(v)+'</b></div>').join("")
+      + '</div></div>';
+  }
+
+  if(b.step === 4){
+    const d = doc(b.docId);
+    body = '<div class="card"><div class="card-b" style="text-align:center">'
+      + '<div style="font-size:2.6rem">✅</div>'
+      + '<h2 class="mt-s" lang="'+S.lang+'">'+esc(t("allDone"))+'</h2>'
+      + '<p class="muted" lang="'+S.lang+'">'+esc(t("bookedWith",{doctor:d.name}))+'</p>'
+      + '<div class="mt"><div class="eyebrow" lang="'+S.lang+'">'+esc(t("yourToken"))+'</div>'
+        + '<div class="kpi" style="font-size:2.6rem">T'+b.token+'</div></div>'
+      + '<div class="mt-s"><span class="chip" lang="'+S.lang+'">'+esc(t("arriveBy"))+' '+(b.slot?hhmm(plus(b.slot,-10)):"")+'</span></div>'
+      + '<div class="callout ok mt" lang="'+S.lang+'" style="text-align:left">'+esc(t("waSent",{lang:langName(S.lang)}))+'</div>'
+      + '<button class="voice-pill mt" data-act="play-voice" lang="'+S.lang+'">▶ '+esc(t("listenAudio",{lang:langName(S.lang)}))+'</button>'
+      + '<div class="thumb-bar"><button class="btn btn-g" data-act="see-wa">See the WhatsApp thread</button>'
+        + '<button class="btn btn-p" data-act="step" data-arg="0" lang="'+S.lang+'">'+esc(t("bookAnother"))+'</button></div>'
+      + '</div></div>';
+  }
+
+  const canNext = (b.step===1 && b.slot) || (b.step===2 && b.verified) || b.step===3;
+  const nav = b.step>0 && b.step<4
+    ? '<div class="sticky-cta"><div class="row">'
+      + '<button class="btn btn-g" data-act="step" data-arg="'+(b.step-1)+'" lang="'+S.lang+'">'+esc(t("back"))+'</button>'
+      + '<button class="btn btn-p" style="flex:1" data-act="'+(b.step===3?"confirm":"step")+'" data-arg="'+(b.step+1)+'" '
+      + (canNext?"":"disabled")+' lang="'+S.lang+'">'+esc(b.step===3?t("confirmBooking"):t("next"))+'</button>'
+      + '</div></div>' : '';
+
+  return '<div class="doorway reg-patient wide">'+head+(b.step===0?langBar:"")+dots+body+nav+'</div>';
+};
+function qrSVG(vpa){
+  let cells = "", seed = 0;
+  for(let i=0;i<vpa.length;i++) seed = (seed*31 + vpa.charCodeAt(i)) >>> 0;
+  let r = seed || 1;
+  for(let y=0;y<21;y++) for(let x=0;x<21;x++){
+    const finder = (x<7&&y<7)||(x>13&&y<7)||(x<7&&y>13);
+    r = (r*1103515245 + 12345) & 0x7fffffff;
+    const on = finder ? (x===0||x===6||y===0||y===6||(x>1&&x<5&&y>1&&y<5)||
+                         (x>13&&(x===14||x===20||y===0||y===6||(x>15&&x<19&&y>1&&y<5)))||
+                         (y>13&&(y===14||y===20||x===0||x===6||(y>15&&y<19&&x>1&&x<5))))
+                      : (r>>7)%3===0;
+    if(on) cells += '<rect x="'+x+'" y="'+y+'" width="1" height="1"/>';
+  }
+  return '<svg viewBox="-1 -1 23 23" style="width:150px;height:150px;margin:0 auto;background:#fff;border:1px solid var(--rule);border-radius:6px;padding:4px" role="img" aria-label="UPI QR code">'
+    + '<g fill="#14211F">'+cells+'</g></svg>';
+}
+/* -- WHATSAPP JOURNEY ------------------------------------------------------ */
+VIEWS.whatsapp = function(){
+  const s = T(), cfg = TENANT();
+  if(!S.waPid) S.waPid = (s.appointments[0] && s.appointments[0].pid) || s.patients[0].id;
+  const p = pat(S.waPid);
+  const a = s.appointments.find(x => x.pid === p.id) || s.appointments[0];
+  const d = doc(a.doc);
+  const prev = S.lang; S.lang = p.lang;               // messages go out in the patient's language
+
+  const mind = cfg.vertical === "mental_health" || d.kind === "mental";
+  const msgs = [];
+  msgs.push({dir:"in", text:t("waConfirm",{name:p.name.split(" ")[0], doctor:d.name, time:hhmm(a.start), token:"T"+a.token, clinic:cfg.name}),
+             ts:"9:02 AM", buttons:[t("waBtnConfirm"), t("waBtnReschedule")], audio:true});
+  if(S.scenarioStep >= 1) msgs.push({dir:"out", text:t("waBtnConfirm"), ts:"9:04 AM"});
+  if(S.scenarioStep >= 2) msgs.push({dir:"in", text:t("waRadar",{doctor:d.name, current:"T"+Math.max(1,a.token-1), token:"T"+a.token, eta:hhmm(plus(a.start,12))}),
+             ts:"10:18 AM", buttons:[t("waBtnLate")]});
+  if(S.scenarioStep >= 3) msgs.push({dir:"out", text:t("waBtnLate"), ts:"10:20 AM"});
+  if(S.scenarioStep >= 4) msgs.push(mind
+    ? {dir:"in", text:t("waMood"), ts:"6:00 PM", buttons:[t("moodLow"),t("moodAnx"),t("moodOk"),t("moodGood")]}
+    : {dir:"in", text:t("waCare",{doctor:d.name}), ts:"12:05 PM", audio:true});
+  if(S.scenarioStep >= 5) msgs.push({dir:"in", text:t("waReceipt",{amount:inr(a.fee), next:"18 September, "+hhmm(a.start)}), ts:"12:40 PM"});
+
+  const bubbles = msgs.map(m =>
+    '<div class="bub '+m.dir+'" lang="'+p.lang+'">'+esc(m.text)
+    + (m.buttons?m.buttons.map(b=>'<button class="wa-btn" data-act="wa-next">'+esc(b)+'</button>').join(""):"")
+    + (m.audio?'<button class="wa-audio" data-act="play-voice"><span>▶</span><span class="wa-wave">'
+        + Array.from({length:16},()=>'<i></i>').join("")+'</span><span>0:12</span></button>':"")
+    + '<div class="ts">'+esc(m.ts)+' ✓✓</div></div>').join("");
+
+  const langOfPatient = langName(p.lang);
+  S.lang = prev;
+
+  const phoneCard = '<div class="frame"><div class="frame-notch"></div>'
+    + '<div class="wa-top"><span class="wa-av">'+esc(cfg.mark)+'</span>'
+    + '<span style="flex:1;min-width:0"><b style="display:block;font-size:.86rem">'+esc(cfg.name)+'</b>'
+    + '<span style="font-size:.7rem;opacity:.8">Business account · verified</span></span></div>'
+    + '<div class="wa-body">'+bubbles+'</div></div>';
+
+  return sectionHead("WhatsApp journey", "Everything "+p.name+" receives, in "+langOfPatient,
+      '<button class="btn btn-p" data-act="wa-next">Advance the story</button>')
+  + '<div class="seg mb">'+s.patients.slice(0,4).map(x =>
+      '<button class="'+(S.waPid===x.id?"on":"")+'" data-act="wa-pick" data-arg="'+x.id+'">'
+      + esc(x.name.split(" ")[0])+' <span class="n">'+esc(x.lang)+'</span></button>').join("")+'</div>'
+  + '<div class="grid g2">' + phoneCard
+    + '<div class="col">'
+      + '<div class="callout"><b>WhatsApp is the product surface, not a notification channel.</b> '
+        + 'The patient never installs anything, never remembers a password, and never leaves the app they already use all day.</div>'
+      + '<div class="card"><div class="card-b">'
+        + '<div class="eyebrow mb">Template economics</div>'
+        + dataTable([{k:"tpl",h:"Template"},{k:"cat",h:"Meta category"},{k:"cost",h:"Cost",r:true}],
+          [{tpl:"Appointment confirmation", cat:"Utility", cost:"₹0.115"},
+           {tpl:"Queue position update",    cat:"Utility", cost:"₹0.115"},
+           {tpl:"Post-procedure care note", cat:"Utility", cost:"₹0.115"},
+           {tpl:"Payment receipt",          cat:"Utility", cost:"₹0.115"},
+           {tpl:"Recall — six-month check", cat:"Marketing", cost:"₹0.78"}], {title:"tpl"})
+        + '<p class="hint">Roughly ₹35–60 per clinic per month at typical volume. Marketing templates are used sparingly and only with opt-in.</p>'
+      + '</div></div>'
+      + '<div class="callout warn"><b>Voice notes carry the load.</b> Post-procedure instructions delivered as audio in '
+        + esc(langOfPatient)+' are understood by patients who cannot comfortably read any script, which is a large share of the '
+        + 'over-fifty population this practice serves. Synthesis runs on Bhashini, which is free for Indian languages.</div>'
+    + '</div>'
+  + '</div>';
+};
+
+/* -- TENANT ISOLATION ------------------------------------------------------ */
+VIEWS.isolation = function(){
+  const s = T(), cfg = TENANT();
+  const here = s.patients.find(p => p.phone === SHARED_PHONE);
+  const others = TENANTS.filter(x => x.id !== cfg.id);
+
+  const sessionCard = '<div class="card mb"><div class="card-h"><div><h3>This session</h3>'
+    + '<p class="muted" style="font-size:.76rem">Every query below is scoped by it</p></div>'
+    + '<span class="stamp s-ok flat">isolated</span></div><div class="card-b">'
+    + [["Workspace", cfg.name],["Tenant key", cfg.id],["Host", cfg.host],
+       ["Signed in as", S.session.staff+" · "+MODULES[S.session.role].title],
+       ["Rows in memory", s.patients.length+" patients, "+s.appointments.length+" appointments"],
+       ["Other workspaces loaded", "0"]]
+      .map(([k,v])=>'<div class="between" style="padding:6px 0;border-bottom:1px solid var(--rule)">'
+        + '<span class="muted">'+esc(k)+'</span><b class="mono" style="text-align:right;font-size:.76rem">'+esc(v)+'</b></div>').join("")
+    + '</div></div>';
+
+  const dupe = '<div class="card mb"><div class="card-h"><div><h3>The same phone number, twice</h3>'
+    + '<p class="muted" style="font-size:.76rem">'+esc(SHARED_PHONE)+' exists in two workspaces</p></div></div><div class="card-b">'
+    + (here
+      ? '<div class="callout ok"><b>In this workspace</b> that number belongs to <b>'+esc(here.name)+'</b>, '
+        + here.age+'/'+here.sex+', '
+        + (here.alerts.length ? 'flagged for <b>'+esc(here.alerts.join(", "))+'</b>' : 'with <b>no clinical alerts recorded</b>')
+        + ', '+(here.lastVisit ? 'last seen '+Math.floor((S.clock-here.lastVisit)/86400000)+' days ago' : '<b>never seen before</b>')
+        + ', '+(Object.keys(s.teeth).includes(here.id) ? 'with an existing dental chart' : 'with no chart on file')+'.</div>'
+      : '<div class="callout">That number does not appear in this workspace at all.</div>')
+    + '<div class="callout warn mt"><b>The other workspace holds the same number as an unrelated record.</b> '
+      + 'It has its own name spelling, its own alerts, its own chart and its own free-follow-up window, so BR-01 can return a '
+      + 'different fee for the same human being on the same day. Neither clinic can see the other’s version, and neither is wrong.</div>'
+    + '<div class="callout mt"><b>This is the case for ABDM, stated precisely.</b> A penicillin allergy recorded at one clinic '
+      + 'genuinely does not follow the patient to another. Tenancy must never be the mechanism that moves it — consent must be. '
+      + 'That is what the M3 milestone buys, and it is why we push structured FHIR bundles rather than sharing a database.</div>'
+    + '</div></div>';
+
+  const probe = '<div class="card mb"><div class="card-h"><div><h3>Try to read across the boundary</h3>'
+    + '<p class="muted" style="font-size:.76rem">Run a query for a record you know exists elsewhere</p></div></div><div class="card-b">'
+    + '<div class="iso-probe"><div class="row">'
+      + '<button class="btn btn-g btn-s" data-act="probe" data-arg="self">Read a patient in this workspace</button>'
+      + others.map(x=>'<button class="btn btn-d btn-s" data-act="probe" data-arg="'+x.id+'">Read from '+esc(x.name)+'</button>').join("")
+    + '</div>'
+    + (S.isoResult ? '<div class="iso-result mt">'+S.isoResult+'</div>'
+       : '<p class="hint" style="margin-top:10px">Nothing run yet.</p>')
+    + '</div>'
+    + '<div class="callout mt"><b>Zero rows, not “permission denied”.</b> A denial confirms the record exists, which is itself a '
+      + 'leak — it would let one clinic test whether a patient attends another. Row-level security filters the row out before the '
+      + 'query can observe it, so the honest answer is that there is nothing there.</div>'
+    + '</div></div>';
+
+  const sql = '<div class="card mb"><div class="card-h"><h3>What enforces it in production</h3></div><div class="card-b">'
+    + '<div class="iso-result">'+esc(
+`ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patients FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation ON patients
+  USING      (clinic_id = current_setting('app.clinic_id')::uuid)
+  WITH CHECK (clinic_id = current_setting('app.clinic_id')::uuid);
+
+-- set once per request, from the resolved host, before any query runs
+SET LOCAL app.clinic_id = '`+cfg.id+`';`)+'</div>'
+    + '<div class="callout mt"><b>FORCE matters.</b> Without it the table owner bypasses its own policy, which is exactly the '
+      + 'connection your application uses. The application role is also stripped of BYPASSRLS.</div>'
+    + '<div class="callout mt"><b>Why a policy and not a WHERE clause.</b> A forgotten WHERE clause in one query out of nine hundred '
+      + 'is a breach of the DPDP Act. A policy cannot be forgotten — it applies to every statement, including the ones written '
+      + 'three years from now by someone who has never read this file.</div>'
+    + '</div></div>';
+
+  const scale = '<div class="card"><div class="card-h"><h3>At '+PROVISIONED.toLocaleString("en-IN")+' tenants</h3></div><div class="card-b">'
+    + dataTable([{k:"q",h:"Question"},{k:"a",h:"Answer"}], [
+        {q:"One database or a thousand?", a:"One PostgreSQL database, one schema, <b>clinic_id</b> on every row, isolation by policy. A thousand databases means a thousand migrations and a thousand backups."},
+        {q:"Where does the tenant come from?", a:"The host. <span class='mono'>aaravdental.practix.in</span> resolves to a clinic row before authentication, and the session is bound to it."},
+        {q:"Can a user belong to two clinics?", a:"Yes — a visiting consultant does. They hold one membership row per clinic and must switch explicitly. There is no merged view."},
+        {q:"What about noisy neighbours?", a:"Per-tenant rate limits at Caddy, and a statement timeout on the application role. One clinic running a heavy report cannot slow another."},
+        {q:"Backups and erasure?", a:"pgBackRest for the cluster; per-tenant logical export for portability, and a per-tenant erasure job for DPDP deletion requests."},
+        {q:"Branding?", a:"Name, mark, accent colour, enabled languages, follow-up window and enabled modules are all tenant columns. This page is already rendering three of them."}
+      ], {title:"q"})
+    + '</div></div>';
+
+  return sectionHead("Tenant isolation", "Three workspaces are seeded. You are inside exactly one.")
+    + sessionCard + dupe + probe + sql + scale;
+};
+
+/* -- COVERAGE -------------------------------------------------------------- */
+const COVERAGE = [
+  ["FR-1.1","Multi-tenant clinic workspaces, branding and module set","Gate + Isolation"],
+  ["FR-1.2","Practitioner profiles, qualifications, languages, fees","Doorway"],
+  ["FR-1.3","Room and chair registry with capability tags","Owner, Doorway"],
+  ["FR-2.1","Patient-facing discovery and booking without an app","Doorway"],
+  ["FR-2.2","WhatsApp OTP identity verification","Doorway step 3"],
+  ["FR-2.3","Multilingual interface across five Indic languages","Doorway, WhatsApp"],
+  ["FR-2.4","UPI prepayment with deep link and QR","Doorway step 4"],
+  ["FR-3.1","Live queue with lanes and token numbers","Board"],
+  ["FR-3.2","Walk-in registration in under thirty seconds","Board"],
+  ["FR-3.3","Front-desk phone masking","Board, header toggle"],
+  ["FR-3.4","Payment capture, cash and UPI reconciliation","Board, Ledger"],
+  ["FR-4.1","Nurse triage: vitals capture on large targets","Slate"],
+  ["FR-4.2","Clinical alerts visible to every clinician","Slate, Chairside"],
+  ["FR-5.1","Encrypted psychotherapy notes with PIN unlock","Quiet Room"],
+  ["FR-5.2","Structured SOAP notes and DSM-5 formulation","Quiet Room"],
+  ["FR-5.3","Standardised instrument tracking (GAD-7, PHQ-9)","Quiet Room"],
+  ["FR-6.1","FDI odontogram with per-tooth findings","Chairside"],
+  ["FR-6.2","Protocol-driven multi-sitting treatment plans","Chairside"],
+  ["FR-6.3","Lab order lifecycle with shade and due date","Chairside"],
+  ["FR-6.4","Consumable deduction against inventory buffers","Chairside"],
+  ["FR-7.1","Visiting consultant route across clinics","Route Card"],
+  ["FR-7.2","Automatic revenue split after lab and consumables","Route Card"],
+  ["FR-7.3","External calendar sync as masked busy blocks","Route Card, Doorway"],
+  ["BR-01","Free follow-up inside the configured window","Doorway, Board"],
+  ["BR-02","No double booking of practitioner or room","Doorway slot grid"],
+  ["BR-03","Counselling sessions are prepaid","Doorway step 4"],
+  ["BR-04","Clinical alerts cannot be dismissed, only resolved","Slate, Chairside"],
+  ["BR-05","Audit trail is append-only","Board activity, System"]
+];
+VIEWS.coverage = function(){
+  return sectionHead("Requirement coverage", COVERAGE.length+" requirements, and the screen each one lives on")
+  + '<div class="card"><div class="card-b">'
+  + COVERAGE.map(([id,txt,where]) =>
+      '<div class="cov-row"><span class="cov-ok">✓</span><span class="cov-id">'+esc(id)+'</span>'
+      + '<span class="cov-txt">'+esc(txt)+'<br><span class="muted" style="font-size:.74rem">'+esc(where)+'</span></span></div>').join("")
+  + '</div></div>'
+  + '<div class="callout warn mt"><b>Honest scope.</b> This is a prototype: state lives in memory, the workspace directory is a '
+    + 'constant rather than a table, and payments are simulated. Every business rule, the encryption, the conflict checks and the '
+    + 'tenant scoping are real code you can read in this file.</div>';
+};
+
+/* -- ROADMAP --------------------------------------------------------------- */
+const ROADMAP = [
+  ["Phase 2","Voice-first clinical notes","Dictate in Marathi or Telugu mid-procedure; IndicWhisper transcribes and drafts the note. Runs on Bhashini, so Indian languages cost nothing per minute."],
+  ["Phase 2","Predictive no-show scoring","Ranks tomorrow's list by likelihood of not turning up, from history, distance, weather and time of day, so the desk overbooks the right slots rather than all of them."],
+  ["Phase 2","NHCX claims submission","One-click cashless claims into the National Health Claims Exchange. Independent clinics currently sit out insurance entirely because the paperwork does not pay for itself."],
+  ["Phase 2","Inventory auto-reorder","Consumption from completed procedures projects a reorder date and raises a purchase order against the preferred supplier."],
+  ["Phase 3","Chair-time yield optimisation","Treats operatory minutes like airline seats: suggests which appointment types to place where, so the third chair stops being a coat rack."],
+  ["Phase 3","Clinical decision support","Flags a prescribed drug against a recorded allergy, a radiograph interval against guidelines, and a treatment plan against the patient's medical history."],
+  ["Phase 3","Federated benchmarking","Anonymised, differentially private comparison against similar practices in the same city. Nothing identifiable ever leaves the tenant."]
+];
+VIEWS.roadmap = function(){
+  return sectionHead("Where this goes next", "Phase 1 ships the boring, load-bearing work. These are the differentiators.")
+  + '<div class="grid gauto">'
+  + ROADMAP.map(([ph,title,body]) =>
+      '<div class="rm-card"><span class="stamp '+(ph==="Phase 2"?"s-warn":"s-mind")+' flat" style="font-size:.55rem">'+esc(ph)+'</span>'
+      + '<h3 class="mt-s">'+esc(title)+'</h3>'
+      + '<p class="muted mt-s" style="font-size:.82rem;line-height:1.55">'+esc(body)+'</p></div>').join("")
+  + '</div>'
+  + '<div class="callout mt"><b>Sequencing is deliberate.</b> None of these matter if the queue is wrong or the fee is wrong. '
+    + 'Phase 1 earns the right to be in the clinic every day; Phase 2 and 3 are why the clinic cannot leave.</div>';
+};
+
+/* -- SYSTEM ---------------------------------------------------------------- */
+VIEWS.system = function(){
+  const s = T(), cfg = TENANT();
+  const auditRows = s.audit.slice().reverse().slice(0,25).map(r => ({
+    ts:'<span class="mono">'+hhmm(r.ts)+'</span>',
+    who:esc(r.actor)+'<br><span class="muted" style="font-size:.72rem">'+esc(r.role)+'</span>',
+    act:'<span class="mono">'+esc(r.action)+'</span>',
+    what:esc(r.what)+(r.detail?'<br><span class="muted" style="font-size:.72rem">'+esc(r.detail)+'</span>':''),
+    ten:'<span class="mono" style="font-size:.7rem">'+esc(r.tenant)+'</span>'
+  }));
+
+  return sectionHead("System", "Offline behaviour, the audit trail, and how this is actually built")
+  + '<div class="grid g2 mb">'
+    + '<div class="card"><div class="card-h"><div><h3>Connectivity</h3>'
+      + '<p class="muted" style="font-size:.76rem">A clinic in a basement has no bars. That is normal, not an outage.</p></div>'
+      + '<span class="stamp '+(S.online?"s-ok":"s-warn")+'">'+(S.online?"online":"offline")+'</span></div><div class="card-b">'
+      + '<button class="btn '+(S.online?"btn-w":"btn-p")+' btn-full" data-act="toggle-online">'
+        + (S.online?"Simulate losing the connection":"Reconnect and flush the queue")+'</button>'
+      + (S.syncQueue.length
+          ? '<div class="mt">'+S.syncQueue.map(q=>'<div class="between" style="padding:5px 0;border-bottom:1px solid var(--rule)">'
+              + '<span>'+esc(q.what)+'</span><span class="stamp s-warn" style="font-size:.55rem">queued</span></div>').join("")+'</div>'
+          : '<p class="hint" style="margin-top:9px">Nothing queued. Actions taken offline are written locally and replayed in order on reconnect.</p>')
+      + '</div></div>'
+    + '<div class="card"><div class="card-h"><h3>Layout</h3></div><div class="card-b">'
+      + '<div class="seg mb">'+[["auto","Auto"],["phone","Compact"],["tab","Tablet"],["desk","Full"]].map(([k,l])=>
+          '<button class="'+(S.layMode===k?"on":"")+'" data-act="set-lay" data-arg="'+k+'">'+esc(l)+'</button>').join("")+'</div>'
+      + dataTable([{k:"a",h:"Mode"},{k:"b",h:"Applies"},{k:"c",h:"Changes"}], [
+          {a:"<b>Compact</b>", b:"below 600 px", c:"Bottom tabs, one queue lane at a time, quadrant odontogram, tables as cards"},
+          {a:"<b>Tablet</b>",  b:"600–1023 px",  c:"Icon rail, two lanes, full arch, real tables"},
+          {a:"<b>Full</b>",    b:"1024 px and up", c:"Labelled rail, four lanes, header controls, device frames"}
+        ], {title:"a"})
+      + '<p class="hint">Currently <b>'+esc(S.lay)+'</b> at '+(window.innerWidth||0)+' px, mode <b>'+esc(S.layMode)+'</b>. '
+        + 'Pinning a mode is stored on this device only and never syncs to other staff.</p>'
+      + '</div></div>'
+  + '</div>'
+  + '<div class="card mb"><div class="card-h"><div><h3>Audit trail</h3>'
+    + '<p class="muted" style="font-size:.76rem">BR-05 — append-only. Production revokes UPDATE and DELETE from the application role.</p></div>'
+    + '<span class="stamp s-info flat">'+s.audit.length+' rows</span></div><div class="card-b">'
+    + dataTable([{k:"ts",h:"Time"},{k:"who",h:"Actor"},{k:"act",h:"Action"},{k:"what",h:"Detail"},{k:"ten",h:"Workspace"}],
+                auditRows, {title:"what", empty:"No entries yet."})
+    + '<div class="callout mt">Every row carries the workspace key. An auditor can prove which clinic an action belonged to '
+      + 'without reading a single patient name.</div>'
+    + '</div></div>'
+  + '<div class="card"><div class="card-h"><h3>How this is built</h3></div><div class="card-b">'
+    + dataTable([{k:"layer",h:"Layer"},{k:"choice",h:"Choice"},{k:"why",h:"Why"}], [
+        {layer:"<b>Edge</b>", choice:"Caddy with Coraza WAF", why:"Automatic TLS, OWASP rules, per-tenant rate limits. No per-request vendor billing."},
+        {layer:"<b>Client</b>", choice:"React PWA, static, offline-first", why:"Installs to a home screen, survives a dead connection, ships from object storage."},
+        {layer:"<b>API</b>", choice:"Fastify modular monolith", why:"Three microservices at zero customers buys distributed-systems problems and no benefit."},
+        {layer:"<b>Data</b>", choice:"PostgreSQL 16 with RLS", why:"Tenancy enforced by the database, exclusion constraints for BR-02, append-only audit by permission."},
+        {layer:"<b>Jobs</b>", choice:"pg-boss in the same database", why:"Reminders and FHIR pushes without adding Redis to the failure surface."},
+        {layer:"<b>Health data</b>", choice:"HAPI FHIR", why:"ABDM M2 and M3 compliance without writing a FHIR server."},
+        {layer:"<b>Voice</b>", choice:"Bhashini and AI4Bharat", why:"Government-funded Indic speech, free at our volume, and it is genuinely good at Marathi."},
+        {layer:"<b>Hosting</b>", choice:"OCI Ampere A1, ap-mumbai-1", why:"DPDP data residency, and the free tier carries the pilot at zero rupees."}
+      ], {title:"layer"})
+    + '<div class="callout mt"><b>Cost discipline is a feature.</b> At ₹0 of infrastructure for the pilot and low hundreds of rupees '
+      + 'per clinic per month at scale, the price can sit where an independent clinic will actually pay it.</div>'
+    + '</div></div>';
+};
+/* ==========================================================================
+   8. ACTIONS
+   ========================================================================== */
+const ACT = {};
+
+/* -- chrome ---------------------------------------------------------------- */
+ACT.close = () => closeModal();
+ACT.undo  = () => { if(S.undo){ S.undo(); S.undo=null; } document.querySelectorAll(".toast").forEach(n=>n.remove()); render(); };
+
+ACT.more = () => {
+  const cfg = TENANT(), rest = modules().slice(4).concat(UTILITY_MODULES);
+  sheet(cfg.name, [
+    '<div class="eyebrow" style="padding:6px 13px">Go to</div>',
+    ...rest.map(m => sheetRow(ICON(MODULES[m].icon), MODULES[m].title, "goto", null, m)),
+    '<div class="eyebrow" style="padding:12px 13px 6px">This device</div>',
+    sheetRow("🌐","Language","lang", langName(S.lang)),
+    sheetRow("📐","Layout","layout", S.layMode==="auto"?"Auto":S.layMode==="phone"?"Compact":S.layMode==="tab"?"Tablet":"Full"),
+    sheetRow(S.masked?"🙈":"👁","Phone numbers","toggle-mask", S.masked?"Masked":"Visible"),
+    sheetRow(S.online?"📶":"✈️","Connection","toggle-online", S.online?"Online":S.syncQueue.length+" queued"),
+    '<div class="eyebrow" style="padding:12px 13px 6px">Session</div>',
+    sheetRow("👤", S.session.staff, "noop", MODULES[S.session.role].title),
+    sheetRow("🚪","Sign out of this workspace","signout")
+  ]);
+};
+ACT.noop  = () => {};
+ACT.goto  = (m) => go(m);
+ACT.lang  = () => sheet("Language", TENANT().langs.map(c =>
+  sheetRow(S.lang===c?"●":"○", langName(c), "lang-set", S.lang===c?"Current":null, c)));
+ACT["lang-set"] = (c) => { S.lang=c; closeModal(); render(); };
+ACT.layout = () => sheet("Layout on this device", [
+  sheetRow("✨","Automatic","set-lay", S.layMode==="auto"?"On":null, "auto"),
+  sheetRow("📱","Compact — phone","set-lay", S.layMode==="phone"?"On":null, "phone"),
+  sheetRow("📓","Tablet","set-lay", S.layMode==="tab"?"On":null, "tab"),
+  sheetRow("🖥","Full — desktop","set-lay", S.layMode==="desk"?"On":null, "desk"),
+  '<p class="hint" style="padding:10px 13px">Automatic follows the screen width. Pin a mode when a reception tablet should show '
+  + 'the dense four-lane board that it is wide enough for but would not choose on its own.</p>'
+]);
+ACT["set-lay"] = (m) => setLayMode(m);
+ACT["toggle-mask"] = () => {
+  S.masked = !S.masked; closeModal();
+  audit("privacy.mask", S.masked?"Phone numbers masked":"Phone numbers revealed","FR-3.3");
+  render(); toast(S.masked?"Numbers masked":"Numbers visible", S.masked?"Front-desk default":"Revealing is written to the audit trail", S.masked?null:"warn");
+};
+ACT["toggle-online"] = () => {
+  S.online = !S.online; closeModal();
+  if(S.online){
+    const n = S.syncQueue.length; S.syncQueue = [];
+    audit("sync.flush","Reconnected", n+" queued action"+(n===1?"":"s")+" replayed in order");
+    render(); toast("Back online", n?n+" queued action"+(n===1?"":"s")+" synced":"Nothing was queued");
+  } else {
+    audit("sync.offline","Connection lost","Writing locally");
+    render(); toast("Working offline","Everything still works; changes queue up","warn");
+  }
+};
+ACT.signout = () => signOut();
+
+/* -- gate ------------------------------------------------------------------ */
+ACT.pick    = (id) => { S.gatePick = id; S.gate = "signin"; render(); };
+ACT["back-ws"] = () => { S.gate = "workspace"; S.gatePick = null; render(); };
+ACT.signin  = (m) => signIn(m);
+
+/* -- board ----------------------------------------------------------------- */
+ACT.lane = (id) => { S.laneTab = id; render(); };
+const NEXT_LANE = {expected:"waiting", waiting:"consult", consult:"billing", billing:"done"};
+function moveCard(id, lane, silent){
+  const a = T().appointments.find(x=>x.id===id); if(!a) return;
+  const from = a.lane;
+  a.lane = lane;
+  if(lane === "waiting" && !a.arrived) a.arrived = new Date(S.clock);
+  if(lane === "consult") a.startedAt = new Date(S.clock);
+  audit("queue.move", patName(a.pid)+" → "+(laneOf(lane).label||lane), "from "+laneOf(from).label);
+  if(!S.online) S.syncQueue.push({what:"Move "+patName(a.pid)+" to "+lane});
+  if(!silent) toast(patName(a.pid)+" moved to "+(LANES.find(l=>l.id===lane)||{label:"Done"}).label,
+                    S.online?null:"Queued — you are offline", null, ()=>{ a.lane = from; });
+  render();
+}
+ACT.advance = (id) => {
+  const a = T().appointments.find(x=>x.id===id); if(!a) return;
+  const p = pat(a.pid);
+  if(NEXT_LANE[a.lane]==="consult" && p && p.alerts.length){
+    modal({title:"Confirm before sending in", body:
+      '<div class="alert-band mb"><span class="bang">!</span><span>'+esc(p.alerts.join(" · "))+'</span></div>'
+      + '<p class="reg-patient">'+esc(p.name)+' has an active clinical alert. BR-04 means it cannot be dismissed here — '
+      + 'it travels with the patient into the operatory and is shown to the clinician again.</p>',
+      footer:'<button class="btn btn-g" data-act="close">Cancel</button>'
+        + '<button class="btn btn-p" style="flex:1" data-act="force-in" data-arg="'+id+'">Acknowledge and send in</button>'});
+    return;
+  }
+  moveCard(id, NEXT_LANE[a.lane]);
+};
+ACT["force-in"] = (id) => { closeModal(); audit("alert.ack","Clinical alert acknowledged", patName(T().appointments.find(x=>x.id===id).pid)); moveCard(id,"consult"); };
+ACT.collect = (id) => {
+  const a = T().appointments.find(x=>x.id===id); if(!a) return;
+  const due = a.fee - (a.paid||0);
+  modal({title:"Collect "+inr(due), body:
+    '<p class="reg-patient mb">'+esc(patName(a.pid))+' · '+esc(a.reason)+'</p>'
+    + '<div class="row"><button class="btn btn-p btn-xl" style="flex:1" data-act="paid" data-arg="'+id+'|upi">UPI '+inr(due)+'</button>'
+    + '<button class="btn btn-g btn-xl" style="flex:1" data-act="paid" data-arg="'+id+'|cash">Cash '+inr(due)+'</button></div>'
+    + '<p class="hint" style="margin-top:10px">A receipt goes out on WhatsApp in '+esc(langName(pat(a.pid)?pat(a.pid).lang:"en"))+' the moment this is recorded.</p>'});
+};
+ACT.paid = (arg) => {
+  const [id, method] = arg.split("|");
+  const s = T(), a = s.appointments.find(x=>x.id===id);
+  const due = a.fee - (a.paid||0);
+  a.paid = a.fee; a.lane = "done";
+  s.cash[method] += due; s.cash.pending = Math.max(0, s.cash.pending - due);
+  audit("payment.capture", inr(due)+" by "+method.toUpperCase(), patName(a.pid));
+  closeModal(); render();
+  toast(inr(due)+" received", "Receipt sent on WhatsApp", null, ()=>{ a.paid=0; a.lane="billing"; s.cash[method]-=due; s.cash.pending+=due; });
+};
+ACT["card-menu"] = (id) => {
+  const a = T().appointments.find(x=>x.id===id); if(!a) return;
+  sheet(patName(a.pid), [
+    '<div class="eyebrow" style="padding:6px 13px">Move to</div>',
+    ...LANES.filter(l=>l.id!==a.lane).map(l => sheetRow("→", l.label, "move-to", null, id+"|"+l.id)),
+    sheetRow("✓","Done and paid","move-to", null, id+"|done"),
+    '<div class="eyebrow" style="padding:12px 13px 6px">Other</div>',
+    sheetRow("💬","Open the WhatsApp thread","open-wa", null, a.pid),
+    sheetRow("✕","Cancel this appointment","cancel-appt", null, id)
+  ]);
+};
+ACT["move-to"] = (arg) => { const [id,lane] = arg.split("|"); closeModal(); moveCard(id, lane); };
+ACT["open-wa"] = (pid) => { S.waPid = pid; closeModal(); go("whatsapp"); };
+ACT["cancel-appt"] = (id) => {
+  const a = T().appointments.find(x=>x.id===id), from = a.lane;
+  a.lane = "cancelled"; closeModal();
+  audit("queue.cancel","Appointment cancelled", patName(a.pid));
+  render(); toast("Appointment cancelled","The slot is free again for BR-02","warn",()=>{ a.lane = from; });
+};
+ACT.walkin = () => {
+  const s = T();
+  modal({title:"Walk-in registration", body:
+    '<div class="field"><span class="lbl">Name</span><input class="inp" id="wi-name" placeholder="As the patient says it"></div>'
+    + '<div class="field"><span class="lbl">Mobile</span><input class="inp" id="wi-phone" inputmode="tel" value="+91 "></div>'
+    + '<div class="field"><span class="lbl">Reason</span><input class="inp" id="wi-why" placeholder="Pain, review, emergency…"></div>'
+    + '<div class="field"><span class="lbl">Practitioner</span><select class="inp" id="wi-doc">'
+      + s.practitioners.map(d=>'<option value="'+d.id+'">'+esc(d.name)+' — '+inr(d.fee)+'</option>').join("")+'</select></div>'
+    + '<p class="hint">Four fields. Anything more and the queue behind them grows.</p>',
+    footer:'<button class="btn btn-g" data-act="close">Cancel</button>'
+      + '<button class="btn btn-p" style="flex:1" data-act="walkin-save">Add to the queue</button>'});
+};
+ACT["walkin-save"] = () => {
+  const s = T();
+  const name = ($("wi-name").value||"").trim() || "Walk-in patient";
+  const ph   = ($("wi-phone").value||"").trim() || "+91 00000-00000";
+  const why  = ($("wi-why").value||"").trim() || "Walk-in";
+  const dId  = $("wi-doc").value;
+  const pid  = "w"+Date.now().toString(36);
+  s.patients.push(P(pid, name, "—", "—", TENANT().langs[0], ph, null, [], null));
+  const token = Math.max(0, ...s.appointments.map(a=>a.token)) + 1;
+  s.appointments.push(A("x"+pid, pid, dId, s.chairs[0].id, S.clock.getHours(), S.clock.getMinutes(), 20, why, "waiting", doc(dId).fee, 0, token, {arrived:new Date(S.clock)}));
+  s.cash.pending += doc(dId).fee;
+  audit("patient.create", name+" registered as a walk-in", "Token T"+token+" · "+why);
+  closeModal(); S.laneTab = "waiting"; render();
+  toast(name+" added as T"+token, "Full fee applies — no previous visit on record");
+};
+
+/* -- pointer drag. HTML5 drag-and-drop never fires from a finger, so the
+      Kanban is built on pointer events and works identically with a mouse,
+      a stylus and a thumb. On a phone only one lane is visible, so the grip
+      opens the move sheet instead. ----------------------------------------- */
+let drag = null, dragEndedAt = 0;
+document.addEventListener("pointerdown", e => {
+  const g = e.target.closest("[data-drag]");
+  if(!g || S.lay === "phone" || e.button) return;
+  const card = g.closest(".qcard"); if(!card) return;
+  const r = card.getBoundingClientRect();
+  drag = {id:g.dataset.drag, card, ox:e.clientX-r.left, oy:e.clientY-r.top, w:r.width,
+          x0:e.clientX, y0:e.clientY, ghost:null, pid:e.pointerId};
+  try{ g.setPointerCapture(e.pointerId); }catch(err){}
+});
+document.addEventListener("pointermove", e => {
+  if(!drag) return;
+  if(!drag.ghost){
+    if(Math.hypot(e.clientX-drag.x0, e.clientY-drag.y0) < 7) return;
+    const g = drag.card.cloneNode(true);
+    g.classList.add("ghost"); g.style.setProperty("--gw", drag.w+"px");
+    document.body.appendChild(g);
+    drag.ghost = g; drag.card.classList.add("dragging");
+  }
+  e.preventDefault();
+  drag.ghost.style.left = (e.clientX - drag.ox) + "px";
+  drag.ghost.style.top  = (e.clientY - drag.oy) + "px";
+  const over = laneUnder(e.clientX, e.clientY);
+  document.querySelectorAll(".lane").forEach(l => l.classList.toggle("drop", l === over));
+});
+document.addEventListener("pointerup", e => {
+  if(!drag) return;
+  const d = drag; drag = null;
+  document.querySelectorAll(".lane").forEach(l => l.classList.remove("drop"));
+  if(!d.ghost){ return; }                     // a tap, not a drag — let the click open the menu
+  const over = laneUnder(e.clientX, e.clientY);
+  d.ghost.remove(); d.card.classList.remove("dragging");
+  dragEndedAt = Date.now();
+  if(over && over.dataset.lane){
+    const a = T().appointments.find(x=>x.id===d.id);
+    if(a && a.lane !== over.dataset.lane) return moveCard(d.id, over.dataset.lane);
+  }
+  render();
+});
+function laneUnder(x, y){
+  for(const l of document.querySelectorAll(".lane")){
+    const r = l.getBoundingClientRect();
+    if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom) return l;
+  }
+  return null;
+}
+
+/* -- nurse ----------------------------------------------------------------- */
+ACT["nurse-pick"] = (pid) => { S.nursePatient = pid; render(); };
+ACT.vital = (key, btn) => {
+  S.kp = {key, label:btn.dataset.label, unit:btn.dataset.unit, mode:btn.dataset.mode, buf:""};
+  keypad();
+};
+function keypad(){
+  const k = S.kp;
+  const keys = ["1","2","3","4","5","6","7","8","9", k.mode==="bp"?"/":"0", k.mode==="bp"?"0":"C", "⌫"];
+  modal({title:k.label, body:
+    '<div class="kp-display">'+(k.buf||'<small>enter a value</small>')+(k.buf?' <small>'+esc(k.unit)+'</small>':'')+'</div>'
+    + '<div class="keypad">'+keys.map(x=>'<button class="'+(/[0-9]/.test(x)?"":"alt")+'" data-act="kp" data-arg="'+esc(x)+'">'+esc(x)+'</button>').join("")+'</div>',
+    footer:'<button class="btn btn-g" data-act="close">Cancel</button>'
+      + '<button class="btn btn-p" style="flex:1" data-act="kp-save"'+(k.buf?"":" disabled")+'>Record '+esc(k.label.toLowerCase())+'</button>'});
+}
+ACT.kp = (x) => {
+  const k = S.kp;
+  if(x === "⌫") k.buf = k.buf.slice(0,-1);
+  else if(x === "C") k.buf = "";
+  else if(x === "/" ){ if(!k.buf.includes("/") && k.buf) k.buf += "/"; }
+  else if(k.buf.length < 7) k.buf += x;
+  keypad();
+};
+ACT["kp-save"] = () => {
+  const k = S.kp, p = pat(S.nursePatient);
+  p.vitals = p.vitals || {};
+  p.vitals[k.key] = k.mode === "bp" ? k.buf : Number(k.buf);
+  audit("vitals.record", k.label+" "+k.buf+" "+k.unit, p.name);
+  if(!S.online) S.syncQueue.push({what:k.label+" for "+p.name});
+  closeModal(); render();
+  toast(k.label+" recorded", p.name+" · "+k.buf+" "+k.unit);
+};
+ACT.alert = (tag) => {
+  const p = pat(S.nursePatient);
+  const i = p.alerts.indexOf(tag);
+  if(i >= 0){
+    modal({title:"Resolve this alert", body:
+      '<p class="reg-patient mb">BR-04 — a clinical alert cannot simply be unticked. Removing <b>'+esc(tag)+'</b> from '
+      + esc(p.name)+'’s record is a clinical decision, and it is recorded against you by name.</p>'
+      + '<div class="field"><span class="lbl">Reason for resolving</span>'
+      + '<input class="inp" id="al-why" placeholder="Allergy testing negative on 11 Sep…"></div>',
+      footer:'<button class="btn btn-g" data-act="close">Keep the alert</button>'
+        + '<button class="btn btn-d" style="flex:1" data-act="alert-resolve" data-arg="'+esc(tag)+'">Resolve it</button>'});
+    return;
+  }
+  p.alerts.push(tag);
+  audit("alert.add", tag, p.name);
+  render(); toast("Alert added", tag+" now travels with "+p.name, "warn");
+};
+ACT["alert-resolve"] = (tag) => {
+  const p = pat(S.nursePatient), why = ($("al-why").value||"").trim() || "No reason given";
+  p.alerts = p.alerts.filter(x=>x!==tag);
+  audit("alert.resolve", tag+" resolved", p.name+" — "+why);
+  closeModal(); render(); toast(tag+" resolved", "Recorded against "+S.session.staff);
+};
+ACT["to-doctor"] = () => {
+  const a = T().appointments.find(x=>x.pid===S.nursePatient && x.lane==="waiting");
+  if(a) return moveCard(a.id, "consult");
+  toast("Already with the doctor", null, "warn");
+};
+
+/* -- chairside ------------------------------------------------------------- */
+ACT["dental-pick"] = (pid) => { S.dentalPatient = pid; S.selectedTooth = null; render(); };
+ACT.quadrant = (q) => { S.quadrant = q; render(); };
+ACT.diagnosis = (d) => {
+  S.activeDiagnosis = d;
+  if(S.selectedTooth){
+    const s = T(), id = S.dentalPatient;
+    s.teeth[id] = s.teeth[id] || {};
+    s.teeth[id][S.selectedTooth] = d;
+    audit("chart.tooth","Tooth "+S.selectedTooth+" marked "+TOOTH_STATES[d].label, patName(id));
+    if(!S.online) S.syncQueue.push({what:"Tooth "+S.selectedTooth+" → "+d});
+  }
+  render();
+};
+ACT.tooth = (n) => { S.selectedTooth = Number(n); render(); };
+ACT["build-plan"] = () => {
+  const s = T(), id = S.dentalPatient, n = S.selectedTooth;
+  const state = (s.teeth[id]||{})[n] || "healthy";
+  const proto = PROTOCOLS[state];
+  if(!proto) return toast("No protocol for a healthy tooth","Mark a finding first","warn");
+  s.plans[id] = (s.plans[id]||[]).filter(x=>x.tooth!==n)
+    .concat(proto.map((p,i)=>({tooth:n, step:i+1, name:p.n, fee:p.fee, mins:p.mins,
+                               status:i===0?"chair":"planned", lab:!!p.lab, consumables:p.consumables})));
+  audit("plan.generate", proto.length+"-sitting plan for tooth "+n, patName(id)+" · "+TOOTH_STATES[state].label);
+  render();
+  toast(proto.length+" sittings planned", inr(proto.reduce((a,b)=>a+b.fee,0))+" total · protocol for "+TOOTH_STATES[state].label);
+};
+ACT["complete-step"] = (i) => {
+  const s = T(), plan = s.plans[S.dentalPatient];
+  const step = plan[Number(i)];
+  step.status = "done";
+  const next = plan.find(x=>x.status==="planned");
+  if(next) next.status = "chair";
+  s.cash.pending += step.fee;
+  audit("plan.complete", step.name+" completed", patName(S.dentalPatient)+" · "+inr(step.fee)+" billed");
+  render();
+  toast(step.name+" done", inr(step.fee)+" added to billing"+(next?" · next: "+next.name:""), null,
+        ()=>{ step.status="chair"; if(next) next.status="planned"; s.cash.pending-=step.fee; });
+};
+ACT.deduct = () => {
+  const s = T(), plan = s.plans[S.dentalPatient] || [];
+  const used = plan.filter(x=>x.status==="chair").flatMap(x=>x.consumables||[]);
+  if(!used.length) return toast("Nothing to deduct", null, "warn");
+  const low = [];
+  used.forEach(c => { const it = s.inventory.find(i=>i.item===c); if(it){ it.stock--; if(it.stock<=it.buffer) low.push(it.item); } });
+  audit("inventory.deduct", used.length+" consumables deducted", used.join(", "));
+  render();
+  toast(used.length+" items deducted", low.length?low.join(", ")+" now at or below buffer":"All items above buffer", low.length?"warn":null);
+};
+ACT["lab-order"] = () => {
+  const s = T();
+  modal({title:"Raise a lab order", body:
+    '<div class="field"><span class="lbl">Laboratory</span><select class="inp" id="lo-lab">'
+      + s.labs.map(l=>'<option>'+esc(l)+'</option>').join("")+'</select></div>'
+    + '<div class="field"><span class="lbl">Work</span><input class="inp" id="lo-type" value="Monolithic zirconia crown"></div>'
+    + '<div class="field"><span class="lbl">Shade</span><input class="inp" id="lo-shade" value="A2 (VITA classical)"></div>'
+    + '<div class="field"><span class="lbl">Tooth</span><input class="inp" id="lo-tooth" inputmode="numeric" value="'+(S.selectedTooth||16)+'"></div>'
+    + '<p class="hint">Shade and tooth number are the two fields labs most often receive wrong on paper, which is why the remake rate is what it is.</p>',
+    footer:'<button class="btn btn-g" data-act="close">Cancel</button>'
+      + '<button class="btn btn-p" style="flex:1" data-act="lab-save">Send to the lab</button>'});
+};
+ACT["lab-save"] = () => {
+  const s = T();
+  const lab = $("lo-lab").value, type = $("lo-type").value, shade = $("lo-shade").value;
+  const tooth = Number($("lo-tooth").value) || 16;
+  const id = "LAB-"+(900+s.labOrders.length+Math.floor(Math.random()*90));
+  s.labOrders.push({id, lab, pid:S.dentalPatient, tooth, type, shade, due:"14 Sep, 11:00 AM", status:"sent", cost:1400});
+  audit("lab.order", id+" raised", type+" · shade "+shade+" · tooth "+tooth+" · "+patName(S.dentalPatient));
+  closeModal(); render();
+  toast(id+" sent to "+lab, "Shade and tooth number travel as structured fields, not handwriting");
+};
+
+/* -- therapy vault: real WebCrypto ---------------------------------------- */
+async function deriveKey(pin, salt){
+  const km = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2", salt, iterations:210000, hash:"SHA-256"},
+    km, {name:"AES-GCM", length:256}, false, ["encrypt","decrypt"]);
+}
+async function encryptVault(pin){
+  const v = T() && T().vault; if(!v) return;
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(pin, salt);
+  const buf  = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, new TextEncoder().encode(JSON.stringify(v.draft)));
+  v.salt = salt; v.iv = iv;
+  v.cipher = btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/(.{56})/g,"$1\n");
+}
+async function unlockVault(pin){
+  const v = T().vault;
+  try{
+    const key = await deriveKey(pin, v.salt);
+    const raw = Uint8Array.from(atob(v.cipher.replace(/\n/g,"")), c=>c.charCodeAt(0));
+    const out = await crypto.subtle.decrypt({name:"AES-GCM", iv:v.iv}, key, raw);
+    v.draft = JSON.parse(new TextDecoder().decode(out));
+    v.locked = false; v.attempts = 0;
+    audit("vault.unlock","Session notes decrypted", patName(v.pid));
+    render(); toast("Notes unsealed","Auto-seals after five minutes of inactivity");
+  }catch(err){
+    v.attempts++;
+    audit("vault.fail","Incorrect PIN — attempt "+v.attempts, patName(v.pid));
+    render(); toast("Incorrect PIN","Attempt "+v.attempts+" written to the audit trail","risk");
+  }
+}
+function pinStep(i, el){
+  el.value = el.value.replace(/\D/g,"").slice(0,1);
+  if(el.value && i < 3){ const n = $("pin"+(i+1)); if(n) n.focus(); }
+  const pin = [0,1,2,3].map(k => ($("pin"+k)||{}).value || "").join("");
+  if(pin.length === 4) unlockVault(pin);
+}
+ACT["lock-vault"] = () => {
+  const v = T().vault; v.locked = true; v.attempts = 0;
+  encryptVault("1234").then(render);
+  audit("vault.lock","Session notes sealed", patName(v.pid));
+  render(); toast("Notes sealed","Unreadable without the PIN");
+};
+function noteEdit(k, val){ T().vault.draft[k] = val; }
+ACT["save-note"] = () => {
+  const v = T().vault;
+  encryptVault("1234").then(()=>{
+    audit("note.save","Session note encrypted and saved", patName(v.pid)+" · "+v.meta.dsm);
+    if(!S.online) S.syncQueue.push({what:"Encrypted note for "+patName(v.pid)});
+    render(); toast("Saved and encrypted","Ciphertext is what reaches the database"+(S.online?"":" — queued while offline"));
+  });
+};
+ACT.dsm = () => {};
+
+/* -- consultant / owner ---------------------------------------------------- */
+ACT["request-settle"] = () => {
+  const s = T();
+  const n = s.ledger.filter(l=>l.status!=="settled").length;
+  s.ledger.forEach(l => { if(l.status!=="settled") l.status = "requested"; });
+  audit("settlement.request", n+" procedures submitted for settlement", TENANT().name);
+  render(); toast("Settlement requested", n+" procedure"+(n===1?"":"s")+" sent to the practice owner");
+};
+ACT.export = () => {
+  audit("report.export","Month-to-date ledger exported","CSV · owner");
+  toast("Export queued","A CSV lands in your inbox in a moment");
+};
+
+/* -- doorway --------------------------------------------------------------- */
+function bookSet(k, v){
+  S.booking[k] = v; render();
+  if(k === "q"){ const i = $("pq"); if(i){ i.focus(); i.setSelectionRange(v.length, v.length); } }
+}
+ACT.spec = (k) => { S.booking.spec = k; render(); };
+ACT["pick-doc"] = (id) => { S.booking.docId = id; S.booking.step = 1; render(); };
+ACT["pick-slot"] = (ms) => { S.booking.slot = new Date(Number(ms)); render(); };
+ACT["pick-patient"] = (_, el) => { S.booking.pid = el.value || null; S.booking.verified = false; render(); };
+ACT.verify = () => {
+  if((S.booking.code||"").length < 4) return toast("Enter the six-digit code", null, "warn");
+  S.booking.verified = true;
+  audit("identity.verify","WhatsApp OTP verified", S.booking.pid ? patName(S.booking.pid) : "new patient");
+  render(); toast("Number verified","Identity confirmed over WhatsApp");
+};
+ACT.step = (n) => { S.booking.step = Number(n); if(Number(n)===0) S.booking.slot=null; render(); };
+ACT.confirm = () => {
+  const s = T(), b = S.booking, d = doc(b.docId), f = feeFor(b.pid, b.docId);
+  if(!b.pid){
+    const pid = "n"+Date.now().toString(36);
+    s.patients.push(P(pid,"New patient","—","—",S.lang,"+91 00000-00000",null,[],null));
+    b.pid = pid;
+  }
+  const token = Math.max(0, ...s.appointments.map(a=>a.token)) + 1;
+  b.token = token;
+  s.appointments.push(A("bk"+token, b.pid, d.id, d.visiting?null:s.chairs[0].id,
+    b.slot.getHours(), b.slot.getMinutes(), d.minutes||30, "Booked online", "expected", f.fee, d.prepay?f.fee:0, token));
+  if(d.prepay && f.fee) s.cash.upi += f.fee;
+  audit("appointment.create","Booked "+patName(b.pid)+" with "+d.name, hhmm(b.slot)+" · "+(f.free?"free follow-up":inr(f.fee))+" · token T"+token);
+  S.waPid = b.pid; S.scenarioStep = 0;
+  b.step = 4; render();
+  toast("Booked as T"+token, f.free ? "Free follow-up applied automatically" : inr(f.fee)+" "+(d.prepay?"prepaid":"due at the clinic"));
+};
+ACT["play-voice"] = (_, el) => {
+  const w = el.querySelector(".wa-wave");
+  if(w){ w.classList.add("play"); setTimeout(()=>w.classList.remove("play"), 2400); }
+  audit("voice.play","Voice note played", langName(S.lang));
+  toast("Playing in "+langName(S.lang), "Synthesised with Bhashini — free for Indian languages");
+};
+ACT["see-wa"] = () => go("whatsapp");
+
+/* -- whatsapp -------------------------------------------------------------- */
+ACT["wa-next"] = () => {
+  S.scenarioStep = Math.min(5, S.scenarioStep + 1);
+  render();
+  const c = $("canvas").querySelector(".wa-body"); if(c) c.scrollTop = c.scrollHeight;
+};
+ACT["wa-pick"] = (pid) => { S.waPid = pid; S.scenarioStep = 0; render(); };
+
+/* -- isolation probe ------------------------------------------------------- */
+ACT.probe = (target) => {
+  const cfg = TENANT(), s = T();
+  const t0 = Date.now();
+  if(target === "self"){
+    const p = s.patients[0];
+    S.isoResult = esc(
+`SET LOCAL app.clinic_id = '`+cfg.id+`';
+SELECT id, full_name, phone, alerts
+  FROM patients
+ WHERE id = '`+p.id+`';`)
+    + '\n\n<span class="ok">(1 row)</span>  '
+    + esc(p.id+"  |  "+p.name+"  |  "+phone(p.phone)+"  |  "+(p.alerts.join(", ")||"—"))
+    + '\n\n-- policy satisfied: clinic_id matches the session\n-- '+(Date.now()-t0)+' ms';
+    audit("iso.probe","Read within the workspace — 1 row", cfg.id);
+  } else {
+    const other = tenantById(target);
+    S.isoResult = esc(
+`SET LOCAL app.clinic_id = '`+cfg.id+`';
+SELECT id, full_name, phone
+  FROM patients
+ WHERE clinic_id = '`+target+`';`)
+    + '\n\n<span class="deny">(0 rows)</span>\n\n'
+    + esc('-- Not "permission denied". The policy filtered every row of ')+esc(other.name)
+    + esc(' out\n-- before this query could observe them, so nothing can be inferred\n-- about whether those records exist at all.')
+    + '\n-- '+(Date.now()-t0)+' ms';
+    audit("iso.probe","Cross-workspace read refused — 0 rows", "attempted: "+target);
+  }
+  render();
+  const box = $("canvas").querySelector(".iso-result"); if(box) box.scrollIntoView({block:"center"});
+};
+
+/* ==========================================================================
+   9. WIRING AND BOOT
+   ========================================================================== */
+document.addEventListener("click", e => {
+  if(Date.now() - dragEndedAt < 300) return;   // suppress the click a drag leaves behind
+  const nav = e.target.closest("[data-go]");
+  if(nav) return go(nav.dataset.go);
+  const b = e.target.closest("[data-act]");
+  if(!b) return;
+  const fn = ACT[b.dataset.act];
+  if(fn) fn(b.dataset.arg, b);
+});
+document.addEventListener("change", e => {
+  const b = e.target.closest("[data-act]");
+  if(b && (b.tagName === "SELECT")){
+    if(b.dataset.act === "dsm"){ T().vault.meta.dsm = b.value; audit("note.dsm","Formulation set to "+b.value, patName(T().vault.pid)); }
+    else { const fn = ACT[b.dataset.act]; if(fn) fn(b.dataset.arg, b); }
+  }
+});
+$("scrim").addEventListener("click", e => { if(e.target.id === "scrim") closeModal(); });
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape") closeModal();
+  if(e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && S.session.tenantId){
+    e.preventDefault(); ACT.more();
+  }
+});
+
+let resizeT = null;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => { if(applyLay()) render(); }, 130);
+});
+window.addEventListener("hashchange", () => {
+  const h = location.hash.slice(1);
+  if(S.session.tenantId && allModules().includes(h) && h !== S.view){ S.view = h; render(); }
+});
+
+/* Top-level `const` in a classic script is script-scoped, not a window property,
+   so automation gets one deliberate handle rather than a hundred globals. */
+window.PractixOS = {S, T, TENANT, TENANTS, VIEWS, ACT, MODULES, MODULES_BY_VERTICAL, UTILITY_MODULES,
+                    render, go, signIn, signOut, closeModal, modules, allModules, feeFor, slotFree, audit};
+
+(function init(){
+  try{ const m = localStorage.getItem("practix.lay"); if(m) S.layMode = m; }catch(err){}
+  applyLay();
+  resolveTenant();
+  /* ?clinic=<slug>&as=<module> deep-links straight into a role. Real sign-in
+     replaces this; it exists so a link can open the board on the reception
+     tablet, and so the layout checker can reach every screen without clicking. */
+  const as = new URLSearchParams(location.search).get("as");
+  if(S.gatePick && as && MODULES_BY_VERTICAL[tenantById(S.gatePick).vertical].concat(UTILITY_MODULES).includes(as)){
+    signIn(as);
+    const h = location.hash.slice(1);
+    if(h && allModules().includes(h) && h !== as){ S.view = h; }
+  }
+  render();
+})();
+</script>
+</body>
+</html>
