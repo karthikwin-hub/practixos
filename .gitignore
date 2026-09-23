@@ -19,3 +19,5 @@ dist/
 *.tfstate.*
 *.tfstate.backup
 infra/vault/server-secret
+web/dist/
+web/portals/

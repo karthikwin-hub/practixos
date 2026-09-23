@@ -22,7 +22,7 @@ test("eight simultaneous bookings on one chair produce exactly one appointment",
   const clinicId = randomUUID();
   await withTenant(clinicId, (tx) =>
     tx.query(
-      `INSERT INTO clinics (id, slug, legal_name, vertical) VALUES ($1, $2, $3, 'dental')`,
+      `INSERT INTO clinics (id, slug, legal_name, vertical, display_name) VALUES ($1, $2, $3, 'dental', $3)`,
       [clinicId, `c-${clinicId.slice(0, 8)}`, "Chair Clinic"],
     ),
   );

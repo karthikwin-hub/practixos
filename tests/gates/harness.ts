@@ -20,7 +20,12 @@ export async function resetDatabase(): Promise<void> {
   await client.connect();
   try {
     await client.query(`
-      TRUNCATE appointments, vault_notes, patients, practitioners, chairs, audit_log, clinics
+      TRUNCATE TABLE
+        recovered_revenue, payment_events, message_outbox, deposits, vitals, sync_applied,
+        import_batches, otp_challenges, patient_sessions, staff_sessions, staff_users,
+        appointments, vault_notes, patients, queue_stages, clinic_modules, working_hours,
+        break_windows, practitioners, chairs, audit_log, clinics
+      RESTART IDENTITY CASCADE
     `);
   } finally {
     await client.end();

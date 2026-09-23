@@ -171,7 +171,7 @@ Machine-readable. `scripts/trace.py` parses this block; keep the format exact. `
 milestone in progress, and is the only one whose uncovered ids fail the build.
 
 ```milestone-map
-current: M0
+current: M2
 M0: §4.4.1, §10.1, §8.2, FR-1.1.2, FR-1.1.7
 M1: FR-1.1, FR-1.1.1, FR-1.1.3, FR-1.1.4, FR-1.1.6, FR-1.2, FR-1.4, FR-1.5, FR-1.6, FR-1.7, BR-01, BR-02, BR-04, FR-7.4, FR-7.4.1, FR-7.4.2, FR-7.4.3, FR-7.4.4, FR-7.4.5
 M2: FR-2.1, FR-2.2, FR-2.3, FR-2.4, FR-3.1, FR-3.2, BR-05
@@ -190,10 +190,8 @@ Two placements are worth explaining, because they are not where §10 puts them:
   that plan §5 already puts in M0.
 
 **Known gap.** `FR-1.3` — natural-language symptom and doctor matching across Indic languages — is
-defined in §8.1 but appears in no milestone in §10. It is left unassigned above rather than quietly
-folded into M1, so `scripts/trace.py` reports it under "defined but not scheduled" on every run.
-Before M1 exits, either schedule it or record in the §0.1 revision log that it moves to Phase 2. Do
-not implement it unscheduled.
+defined in §8.1 and, by revision 33, moved to Phase 2. It stays out of this map on purpose, so
+`scripts/trace.py` keeps reporting it under "defined but not scheduled". Do not implement it.
 
 ### 4.2 Per-milestone detail
 

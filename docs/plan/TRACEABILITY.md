@@ -7,10 +7,10 @@ There is deliberately no timestamp in this file, so it changes only when
 coverage changes and a regression is visible in the diff.
 
 ```
-milestone in progress   M0
+milestone in progress   M2
 requirements defined    50
 scheduled into M0-M6    57
-covered by a test       5
+covered by a test       31
 ```
 
 ## Defined but not scheduled
@@ -25,31 +25,31 @@ decision that nobody wrote down.
 
 | Requirement | Milestone | Covered by |
 | --- | --- | --- |
-| `BR-01` | M1 | — |
-| `BR-02` | M1 | — |
+| `BR-01` | M1 | `tests/gates/followup.test.ts:6` |
+| `BR-02` | M1 | `acceptance/m1-chair-concurrency.test.ts:6` |
 | `BR-03` | M3 | — |
-| `BR-04` | M1 | — |
-| `BR-05` | M2 | — |
-| `FR-1.1` | M1 | — |
-| `FR-1.1.1` | M1 | — |
+| `BR-04` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
+| `BR-05` | M2 | `acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-1.1` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
+| `FR-1.1.1` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
 | `FR-1.1.2` | M0 | `tests/gates/tenant-isolation.test.ts:19` |
-| `FR-1.1.3` | M1 | — |
-| `FR-1.1.4` | M1 | — |
+| `FR-1.1.3` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7`<br>`tests/gates/followup.test.ts:6` |
+| `FR-1.1.4` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7`<br>`tests/unit/vertical.test.ts:6` |
 | `FR-1.1.5` | M3 | — |
-| `FR-1.1.6` | M1 | — |
+| `FR-1.1.6` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7` |
 | `FR-1.1.7` | M0 | `tests/gates/fair-use.test.ts:10` |
-| `FR-1.2` | M1 | — |
+| `FR-1.2` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
 | `FR-1.3` | — | — |
-| `FR-1.4` | M1 | — |
-| `FR-1.5` | M1 | — |
-| `FR-1.6` | M1 | — |
-| `FR-1.7` | M1 | — |
-| `FR-2.1` | M2 | — |
-| `FR-2.2` | M2 | — |
-| `FR-2.3` | M2 | — |
-| `FR-2.4` | M2 | — |
-| `FR-3.1` | M2 | — |
-| `FR-3.2` | M2 | — |
+| `FR-1.4` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
+| `FR-1.5` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
+| `FR-1.6` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7` |
+| `FR-1.7` | M1 | `tests/gates/import.test.ts:6` |
+| `FR-2.1` | M2 | `acceptance/m2-offline-then-reconcile.test.ts:9`<br>`acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-2.2` | M2 | `acceptance/m2-offline-then-reconcile.test.ts:9`<br>`acceptance/m2-walkin-under-10s.test.ts:7` |
+| `FR-2.3` | M2 | `acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-2.4` | M2 | `acceptance/m2-offline-then-reconcile.test.ts:9`<br>`acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-3.1` | M2 | `acceptance/m2-offline-then-reconcile.test.ts:9`<br>`acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-3.2` | M2 | `acceptance/m2-walkin-under-10s.test.ts:36` |
 | `FR-4.1` | M3 | — |
 | `FR-4.2` | M3 | — |
 | `FR-4.3` | M3 | — |
@@ -68,12 +68,12 @@ decision that nobody wrote down.
 | `FR-7.1` | M5 | — |
 | `FR-7.2` | M5 | — |
 | `FR-7.3` | M5 | — |
-| `FR-7.4` | M1 | — |
-| `FR-7.4.1` | M1 | — |
-| `FR-7.4.2` | M1 | — |
-| `FR-7.4.3` | M1 | — |
-| `FR-7.4.4` | M1 | — |
-| `FR-7.4.5` | M1 | — |
+| `FR-7.4` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
+| `FR-7.4.1` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
+| `FR-7.4.2` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
+| `FR-7.4.3` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
+| `FR-7.4.4` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
+| `FR-7.4.5` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
 | `FR-7.4.6` | M5 | — |
 | `10.1` | M0 | `tests/gates/br02-concurrency.test.ts:18`<br>`tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/vault-non-recoverable.test.ts:26` |
 | `4.4.1` | M0 | `tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/tenant-isolation.test.ts:72`<br>`tests/unit/health.test.ts:20` |
@@ -88,9 +88,9 @@ decision that nobody wrote down.
 
 | Milestone | Requirements | Covered |
 | --- | --- | --- |
-| M0 **(in progress)** | 5 | 5 |
-| M1 | 19 | 0 |
-| M2 | 7 | 0 |
+| M0 | 5 | 5 |
+| M1 | 19 | 19 |
+| M2 **(in progress)** | 7 | 7 |
 | M3 | 13 | 0 |
 | M4 | 5 | 0 |
 | M5 | 4 | 0 |

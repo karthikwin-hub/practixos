@@ -47,7 +47,7 @@ test("a dump plus the server secret does not yield note plaintext without the PI
     const clinicId = randomUUID();
     await withTenant(clinicId, (tx) =>
       tx.query(
-        `INSERT INTO clinics (id, slug, legal_name, vertical) VALUES ($1, $2, $3, 'mental_health')`,
+        `INSERT INTO clinics (id, slug, legal_name, vertical, display_name) VALUES ($1, $2, $3, 'mental_health', $3)`,
         [clinicId, `v-${clinicId.slice(0, 8)}`, "Vault Clinic"],
       ),
     );

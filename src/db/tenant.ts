@@ -8,6 +8,8 @@ import pg from "pg";
  * the ESLint rule rejects that outside this file.
  */
 let pool: pg.Pool | undefined;
+let listener: pg.PoolClient | undefined;
+const queueWaiters = new Set<(raw: string) => void>();
 
 export function getPool(): pg.Pool {
   if (!pool) {
@@ -24,10 +26,93 @@ export function getPool(): pg.Pool {
 }
 
 export async function endPool(): Promise<void> {
+  if (listener) {
+    listener.release();
+    listener = undefined;
+    queueWaiters.clear();
+  }
   if (pool) {
     await pool.end();
     pool = undefined;
   }
+}
+
+/** Public slug lookup. The definer returns an id only; it does not read patients. */
+export async function resolveClinicId(slug: string): Promise<string | null> {
+  const res = await getPool().query<{ id: string | null }>(
+    "SELECT resolve_clinic_id($1) AS id",
+    [slug],
+  );
+  return res.rows[0]?.id ?? null;
+}
+
+/** Inserts one clinic row. RLS cannot see an id that does not exist yet. */
+export async function provisionClinic(
+  slug: string,
+  legalName: string,
+  vertical: string,
+): Promise<string> {
+  const res = await getPool().query<{ id: string }>(
+    "SELECT provision_clinic($1, $2, $3) AS id",
+    [slug, legalName, vertical],
+  );
+  const id = res.rows[0]?.id;
+  if (!id) throw new Error("provision_clinic returned no id");
+  return id;
+}
+
+export async function resolveStaffSession(
+  token: string,
+): Promise<{ clinicId: string; userId: string; role: string } | null> {
+  const res = await getPool().query<{ clinic_id: string; user_id: string; role: string }>(
+    "SELECT clinic_id, user_id, role FROM resolve_staff_session($1)",
+    [token],
+  );
+  const row = res.rows[0];
+  if (!row) return null;
+  return { clinicId: row.clinic_id, userId: row.user_id, role: row.role };
+}
+
+export async function resolvePatientSession(
+  token: string,
+): Promise<{ clinicId: string; patientId: string } | null> {
+  const res = await getPool().query<{ clinic_id: string; patient_id: string }>(
+    "SELECT clinic_id, patient_id FROM resolve_patient_session($1)",
+    [token],
+  );
+  const row = res.rows[0];
+  if (!row) return null;
+  return { clinicId: row.clinic_id, patientId: row.patient_id };
+}
+
+/** Deletes one clinic's operational rows. The ledger and audit_log stay append-only. */
+export async function eraseClinic(clinicId: string): Promise<void> {
+  await getPool().query("SELECT erase_clinic($1)", [clinicId]);
+}
+
+export async function queueNotify(
+  tx: pg.PoolClient,
+  clinicId: string,
+  payload: unknown,
+): Promise<void> {
+  await tx.query("SELECT pg_notify('practix_queue', $1)", [
+    JSON.stringify({ clinicId, payload }),
+  ]);
+}
+
+export async function subscribeQueue(fn: (raw: string) => void): Promise<void> {
+  queueWaiters.add(fn);
+  if (listener) return;
+  listener = await getPool().connect();
+  await listener.query("LISTEN practix_queue");
+  listener.on("notification", (msg) => {
+    const raw = msg.payload ?? "";
+    for (const waiter of queueWaiters) waiter(raw);
+  });
+}
+
+export function unsubscribeQueue(fn: (raw: string) => void): void {
+  queueWaiters.delete(fn);
 }
 
 export async function withTenant<T>(

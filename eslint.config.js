@@ -19,6 +19,17 @@ const tenantBypass = [
 
 export default tseslint.config(
   {
+    files: ["web/public/sw.js"],
+    languageOptions: {
+      globals: {
+        self: "readonly",
+        caches: "readonly",
+        fetch: "readonly",
+        URL: "readonly",
+      },
+    },
+  },
+  {
     ignores: [
       "dist/**",
       "node_modules/**",

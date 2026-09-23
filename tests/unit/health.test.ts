@@ -5,13 +5,13 @@ import path from "node:path";
 import { test } from "node:test";
 import { buildApp } from "../../src/app.ts";
 
-test("the process exposes health and no business route", async () => {
+test("the process exposes health and no M3 route", async () => {
   const app = buildApp();
   const res = await app.inject({ method: "GET", url: "/healthz" });
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.json(), { ok: true });
   const routes = app.printRoutes();
-  for (const forbidden of ["/patients", "/appointments", "/bookings", "/otp", "/payments"]) {
+  for (const forbidden of ["/odontogram", "/lab-orders", "/abdm"]) {
     assert.equal(routes.includes(forbidden), false);
   }
   await app.close();

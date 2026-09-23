@@ -27,13 +27,13 @@ test("interleaved tenants on a pool of size 1 never see each other's rows", asyn
   const clinicB = randomUUID();
   await withTenant(clinicA, (tx) =>
     tx.query(
-      `INSERT INTO clinics (id, slug, legal_name, vertical) VALUES ($1, $2, $3, 'dental')`,
+      `INSERT INTO clinics (id, slug, legal_name, vertical, display_name) VALUES ($1, $2, $3, 'dental', $3)`,
       [clinicA, `a-${clinicA.slice(0, 8)}`, "Clinic A"],
     ),
   );
   await withTenant(clinicB, (tx) =>
     tx.query(
-      `INSERT INTO clinics (id, slug, legal_name, vertical) VALUES ($1, $2, $3, 'dental')`,
+      `INSERT INTO clinics (id, slug, legal_name, vertical, display_name) VALUES ($1, $2, $3, 'dental', $3)`,
       [clinicB, `b-${clinicB.slice(0, 8)}`, "Clinic B"],
     ),
   );
@@ -74,7 +74,7 @@ test("reception cannot select the real phone number", async () => {
   const clinicId = randomUUID();
   await withTenant(clinicId, (tx) =>
     tx.query(
-      `INSERT INTO clinics (id, slug, legal_name, vertical) VALUES ($1, $2, $3, 'dental')`,
+      `INSERT INTO clinics (id, slug, legal_name, vertical, display_name) VALUES ($1, $2, $3, 'dental', $3)`,
       [clinicId, `r-${clinicId.slice(0, 8)}`, "Reception Clinic"],
     ),
   );
