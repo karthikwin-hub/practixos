@@ -106,15 +106,30 @@ li::before{
 }
 li b{color:var(--ink); font-weight:600}
 
-/* --- number tiles ------------------------------------------------------- */
-.tiles{display:grid; grid-template-columns:repeat(2,1fr); gap:7px; margin-top:7px}
-.tile{
-  background:var(--paper); border:1px solid var(--rule); border-radius:6px;
-  padding:8px 10px;
+/* A list inside a full-width band would otherwise run the whole sheet width
+   and read as one very long measure. Two columns keeps the line length the
+   same as everywhere else on the page. */
+.split2 li{break-inside:avoid}
+@media (min-width:760px){ .split2{column-count:2; column-gap:26px} }
+
+/* --- the market ladder ---------------------------------------------------
+   Four stacked rungs rather than four tiles. A grid of equal tiles says the
+   numbers are alternatives; a ladder says they are layers, which is the whole
+   argument. The pool size sits in a fixed-width right-aligned gutter so the
+   escalation is legible down the column.                                  */
+.ladder{list-style:none; margin-top:6px}
+.ladder li{
+  display:flex; gap:10px; align-items:flex-start; position:static;
+  margin-top:0; padding:5px 0; border-top:1px solid var(--rule);
+  font-size:.79rem; line-height:1.38;
 }
-.tile .n{font-size:1.12rem; font-weight:700; color:var(--teal); line-height:1.15; letter-spacing:-.01em}
-.tile .k{font-size:.66rem; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em; margin-top:2px}
-.tile .s{font-size:.72rem; color:var(--ink-3); margin-top:2px; line-height:1.35}
+.ladder li::before{display:none}
+.ladder li:last-child{border-bottom:1px solid var(--rule)}
+.rn{
+  flex:none; width:58px; text-align:right; padding-top:.5px;
+  font-weight:700; font-size:.88rem; color:var(--teal); letter-spacing:-.015em;
+}
+.rl{flex:1; min-width:0}
 
 /* --- the leakage table -------------------------------------------------- */
 table{width:100%; border-collapse:collapse; margin-top:6px; font-size:.79rem}
@@ -185,8 +200,8 @@ footer{
 
 /* --- A4, exactly one sheet ---------------------------------------------- */
 @media print{
-  @page{size:A4 portrait; margin:9mm 10mm 7mm}
-  body{background:#fff; padding:0; font-size:7.4pt; line-height:1.3}
+  @page{size:A4 portrait; margin:8mm 9mm 6mm}
+  body{background:#fff; padding:0; font-size:7.2pt; line-height:1.28}
   .sheet{
     max-width:none; margin:0; border:none; border-radius:0;
     box-shadow:none; padding:0; background:#fff;
@@ -198,10 +213,16 @@ footer{
   .meta{font-size:5.6pt; line-height:1.55}
   .rule{margin-top:7px; height:1.5px}
   .thesis{font-size:8.2pt; margin-top:7px; padding:5px 8px; line-height:1.36}
-  section{padding-top:6px}
-  .cols section:first-child{padding-top:5px}
-  h2{font-size:5.8pt; margin-bottom:2px; letter-spacing:.11em}
-  p,li{font-size:7pt; line-height:1.31}
+  /* Sections stay atomic: with the business model lifted into a full-width
+     band the two remaining columns balance at section boundaries, so nothing
+     needs to split and no column opens on an orphaned bullet. */
+  .cols section{break-inside:avoid}
+  h2{break-after:avoid}
+  .split2{column-count:2; column-gap:7mm}
+  section{padding-top:5px}
+  .cols section:first-child{padding-top:4px}
+  h2{font-size:5.7pt; margin-bottom:2px; letter-spacing:.11em}
+  p,li{font-size:6.85pt; line-height:1.29}
   p + p{margin-top:3px}
   li{margin-top:2px; padding-left:10px}
   li::before{width:3px; height:3px; left:1px}
@@ -209,9 +230,9 @@ footer{
   td .ev{font-size:5.9pt}
   th{font-size:5.4pt; padding-bottom:2px}
   tfoot td{padding-top:3px}
-  .tiles{gap:4px; margin-top:4px}
-  .tile{padding:4px 6px} .tile .n{font-size:9.4pt}
-  .tile .k{font-size:5.5pt} .tile .s{font-size:6pt; line-height:1.25}
+  .ladder{margin-top:4px}
+  .ladder li{font-size:6.6pt; line-height:1.28; padding:3px 0; gap:7px}
+  .rn{width:44px; font-size:7.6pt}
   .note{padding:4px 6px; font-size:6.6pt; margin-top:4px; line-height:1.3}
   .plans{gap:4px; margin-top:4px}
   .plan{padding:4px 6px} .plan .p{font-size:8.2pt} .plan .l{font-size:5.6pt}
@@ -299,6 +320,27 @@ footer{
       varies by practice &mdash; it is the break-even: <b>the subscription has paid for itself by the
       third recovered no-show of the month.</b></div>
     </section>
+
+    <section>
+      <h2>Business model</h2>
+      <div class="plans">
+        <div class="plan"><div class="p">&#8377;999<span>/mo</span></div><div class="l">Solo Practice</div></div>
+        <div class="plan hi"><div class="p">&#8377;1,999<span>/mo</span></div><div class="l">Clinic Pro</div></div>
+        <div class="plan"><div class="p">&#8377;3,499<span>/mo</span></div><div class="l">AI Enterprise</div></div>
+      </div>
+      <ul class="split2">
+        <li><b>Flat per facility, never per seat.</b> Unlimited front-desk and nurse logins. Per-seat
+        pricing is what drives Indian clinics onto shared accounts and destroys the audit trail we
+        are legally required to keep.</li>
+        <li><b>88&ndash;92% gross margin.</b> Marginal delivery cost is &#8377;100&ndash;250 per clinic
+        per month, all in: WhatsApp utility messages, gateway fees and support.</li>
+        <li><b>Self-service onboarding and CSV import ship in v1.</b> At &#8377;999 the unit economics
+        do not permit a sales call, so the product has to close itself.</li>
+        <li><b>The ledger is the pricing instrument.</b> We capture roughly 12% of the value we prove.
+        New cohorts price against twelve months of audited recovery, not a feature comparison &mdash;
+        which is what takes the market from &#8377;356 crore to &#8377;800 crore.</li>
+      </ul>
+    </section>
   </div>
 
   <div class="cols">
@@ -320,33 +362,24 @@ footer{
 
     <section>
       <h2>Market</h2>
-      <div class="tiles">
-        <div class="tile"><div class="n">428,668</div><div class="k">TAM &middot; practitioners</div><div class="s">Indian outpatient, all specialties</div></div>
-        <div class="tile"><div class="n">~266,000</div><div class="k">SOM &middot; billable facilities</div><div class="s">Solo and small polyclinic</div></div>
-        <div class="tile"><div class="n">&#8377;356 cr</div><div class="k">ARR at list, full capture</div><div class="s">&asymp; $43M &middot; 1% = &#8377;3.6 cr</div></div>
-        <div class="tile"><div class="n">80,168</div><div class="k">Beachhead &middot; dentistry</div><div class="s">Then ophthalmology, dermatology, paediatrics</div></div>
-      </div>
-      <p style="margin-top:7px">We size in <strong>facilities, not practitioners</strong>, because the
-      pricing is per facility. Dentistry launches alone: highest procedure value, a natural recall
-      cycle, and the only vertical with a ready-made distribution channel.</p>
-    </section>
-
-    <section>
-      <h2>Business model</h2>
-      <div class="plans">
-        <div class="plan"><div class="p">&#8377;999<span>/mo</span></div><div class="l">Solo Practice</div></div>
-        <div class="plan hi"><div class="p">&#8377;1,999<span>/mo</span></div><div class="l">Clinic Pro</div></div>
-        <div class="plan"><div class="p">&#8377;3,499<span>/mo</span></div><div class="l">AI Enterprise</div></div>
-      </div>
-      <ul>
-        <li><b>Flat per facility, never per seat.</b> Unlimited front-desk and nurse logins. Per-seat
-        pricing is what drives Indian clinics onto shared accounts and destroys the audit trail we
-        are legally required to keep.</li>
-        <li><b>88&ndash;92% gross margin.</b> Marginal delivery cost is &#8377;100&ndash;250 per clinic
-        per month, all in: WhatsApp utility messages, gateway fees and support.</li>
-        <li><b>Self-service onboarding and CSV import ship in v1.</b> At &#8377;999 the unit economics
-        do not permit a sales call, so the product has to close itself.</li>
-      </ul>
+      <p class="lead">We size in <strong>facilities, not practitioners</strong>, because we price per
+      facility: <strong>266,000</strong> solo and small-polyclinic facilities nationally, from a base
+      of 428,668 practitioners.</p>
+      <ol class="ladder">
+        <li><span class="rn">&#8377;150 cr</span><span class="rl"><b>Beachhead &mdash; India dentistry.</b>
+          ~50,000 facilities. Highest procedure value, a natural recall cycle, and the only vertical
+          that comes with a distribution channel. <b>10% share = &#8377;15 cr ARR.</b></span></li>
+        <li><span class="rn">&#8377;356 cr</span><span class="rl"><b>India, four verticals, at today&rsquo;s
+          list price.</b> All 266,000 facilities, at the &#8377;999&ndash;1,999 we charge now. This is the
+          floor, and it is the number we plan against.</span></li>
+        <li><span class="rn">&#8377;800 cr</span><span class="rl"><b>The same base, priced to the value we
+          prove.</b> &#8377;999 is under 1% of a clinic&rsquo;s collections, against 2&ndash;4% in every
+          comparable market. The ledger is what earns the re-rate.</span></li>
+      </ol>
+      <div class="note"><b>The honest caveat, before you raise it.</b> This is subscription revenue
+      only. UPI person-to-merchant is zero-MDR by regulation, so the payments take-rate that carries
+      Toast and Shopify is simply not available in India &mdash; and we are not sizing an adjacent
+      line we have not built.</div>
     </section>
 
     <section>
@@ -399,11 +432,10 @@ footer{
       <h2>The ask</h2>
       <p class="lead">Raising <span class="fill">&#8377;&nbsp;__ cr</span> to take dentistry from
       prototype to <span class="fill">__</span> paying clinics over 18 months, and to land the first
-      two follow-on verticals on the same engine. Use of funds: a founding engineering pair to
-      production-harden the platform through ABDM v3 certification; a clinical product lead embedded
-      in pilot practices in Bengaluru, Pune and Hyderabad; the dental-laboratory channel experiment;
-      and WhatsApp, gateway and compliance costs through the free-usage ceiling. Infrastructure is not
-      a line item until roughly 300 clinics.</p>
+      follow-on vertical on the same engine. Funds: a founding engineering pair through ABDM v3
+      certification; a clinical product lead embedded in pilot practices in Bengaluru, Pune and
+      Hyderabad; the dental-laboratory channel test. Infrastructure is not a line item until roughly
+      300 clinics.</p>
     </section>
 
   </div>
