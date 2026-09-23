@@ -32,8 +32,13 @@ export default tseslint.config(
   {
     ignores: [
       "dist/**",
+      "**/dist/**",
       "node_modules/**",
+      "**/node_modules/**",
       "prototype/**",
+      // A template fragment injected into a probe page, not a module: its one
+      // function is called by the page that embeds it.
+      "scripts/layout-probe.js",
       "docs/**",
       "coverage/**",
     ],

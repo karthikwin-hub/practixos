@@ -9,9 +9,32 @@ coverage changes and a regression is visible in the diff.
 ```
 milestone in progress   M4
 requirements defined    50
-scheduled into M0-M6    57
+scheduled into M0-M6    73
 covered by a test       49
 ```
+
+## Gate failure — M0 through M4 are incomplete
+
+Scheduled into a milestone already reached, with no test claiming them:
+
+- `4.1` (M0)
+- `4.2` (M0)
+- `4.4.2` (M0)
+- `4.4.3` (M0)
+- `4.4.4` (M0)
+- `4.4.5` (M0)
+- `5.4` (M0)
+- `5.6` (M0)
+- `4.3` (M1)
+- `4.5` (M1)
+- `6.1` (M1)
+- `6.3` (M1)
+- `6.4` (M1)
+- `6.6` (M1)
+- `6.2` (M2)
+
+Tag a test with `@spec <id>`, or move the id to a later milestone in the
+scope map and say why in the specification's section 0.1 revision log.
 
 ## Defined but not scheduled
 
@@ -76,22 +99,59 @@ decision that nobody wrote down.
 | `FR-7.4.5` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
 | `FR-7.4.6` | M5 | — |
 | `10.1` | M0 | `tests/gates/br02-concurrency.test.ts:18`<br>`tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/vault-non-recoverable.test.ts:26` |
+| `10.2` | M5 | — |
+| `4.1` | M0 | — |
+| `4.2` | M0 | — |
+| `4.3` | M1 | — |
 | `4.4.1` | M0 | `tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/tenant-isolation.test.ts:72`<br>`tests/unit/health.test.ts:18` |
+| `4.4.2` | M0 | — |
+| `4.4.3` | M0 | — |
+| `4.4.4` | M0 | — |
+| `4.4.5` | M0 | — |
+| `4.5` | M1 | — |
 | `4.6.1` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
 | `4.6.2` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
 | `4.6.3` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
 | `4.6.4` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
 | `4.6.5` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
+| `5.4` | M0 | — |
+| `5.6` | M0 | — |
+| `6.1` | M1 | — |
+| `6.2` | M2 | — |
+| `6.3` | M1 | — |
+| `6.4` | M1 | — |
+| `6.6` | M1 | — |
 | `8.2` | M0 | `tests/gates/layout-integrity.test.ts:6` |
 
 ## Milestone scope
 
 | Milestone | Requirements | Covered |
 | --- | --- | --- |
-| M0 | 5 | 5 |
-| M1 | 19 | 19 |
-| M2 | 7 | 7 |
+| M0 | 13 | 5 |
+| M1 | 25 | 19 |
+| M2 | 8 | 7 |
 | M3 | 13 | 13 |
 | M4 **(in progress)** | 5 | 5 |
-| M5 | 4 | 0 |
+| M5 | 5 | 0 |
 | M6 | 4 | 0 |
+
+## Waived specification sections
+
+Sections judged to carry no build obligation. Listed here so the judgement is visible
+rather than implied by absence.
+
+| Section | Why |
+| --- | --- |
+| `§0` | revision log; a record of decisions, not a decision |
+| `§1` | executive summary; narrative |
+| `§11` | risk register; the R-ids are tracked in IMPLEMENTATION-PLAN.md, not here |
+| `§2` | problem analysis; narrative |
+| `§3` | commercial packaging and unit economics; §3.3's mechanism is carried by FR-7.4.1–FR-7.4.6 |
+| `§5.1` | why not Azure; rationale for a decision recorded in §5.4 |
+| `§5.2` | what OCI Always Free provides; vendor fact, not an obligation |
+| `§5.3` | OCI setup notes; operator guidance |
+| `§5.5` | where the Azure credits go; budget allocation |
+| `§6.5` | on defensibility; states which moats to invest in, asserts nothing testable |
+| `§7.1` | project scope and target markets; narrative |
+| `§7.2` | stakeholder ecosystem; narrative |
+| `§9` | roadmap and prioritisation matrix; §9's items are scheduled by id elsewhere or are Phase 2 |

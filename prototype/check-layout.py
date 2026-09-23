@@ -36,6 +36,11 @@ CHROME_CANDIDATES = [
     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
 ]
 
+# The measurement itself is shared with scripts/check-client-layout.py, which
+# runs the same assertions over the built production client. One copy, so the
+# two gates cannot drift.
+PROBE = os.path.join(os.path.dirname(HERE), "scripts", "layout-probe.js")
+
 HOST = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>probe</title>
 <style>html,body{margin:0;background:#222}iframe{border:0;display:block;height:900px}</style></head>
 <body><iframe id="f" src="__APP__" width="__W__"></iframe><pre id="out">PENDING</pre>
@@ -43,70 +48,7 @@ HOST = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>probe</title>
 const WIDTH = __W__, PLAN = __PLAN__;
 const f = document.getElementById("f");
 
-function measure(doc){
-  const W = doc.documentElement.clientWidth;
-  const view = doc.defaultView;
-  const out = [], scrollers = [];
-
-  // A segmented control or a table wrapper is *meant* to scroll sideways, so an
-  // element inside one is contained, not broken. body and html are excluded as
-  // boundaries on purpose: their overflow-x:hidden is a production safety net,
-  // and honouring it here would hide exactly the bug we are looking for.
-  function contained(el){
-    let p = el.parentElement;
-    while(p && p !== doc.body && p !== doc.documentElement){
-      if(/(auto|scroll)/.test(view.getComputedStyle(p).overflowX)) return true;
-      p = p.parentElement;
-    }
-    return false;
-  }
-
-  for(const el of doc.body.querySelectorAll("*")){
-    const r = el.getBoundingClientRect();
-    if(r.width === 0 && r.height === 0) continue;
-
-    // Informational: a scroller whose content is far wider than itself is a
-    // density smell even though it is not a layout break.
-    if(/(auto|scroll)/.test(view.getComputedStyle(el).overflowX) &&
-       el.scrollWidth > el.clientWidth * 1.15 && el.clientWidth > 0){
-      scrollers.push({cls: (el.getAttribute("class") || "-").slice(0, 40),
-                      inner: el.scrollWidth, outer: el.clientWidth});
-    }
-
-    const over = Math.round(r.right - W);
-    if(over <= 1 || contained(el)) continue;
-
-    // Report only the outermost offender; a wide child in a wide parent is one
-    // bug, not two.
-    let p = el.parentElement, nested = false;
-    while(p && p !== doc.body){
-      if(p.getBoundingClientRect().right - W > 1){ nested = true; break; }
-      p = p.parentElement;
-    }
-    if(nested) continue;
-    out.push({tag: el.tagName.toLowerCase(), cls: (el.getAttribute("class") || "").slice(0, 70),
-              over: over, w: Math.round(r.width), left: Math.round(r.left)});
-  }
-  // Underflow is the mirror-image bug and an overflow scan cannot see it: a
-  // collapsed grid track squeezes content into a sliver without ever crossing
-  // the right edge. Measure how much of the viewport the content actually uses.
-  const canvas = doc.getElementById("canvas"), gate = doc.getElementById("gate");
-  const shown = (canvas && canvas.offsetParent !== null) ? canvas : gate;
-  const rail = doc.querySelector(".rail");
-  const railW = (rail && rail.offsetParent !== null) ? Math.round(rail.getBoundingClientRect().width) : 0;
-  const usable = W - railW - 8;
-  const mw = shown ? Math.round(shown.getBoundingClientRect().width) : 0;
-
-  return {
-    vw: W,
-    scroll: Math.round(doc.documentElement.scrollWidth - W),
-    bodyScroll: Math.round(doc.body.scrollWidth - W),
-    mainWidth: mw,
-    mainShortfall: Math.max(0, Math.round(usable - mw)),
-    offenders: out.slice(0, 8),
-    scrollers: scrollers.slice(0, 6)
-  };
-}
+__MEASURE__
 
 f.onload = () => {
   const doc = f.contentDocument;
@@ -170,8 +112,15 @@ def find_chrome():
     return None
 
 
+def measure_js():
+    src = open(PROBE, encoding="utf-8").read()
+    return (src.replace("__MAIN_SELECTOR__", "#canvas, #gate")
+               .replace("__RAIL_SELECTOR__", ".rail"))
+
+
 def run_width(chrome, width, plan, workdir):
-    host = (HOST.replace("__APP__", "file://" + APP)
+    host = (HOST.replace("__MEASURE__", measure_js())
+                .replace("__APP__", "file://" + APP)
                 .replace("__PLAN__", json.dumps(plan))
                 .replace("__W__", str(width)))
     path = os.path.join(workdir, "probe_%d.html" % width)

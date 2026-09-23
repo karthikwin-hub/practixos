@@ -1,8 +1,38 @@
 ---
-description: Client rules. Mobile-first is a requirement, not a preference; every screen must be complete at 320px and every interaction reachable with one thumb.
-globs: src/client/**/*.ts,src/client/**/*.tsx,src/client/**/*.css
+description: Client rules. The prototype is the design, not an inspiration; mobile-first is a requirement, not a preference. Every screen must be complete at 320px and every interaction reachable with one thumb.
+globs: web/**/*.ts,web/**/*.tsx,web/**/*.css,web/**/*.html
 alwaysApply: false
 ---
+
+# The prototype is the design (§6)
+
+`prototype/PractixOS.html` is the normative reference for the interface. Open it before you write
+a screen. Every view in this product already exists there, fully designed, and your job is to
+reproduce it in production form — not to interpret it, not to approximate it, and never to defer
+it behind a placeholder.
+
+- **§6.1 Clinical Ink.** Warm paper, teal ink, marigold for urgency, statuses as stamped marks.
+  Lift the custom properties from the prototype's `:root` verbatim; do not re-derive them and do
+  not introduce a colour it does not define.
+- **§6.2 Six role modes, one spine.** The Board, The Slate, Chairside Console, Quiet Room, Route
+  Card, The Doorway. Each is a distinct visual register over shared components. Chairside is dark
+  with a luminous chart; Quiet Room is warm paper and serif at a 66-character measure. Shipping
+  one generic theme for all six is a defect.
+- **§6.3 Typography.** Two registers, staff and patient. Self-hosted subsetted `woff2` per script
+  with `unicode-range` and `font-display: swap` — never a CDN, never a system font stack.
+  Tabular numerals wherever numbers stack in a column.
+- **§6.4 Interaction.** Undo with an eight-second window, never a confirmation dialog. Never more
+  than three levels. Keypads, not keyboards, for vitals, fees and tooth numbers. Optimistic writes
+  with a visible sync queue. Motion 150–200 ms and functional only.
+- **§6.6 Breakpoint ladder.** Compact below 600, Tablet 600–1023, Full at 1024 and above. Three
+  modes, not a spectrum, and a component that diverges still shares its vocabulary.
+
+No UI kit's default theme, no Tailwind palette, no Material or Ant components styled "close
+enough". If you find yourself choosing a colour, a radius or a spacing step, stop: either the
+prototype already decided it, or you have hit a gap and owe a §7 stop-and-ask.
+
+A screen is not done when it works. It is done when a clinic user cannot tell it from the
+prototype.
 
 # The phone is the design target (§8.2)
 

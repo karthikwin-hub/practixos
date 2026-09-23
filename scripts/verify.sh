@@ -68,6 +68,9 @@ node_step() {
   local label="$1" script="$2"
   if ! have node; then skip "$label" "Node is not installed"; return; fi
   if [ ! -f package.json ]; then skip "$label" "no package.json yet; M0 creates it"; return; fi
+  # Without this the step fails with "eslint: not found", which reads as a lint
+  # error rather than as an uninstalled tree.
+  if [ ! -d node_modules ]; then skip "$label" "dependencies are not installed; run npm ci"; return; fi
   if ! npm_script "$script"; then skip "$label" "package.json defines no \"$script\" script"; return; fi
   run "$label" npm run --silent "$script"
 }
@@ -99,12 +102,22 @@ else
 fi
 
 if [ "$FAST" -eq 1 ]; then
-  skip "Layout integrity (spec 8.2)" "--fast was passed"
+  skip "Layout integrity, prototype (spec 8.2)" "--fast was passed"
+  skip "Layout integrity, client (spec 8.2, 6.6)" "--fast was passed"
 elif ! have python3; then
-  skip "Layout integrity (spec 8.2)" "Python 3 is not installed"
+  skip "Layout integrity, prototype (spec 8.2)" "Python 3 is not installed"
+  skip "Layout integrity, client (spec 8.2, 6.6)" "Python 3 is not installed"
 else
-  # check-layout.py exits 0 with a notice of its own when Chrome is absent.
-  run "Layout integrity (spec 8.2)" python3 prototype/check-layout.py
+  # Both checks exit 0 with a notice of their own when Chrome is absent.
+  run "Layout integrity, prototype (spec 8.2)" python3 prototype/check-layout.py
+  # The prototype check reads a file the build never touches, so on its own it
+  # is green regardless of what the product looks like. This is the one that
+  # measures the product.
+  if [ -d web ] && [ ! -d web/dist ]; then
+    skip "Layout integrity, client (spec 8.2, 6.6)" "no web/dist; run: npm --prefix web run build"
+  else
+    run "Layout integrity, client (spec 8.2, 6.6)" python3 scripts/check-client-layout.py
+  fi
 fi
 
 # --------------------------------------------------------------------------- #

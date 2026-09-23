@@ -1,0 +1,10 @@
+[
+  { "path": "/#/setup",    "label": "gate" },
+  { "path": "/#/desk",     "label": "board" },
+  { "path": "/#/nurse",    "label": "slate" },
+  { "path": "/#/chart",    "label": "chairside" },
+  { "path": "/#/recalls",  "label": "recalls" },
+  { "path": "/#/practice", "label": "practice" },
+  { "path": "/#/settle",   "label": "route-card" },
+  { "path": "/#/book",     "label": "doorway" }
+]
