@@ -17,7 +17,7 @@ below.
 | `docs/spec/Dr.App.txt` | **The specification, v2.2. Normative.** 13 sections, ~36 numbered requirements. |
 | `docs/spec/Dr.App.Spec.html` | The same document, generated. Never edit directly. |
 | `docs/plan/IMPLEMENTATION-PLAN.md` | The engineering plan: architecture decisions, schema, M0–M6. |
-| `prototype/PractixOS.html` | A working single-file prototype. Reference behaviour, not production code. |
+| `prototype/PractixOS.html` | A working single-file prototype. **Normative for what the interface looks like and how it behaves.** Not a model for code structure. |
 | `prototype/harness.js` | 786 logic assertions over the prototype. |
 | `prototype/check-layout.py` | 630 layout screens, 7 widths, asserts no overflow and no collapse. |
 | `src/`, `migrations/`, `infra/` | **Do not exist yet.** M0 creates them. |
@@ -30,8 +30,16 @@ There is no production code, no database and no patient data in this repository 
 2. **`docs/plan/IMPLEMENTATION-PLAN.md`** — how it gets built. It deliberately overrides the
    specification's §4.1 technical architecture in six places, each marked **DEVIATION**. Those six
    are settled; do not relitigate them.
-3. **`prototype/PractixOS.html`** — how it should behave and feel. When the spec is ambiguous about
-   an interaction, the prototype is the tiebreaker. It is not a source for production structure.
+3. **`prototype/PractixOS.html`** — what the product looks like and how it behaves. It is the
+   **normative reference for the user interface**: the Clinical Ink palette, the type scale, the
+   six role modes, the screen structure and the interaction choices of §6 are all realised in it,
+   and the production client reproduces them. When the spec is ambiguous about an interaction, the
+   prototype is the tiebreaker.
+
+   It is normative for **appearance and behaviour**, and non-normative for **code structure** only.
+   Do not copy its single-file organisation, its global state or its inline handlers. Do build
+   screens that a clinic user cannot tell apart from it. "Placeholder UI", "basic scaffold" and
+   "we will style it later" are not states this repository passes through — see §6.
 
 Your own judgement ranks below all three. If you believe one of them is wrong, say so and stop —
 see §7.
@@ -110,6 +118,19 @@ These are settled decisions from plan §1. Violating one is a defect even if the
   `withTenant()` accessor.
 - Never call `pool.query` or `pool.connect` outside `src/db/tenant.ts`.
 - Never interpolate a tenant id into SQL text.
+
+**The interface — the trap that has already been sprung once**
+- **No placeholder UI.** Do not ship a screen that is a plain form, an unstyled table or a stub
+  page with the intention of styling it in a later milestone. A screen lands looking like the
+  prototype or it does not land. An agent previously took M0–M4 to completion and produced a
+  basic scaffold in place of the product, which is why this paragraph exists.
+- **Read `prototype/PractixOS.html` before writing any client code.** Every screen you are asked
+  to build already exists there. Take the tokens, the type scale, the spacing, the component
+  vocabulary and the screen composition from it; take the code organisation from plan §1.
+- **No new design decisions.** Do not choose a colour, a font, a corner radius or a layout that
+  the prototype does not already make. If the prototype is silent on a screen you need, that is a
+  §7 stop-and-ask, not an invitation to invent. A UI framework's default theme is a new design
+  decision.
 
 **Verticalisation**
 - **No code may branch on `clinics.vertical`.** No `if`, no `switch`, no ternary, no lookup keyed on

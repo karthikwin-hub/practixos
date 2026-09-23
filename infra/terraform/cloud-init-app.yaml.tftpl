@@ -1,0 +1,12 @@
+#cloud-config
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+runcmd:
+  - systemctl enable --now docker
+  - git clone --branch ${git_ref} ${repo_url} /opt/practixos
+  - cd /opt/practixos && docker compose up -d --wait postgres
+  - cd /opt/practixos && docker compose run --rm --no-deps api node dist/db/migrate.js
+  - cd /opt/practixos && docker compose up -d

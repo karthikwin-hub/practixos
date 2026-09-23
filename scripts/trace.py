@@ -4,12 +4,15 @@
     python3 scripts/trace.py
 
 Reads   docs/spec/Dr.App.txt              the requirement universe
-        docs/plan/BUILD-PROTOCOL.md       the milestone scope map and `current:`
+        docs/plan/BUILD-PROTOCOL.md       the scope map, `current:`, the waivers
         tests/, src/**/*.test.ts, ...     `@spec` tags
 Writes  docs/plan/TRACEABILITY.md
 
 Exits non-zero when a requirement scheduled into the milestone currently in
-progress has no test claiming it, so this can gate a commit.
+progress has no test claiming it, so this can gate a commit. Also non-zero when
+a numbered section of the specification is scheduled nowhere and waived nowhere
+— an agent once built four milestones without §6, the design system, because
+nothing in the toolchain could see that no milestone owned it.
 
 Why the scope map lives in BUILD-PROTOCOL.md rather than here: a hand-copied
 list in this file would silently stop matching the plan the first time the plan
@@ -62,14 +65,16 @@ def norm(raw: str) -> str:
 # The specification
 # --------------------------------------------------------------------------- #
 def read_spec():
-    """Return (requirements in document order, section ids that exist)."""
+    """Return (requirements in document order, section ids, requirement -> section)."""
     if not SPEC.exists():
         sys.exit("Cannot find %s" % SPEC)
 
     requirements: list[str] = []
-    sections: set[str] = set()
+    sections: list[str] = []
+    defined_in: dict[str, str] = {}
     seen: set[str] = set()
     top = ""
+    sub = ""
 
     for line in SPEC.read_text(encoding="utf-8", errors="replace").split("\n"):
         m = TOP_HEADING.match(line)
@@ -77,14 +82,17 @@ def read_spec():
             top = m.group(1)
         m = SUB_HEADING.match(line)
         if m:
-            sections.add(m.group(1))
+            sub = m.group(1)
+            if sub not in sections:
+                sections.append(sub)
         if top in DEFINING_SECTIONS:
             for rid in DEFINITION.findall(line):
                 if rid not in seen:
                     seen.add(rid)
                     requirements.append(rid)
+                    defined_in[rid] = sub
 
-    return requirements, sections
+    return requirements, sections, defined_in
 
 
 # --------------------------------------------------------------------------- #
@@ -120,6 +128,57 @@ def read_scope_map():
     return current, scope
 
 
+def read_waivers() -> dict[str, str]:
+    """Parse the ```waived-sections block: `§5.1 — reason` per line.
+
+    Waiving a spec section is how you say "this one carries no build obligation"
+    in a way a reviewer can see and argue with. Silence is not an option, which
+    is the whole point of orphan_sections() below.
+    """
+    text = PROTOCOL.read_text(encoding="utf-8", errors="replace")
+    block = re.search(r"```waived-sections\n(.*?)```", text, re.S)
+    if not block:
+        sys.exit("No ```waived-sections block in %s" % PROTOCOL)
+
+    waivers: dict[str, str] = {}
+    for line in block.group(1).split("\n"):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = re.split(r"\s[—–-]\s", line, maxsplit=1)
+        sid = norm(parts[0])
+        reason = parts[1].strip() if len(parts) > 1 else ""
+        if not reason:
+            sys.exit("Waiver for §%s has no reason. Every waiver states why." % sid)
+        waivers[sid] = reason
+    return waivers
+
+
+def covers(section: str, ids) -> bool:
+    """True when `section` is accounted for by any id in `ids`.
+
+    An id accounts for a section if it is that section or sits inside it, so
+    scheduling §4.4.1 accounts for §4.4 and a waiver on §9 accounts for §9.2.
+    """
+    return any(i == section or i.startswith(section + ".") for i in ids)
+
+
+def orphan_sections(sections, scope, waivers, requirements, defined_in):
+    """Spec subsections that are scheduled nowhere, waived nowhere, and empty of
+    scheduled requirements. Each one is a piece of the specification that no
+    milestone owns and nobody decided to drop."""
+    scheduled = {rid for ids in scope.values() for rid in ids}
+    # §8.1 is accounted for by the FR ids defined inside it, §7.3 by its BR ids.
+    via_requirements = {defined_in[r] for r in scheduled if r in defined_in}
+
+    return [
+        s for s in sections
+        if not covers(s, scheduled)
+        and not any(s == w or s.startswith(w + ".") for w in waivers)
+        and not covers(s, via_requirements)
+    ]
+
+
 # --------------------------------------------------------------------------- #
 # Tests
 # --------------------------------------------------------------------------- #
@@ -153,7 +212,8 @@ def milestone_of(rid: str, scope: dict[str, list[str]]) -> str:
     return ""
 
 
-def build_report(requirements, sections, current, scope, coverage, unknown, missing):
+def build_report(requirements, sections, current, scope, coverage, unknown, missing,
+                 orphans, waivers):
     ordered = sorted(scope)
     scheduled = {rid for ids in scope.values() for rid in ids}
 
@@ -188,13 +248,24 @@ def build_report(requirements, sections, current, scope, coverage, unknown, miss
             "",
         ] + ["- `%s` (in %s)" % (rid, m) for m, rid in unknown] + [""]
 
+    if orphans:
+        out += [
+            "## Specification sections that no milestone owns",
+            "",
+            "Each of these is a numbered section of the specification that is scheduled in no",
+            "milestone, contains no scheduled requirement, and carries no waiver. Schedule it in",
+            "the scope map, or waive it with a reason in the `waived-sections` block — both live",
+            "in [BUILD-PROTOCOL.md](BUILD-PROTOCOL.md) §4.",
+            "",
+        ] + ["- `§%s`" % s for s in orphans] + [""]
+
     if missing:
         out += [
-            "## Gate failure — %s is incomplete" % current,
+            "## Gate failure — M0 through %s are incomplete" % current,
             "",
-            "Scheduled into %s with no test claiming them:" % current,
+            "Scheduled into a milestone already reached, with no test claiming them:",
             "",
-        ] + ["- `%s`" % rid for rid in missing] + [
+        ] + ["- `%s` (%s)" % (rid, milestone_of(rid, scope)) for rid in missing] + [
             "",
             "Tag a test with `@spec <id>`, or move the id to a later milestone in the",
             "scope map and say why in the specification's section 0.1 revision log.",
@@ -236,6 +307,17 @@ def build_report(requirements, sections, current, scope, coverage, unknown, miss
         mark = " **(in progress)**" if m == current else ""
         out.append("| %s%s | %d | %d |" % (m, mark, len(ids), done))
 
+    out += [
+        "",
+        "## Waived specification sections",
+        "",
+        "Sections judged to carry no build obligation. Listed here so the judgement is visible",
+        "rather than implied by absence.",
+        "",
+        "| Section | Why |",
+        "| --- | --- |",
+    ] + ["| `§%s` | %s |" % (s, waivers[s]) for s in sorted(waivers)]
+
     return "\n".join(out) + "\n"
 
 
@@ -246,15 +328,25 @@ def main() -> int:
                     help="verify only; do not rewrite TRACEABILITY.md")
     args = ap.parse_args()
 
-    requirements, sections = read_spec()
+    requirements, sections, defined_in = read_spec()
     current, scope = read_scope_map()
+    waivers = read_waivers()
     coverage = read_tests()
 
-    known = set(requirements) | sections
+    known = set(requirements) | set(sections)
     unknown = [(m, rid) for m in sorted(scope) for rid in scope[m] if rid not in known]
-    missing = [rid for rid in scope[current] if not coverage.get(rid)]
+    orphans = orphan_sections(sections, scope, waivers, requirements, defined_in)
 
-    report = build_report(requirements, sections, current, scope, coverage, unknown, missing)
+    # Every milestone up to and including the current one, not just the current
+    # one. "Do not begin M(n+1) until M(n) passes" means M0..M(current) all hold;
+    # gating only the current milestone lets a finished one quietly lose coverage,
+    # and lets an id added to a finished milestone never be asked for at all.
+    n = int(current[1:])
+    reached = [m for m in sorted(scope, key=lambda k: int(k[1:])) if int(m[1:]) <= n]
+    missing = [rid for m in reached for rid in scope[m] if not coverage.get(rid)]
+
+    report = build_report(requirements, sections, current, scope, coverage, unknown, missing,
+                          orphans, waivers)
     if not args.check:
         OUT.write_text(report, encoding="utf-8")
 
@@ -267,15 +359,23 @@ def main() -> int:
             print("    %-10s %s" % (m, rid))
         return 2
 
+    if orphans:
+        print("\n  Specification sections that no milestone owns and no waiver covers:")
+        for s in orphans:
+            print("    §%s" % s)
+        print("\n  Schedule each one in the milestone-map, or waive it with a reason in the")
+        print("  waived-sections block. Both are in docs/plan/BUILD-PROTOCOL.md section 4.")
+        return 2
+
     if missing:
-        print("\n  %s is incomplete. No test claims these ids:" % current)
+        print("\n  M0 through %s are incomplete. No test claims these ids:" % current)
         for rid in missing:
-            print("    %s" % rid)
+            print("    %-10s %s" % (milestone_of(rid, scope), rid))
         print("\n  Tag a test with `@spec <id>`, or reschedule the id in the scope map")
         print("  in docs/plan/BUILD-PROTOCOL.md and record why in spec section 0.1.")
         return 1
 
-    print("  %s complete: every scheduled id is claimed by a test." % current)
+    print("  M0 through %s complete: every scheduled id is claimed by a test." % current)
     if not args.check:
         print("  Wrote %s" % OUT.relative_to(ROOT))
     return 0

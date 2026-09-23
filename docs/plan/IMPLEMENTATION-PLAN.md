@@ -265,13 +265,13 @@ This is the single highest-leverage compliance decision available, and the speci
 ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY clinic_isolation ON patients
-  USING (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);
 
 -- BR-05: reception may read patients but never bulk-export contact details.
 CREATE POLICY reception_no_contact_export ON patients
   FOR SELECT
   TO app_reception
-  USING (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);
 
 REVOKE SELECT (phone_e164) ON patients FROM app_reception;
 GRANT  SELECT (phone_masked) ON patients TO app_reception;

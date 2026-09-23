@@ -38,12 +38,14 @@ would be meaningless. Fix that first.
 Then read, in this order:
 
 1. `AGENTS.md` — the contract.
-2. `docs/spec/Dr.App.txt` §7.3 (business rules), §8.1 (functional requirements), §8.2
-   (non-functional), §10 (milestones). Open `docs/spec/Dr.App.Spec.html` in a browser if you prefer
-   an indexed reading copy.
+2. `docs/spec/Dr.App.txt` §6 (the design system), §7.3 (business rules), §8.1 (functional
+   requirements), §8.2 (non-functional), §10 (milestones). Open `docs/spec/Dr.App.Spec.html` in a
+   browser if you prefer an indexed reading copy.
 3. `docs/plan/IMPLEMENTATION-PLAN.md` §1 (the six DEVIATIONs), §2 (data architecture), §5 (delivery).
-4. `prototype/PractixOS.html` in a browser. Click through all four workspaces. This is the behaviour
-   you are reproducing in production form.
+4. `prototype/PractixOS.html` in a browser. Click through all four workspaces, in all six role
+   modes, at phone and desktop width. This is the product — both what it looks like and how it
+   behaves — and you are reproducing it in production form, not reinterpreting it. Read its
+   stylesheet too; the `:root` custom properties are the design tokens you will be using.
 
 ## 2. Spec-driven development
 
@@ -84,7 +86,8 @@ test("two practitioners issue independent token sequences on the same day", asyn
 anything.
 
 **Step 4. Implement the smallest thing that passes.** No extra fields "while we're here". The
-prototype's walk-in sheet is the behavioural reference.
+prototype's walk-in sheet is the reference for both the interaction and the appearance: same
+fields, same order, same tokens, same sheet.
 
 **Step 5. `./scripts/verify.sh`.** All green, or you are not done.
 
@@ -118,7 +121,7 @@ or the spec is.
 | **Acceptance** | Full stack | One per milestone exit criterion (§4). Fixed names. |
 | **Integration** | Real PostgreSQL | Anything touching RLS, constraints, grants or transactions. |
 | **Unit** | In process | Pure logic: fee rules, accrual arithmetic, attribution windows. |
-| **Layout** | Headless Chrome | `prototype/check-layout.py`, and its successor over the real client. |
+| **Layout** | Headless Chrome | `prototype/check-layout.py` over the prototype, and `scripts/check-client-layout.py` over the built client. Both, always. |
 
 ### 3.2 Rules that are not negotiable
 
@@ -143,7 +146,13 @@ rather than at a review three weeks later.
 | **Tenant isolation** (FR-1.1.2, §4.4.1) | Two tenants interleaved across a pool of size 1 never observe each other's rows; a request with no tenant context reads zero rows | Any cross-tenant row is returned, or an absent context reads the previous tenant's data |
 | **BR-02 under concurrency** (§4.4.2) | N simultaneous booking attempts on one chair and overlapping time range produce exactly one appointment | Two appointments exist, or zero do |
 | **Vault non-recoverability** (FR-5.2, §4.4.4) | Note plaintext is unrecoverable from a full database dump plus all server-held secrets, without the patient's PIN | Any plaintext or any single-factor decryption path is reachable |
-| **Layout integrity** (§8.2) | Every view, every tenant, seven widths: no horizontal overflow and no collapsed content | `prototype/check-layout.py` exits non-zero |
+| **Layout integrity** (§8.2, §6.6) | Every view, every tenant, seven widths: no horizontal overflow and no collapsed content | `prototype/check-layout.py` or `scripts/check-client-layout.py` exits non-zero |
+
+The layout gate runs twice, over two different artifacts, and the second one is the one that
+matters. `prototype/check-layout.py` reads `prototype/PractixOS.html`, which nothing in the build
+modifies — so on its own it reports green for a product that does not exist yet. From the first
+client screen onward, `scripts/check-client-layout.py` runs the same assertions against the built
+client, and it is a skip only while `web/` is absent.
 
 The isolation gate must set pool `max: 1`. That is the only configuration that reproduces the R12
 connection-pool leak, which otherwise passes every test you would think to write.
@@ -168,34 +177,78 @@ odontogram, valuable as it is, does not move money.
 ### 4.1 Scope map
 
 Machine-readable. `scripts/trace.py` parses this block; keep the format exact. `current` is the
-milestone in progress, and is the only one whose uncovered ids fail the build.
+milestone in progress. Every milestone up to and including it must stay covered — a finished
+milestone that loses coverage is a regression, and an id added to a finished milestone still has to
+be claimed by a test rather than grandfathered in.
 
 ```milestone-map
-current: M0
-M0: §4.4.1, §10.1, §8.2, FR-1.1.2, FR-1.1.7
-M1: FR-1.1, FR-1.1.1, FR-1.1.3, FR-1.1.4, FR-1.1.6, FR-1.2, FR-1.4, FR-1.5, FR-1.6, FR-1.7, BR-01, BR-02, BR-04, FR-7.4, FR-7.4.1, FR-7.4.2, FR-7.4.3, FR-7.4.4, FR-7.4.5
-M2: FR-2.1, FR-2.2, FR-2.3, FR-2.4, FR-3.1, FR-3.2, BR-05
+current: M4
+M0: §4.4.1, §4.4.2, §4.4.3, §4.4.4, §4.4.5, §5.4, §5.6, §8.2, §10.1, FR-1.1.2, FR-1.1.7
+M1: §4.3, §4.5, §6.1, §6.3, §6.4, §6.6, FR-1.1, FR-1.1.1, FR-1.1.3, FR-1.1.4, FR-1.1.6, FR-1.2, FR-1.4, FR-1.5, FR-1.6, FR-1.7, BR-01, BR-02, BR-04, FR-7.4, FR-7.4.1, FR-7.4.2, FR-7.4.3, FR-7.4.4, FR-7.4.5
+M2: §6.2, FR-2.1, FR-2.2, FR-2.3, FR-2.4, FR-3.1, FR-3.2, BR-05
 M3: FR-4.1, FR-4.2, FR-4.3, FR-4.4, FR-4.5, FR-4.6, FR-1.1.5, FR-6.1, FR-6.2, FR-6.3, FR-6.4, FR-6.5, BR-03
 M4: §4.6.1, §4.6.2, §4.6.3, §4.6.4, §4.6.5
-M5: FR-7.1, FR-7.2, FR-7.3, FR-7.4.6
+M5: §10.2, FR-7.1, FR-7.2, FR-7.3, FR-7.4.6
 M6: FR-5.1, FR-5.2, FR-5.3, FR-5.4
 ```
 
-Two placements are worth explaining, because they are not where §10 puts them:
+Four placements are worth explaining, because they are not where §10 puts them:
 
 - **`FR-1.1.2` is in M0, not M1.** It is the zero-rows isolation guarantee, which *is* the M0 tenant
   isolation gate. Scheduling it with the portal would mean building the gate in M0 and only claiming
   the requirement four weeks later.
 - **`FR-1.1.7` is in M0.** Fair-use rate limiting is delivered by the Caddy and application limits
   that plan §5 already puts in M0.
+- **`§6.1`, `§6.3`, `§6.4` and `§6.6` are in M1**, with the first production screens. The Clinical
+  Ink tokens, the self-hosted Indic font stack, the undo-not-confirm interaction model and the
+  three-rung breakpoint ladder are the shell every later screen is built inside. Retrofitting them
+  over screens that already shipped means rewriting those screens.
+- **`§6.2` is in M2**, which is the first milestone where role modes become plural and therefore
+  observable: The Board for reception and The Slate for nurse triage land together. Chairside
+  Console arrives with M3 and Quiet Room with M6, each claimed by the acceptance test of its own
+  milestone.
 
 **Known gap.** `FR-1.3` — natural-language symptom and doctor matching across Indic languages — is
-defined in §8.1 but appears in no milestone in §10. It is left unassigned above rather than quietly
-folded into M1, so `scripts/trace.py` reports it under "defined but not scheduled" on every run.
-Before M1 exits, either schedule it or record in the §0.1 revision log that it moves to Phase 2. Do
-not implement it unscheduled.
+defined in §8.1 and, by revision 33, moved to Phase 2. It stays out of this map on purpose, so
+`scripts/trace.py` keeps reporting it under "defined but not scheduled". Do not implement it.
 
-### 4.2 Per-milestone detail
+### 4.2 Sections the map deliberately does not schedule
+
+`scripts/trace.py` enumerates every numbered subsection of the specification and requires each one
+to be either scheduled above, covered by a requirement defined inside it, or waived here with a
+reason. A section that is none of those three fails the build as a map error.
+
+This is default-deny on purpose. The earlier design only tracked the section ids the map already
+named, which meant a section nobody had scheduled was also a section nobody could see was missing
+— and `§6`, the entire design system, sat in that blind spot while an agent built the product
+without it.
+
+```waived-sections
+§0 — revision log; a record of decisions, not a decision
+§1 — executive summary; narrative
+§2 — problem analysis; narrative
+§3 — commercial packaging and unit economics; §3.3's mechanism is carried by FR-7.4.1–FR-7.4.6
+§4.1 — architecture diagram; IMPLEMENTATION-PLAN.md §1 overrides it in six places marked DEVIATION, so a test that the system matches it would assert the opposite of a settled decision
+§4.2 — consolidated technology stack; same six DEVIATIONs. The stack is asserted where it is load-bearing — §4.4 for the database guarantees, §5.4 for the topology — not as a list to match
+§5.1 — why not Azure; rationale for a decision recorded in §5.4
+§5.2 — what OCI Always Free provides; vendor fact, not an obligation
+§5.3 — OCI setup notes; operator guidance
+§5.5 — where the Azure credits go; budget allocation
+§6.5 — on defensibility; states which moats to invest in, asserts nothing testable
+§7.1 — project scope and target markets; narrative
+§7.2 — stakeholder ecosystem; narrative
+§9 — roadmap and prioritisation matrix; §9's items are scheduled by id elsewhere or are Phase 2
+§11 — risk register; the R-ids are tracked in IMPLEMENTATION-PLAN.md, not here
+```
+
+Waiving a section is a decision with the same weight as scheduling one. If you are about to add a
+line here to make the build green, that is the moment to stop and ask — §6 of this protocol.
+
+The two §4 waivers are the shape of a legitimate one: not "this looks hard to test", but "the plan
+already overrode this, so demanding a test would demand a contradiction". A waiver argues; it does
+not shrug.
+
+### 4.3 Per-milestone detail
 
 Exit criteria below are transcribed verbatim from specification §10. Each becomes an acceptance test
 with the fixed name given, so "the milestone is done" is a command anyone can run.
@@ -409,5 +462,9 @@ A change is done when all of the following are true. Not four of five.
 4. `docs/plan/TRACEABILITY.md` is regenerated and committed.
 5. No gate was weakened, skipped or deleted to get there.
 
-A milestone is done when its named acceptance test passes and the evidence named in §4.2 is
+A milestone is done when its named acceptance test passes and the evidence named in §4.3 is
 committed. Not when the code reads as though it should work.
+
+A client change carries a sixth condition: the screen looks like `prototype/PractixOS.html`. Not
+approximately, and not pending a later pass. See AGENTS.md §6 and
+`.cursor/rules/client-mobile-first.mdc`.

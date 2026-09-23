@@ -7,21 +7,26 @@ There is deliberately no timestamp in this file, so it changes only when
 coverage changes and a regression is visible in the diff.
 
 ```
-milestone in progress   M0
+milestone in progress   M4
 requirements defined    50
-scheduled into M0-M6    57
-covered by a test       0
+scheduled into M0-M6    71
+covered by a test       52
 ```
 
-## Gate failure — M0 is incomplete
+## Gate failure — M0 through M4 are incomplete
 
-Scheduled into M0 with no test claiming them:
+Scheduled into a milestone already reached, with no test claiming them:
 
-- `4.4.1`
-- `10.1`
-- `8.2`
-- `FR-1.1.2`
-- `FR-1.1.7`
+- `4.4.3` (M0)
+- `4.4.5` (M0)
+- `5.4` (M0)
+- `5.6` (M0)
+- `4.3` (M1)
+- `4.5` (M1)
+- `6.1` (M1)
+- `6.3` (M1)
+- `6.4` (M1)
+- `6.2` (M2)
 
 Tag a test with `@spec <id>`, or move the id to a later milestone in the
 scope map and say why in the specification's section 0.1 revision log.
@@ -38,73 +43,110 @@ decision that nobody wrote down.
 
 | Requirement | Milestone | Covered by |
 | --- | --- | --- |
-| `BR-01` | M1 | — |
-| `BR-02` | M1 | — |
-| `BR-03` | M3 | — |
-| `BR-04` | M1 | — |
-| `BR-05` | M2 | — |
-| `FR-1.1` | M1 | — |
-| `FR-1.1.1` | M1 | — |
-| `FR-1.1.2` | M0 | — |
-| `FR-1.1.3` | M1 | — |
-| `FR-1.1.4` | M1 | — |
-| `FR-1.1.5` | M3 | — |
-| `FR-1.1.6` | M1 | — |
-| `FR-1.1.7` | M0 | — |
-| `FR-1.2` | M1 | — |
+| `BR-01` | M1 | `tests/gates/followup.test.ts:6` |
+| `BR-02` | M1 | `acceptance/m1-chair-concurrency.test.ts:6` |
+| `BR-03` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `BR-04` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
+| `BR-05` | M2 | `acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-1.1` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
+| `FR-1.1.1` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
+| `FR-1.1.2` | M0 | `tests/gates/tenant-isolation.test.ts:19` |
+| `FR-1.1.3` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7`<br>`tests/gates/followup.test.ts:6` |
+| `FR-1.1.4` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7`<br>`tests/unit/vertical.test.ts:6` |
+| `FR-1.1.5` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-1.1.6` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7` |
+| `FR-1.1.7` | M0 | `tests/gates/fair-use.test.ts:10` |
+| `FR-1.2` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
 | `FR-1.3` | — | — |
-| `FR-1.4` | M1 | — |
-| `FR-1.5` | M1 | — |
-| `FR-1.6` | M1 | — |
-| `FR-1.7` | M1 | — |
-| `FR-2.1` | M2 | — |
-| `FR-2.2` | M2 | — |
-| `FR-2.3` | M2 | — |
-| `FR-2.4` | M2 | — |
-| `FR-3.1` | M2 | — |
-| `FR-3.2` | M2 | — |
-| `FR-4.1` | M3 | — |
-| `FR-4.2` | M3 | — |
-| `FR-4.3` | M3 | — |
-| `FR-4.4` | M3 | — |
-| `FR-4.5` | M3 | — |
-| `FR-4.6` | M3 | — |
+| `FR-1.4` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
+| `FR-1.5` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
+| `FR-1.6` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7` |
+| `FR-1.7` | M1 | `tests/gates/import.test.ts:6` |
+| `FR-2.1` | M2 | `acceptance/m2-offline-then-reconcile.test.ts:9`<br>`acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-2.2` | M2 | `acceptance/m2-offline-then-reconcile.test.ts:9`<br>`acceptance/m2-walkin-under-10s.test.ts:7` |
+| `FR-2.3` | M2 | `acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-2.4` | M2 | `acceptance/m2-offline-then-reconcile.test.ts:9`<br>`acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-3.1` | M2 | `acceptance/m2-offline-then-reconcile.test.ts:9`<br>`acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-3.2` | M2 | `acceptance/m2-walkin-under-10s.test.ts:36` |
+| `FR-4.1` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-4.2` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-4.3` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-4.4` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-4.5` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-4.6` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-5.1` | M6 | — |
 | `FR-5.2` | M6 | — |
 | `FR-5.3` | M6 | — |
 | `FR-5.4` | M6 | — |
-| `FR-6.1` | M3 | — |
-| `FR-6.2` | M3 | — |
-| `FR-6.3` | M3 | — |
-| `FR-6.4` | M3 | — |
-| `FR-6.5` | M3 | — |
+| `FR-6.1` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-6.2` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-6.3` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-6.4` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-6.5` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-7.1` | M5 | — |
 | `FR-7.2` | M5 | — |
 | `FR-7.3` | M5 | — |
-| `FR-7.4` | M1 | — |
-| `FR-7.4.1` | M1 | — |
-| `FR-7.4.2` | M1 | — |
-| `FR-7.4.3` | M1 | — |
-| `FR-7.4.4` | M1 | — |
-| `FR-7.4.5` | M1 | — |
+| `FR-7.4` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
+| `FR-7.4.1` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
+| `FR-7.4.2` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
+| `FR-7.4.3` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
+| `FR-7.4.4` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
+| `FR-7.4.5` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
 | `FR-7.4.6` | M5 | — |
-| `10.1` | M0 | — |
-| `4.4.1` | M0 | — |
-| `4.6.1` | M4 | — |
-| `4.6.2` | M4 | — |
-| `4.6.3` | M4 | — |
-| `4.6.4` | M4 | — |
-| `4.6.5` | M4 | — |
-| `8.2` | M0 | — |
+| `10.1` | M0 | `tests/gates/br02-concurrency.test.ts:18`<br>`tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/vault-non-recoverable.test.ts:26` |
+| `10.2` | M5 | — |
+| `4.3` | M1 | — |
+| `4.4.1` | M0 | `tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/tenant-isolation.test.ts:72`<br>`tests/unit/health.test.ts:18` |
+| `4.4.2` | M0 | `tests/gates/br02-concurrency.test.ts:18` |
+| `4.4.3` | M0 | — |
+| `4.4.4` | M0 | `tests/gates/vault-non-recoverable.test.ts:26` |
+| `4.4.5` | M0 | — |
+| `4.5` | M1 | — |
+| `4.6.1` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
+| `4.6.2` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
+| `4.6.3` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
+| `4.6.4` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
+| `4.6.5` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
+| `5.4` | M0 | — |
+| `5.6` | M0 | — |
+| `6.1` | M1 | — |
+| `6.2` | M2 | — |
+| `6.3` | M1 | — |
+| `6.4` | M1 | — |
+| `6.6` | M1 | `tests/gates/layout-integrity.test.ts:34` |
+| `8.2` | M0 | `tests/gates/layout-integrity.test.ts:20`<br>`tests/gates/layout-integrity.test.ts:34` |
 
 ## Milestone scope
 
 | Milestone | Requirements | Covered |
 | --- | --- | --- |
-| M0 **(in progress)** | 5 | 0 |
-| M1 | 19 | 0 |
-| M2 | 7 | 0 |
-| M3 | 13 | 0 |
-| M4 | 5 | 0 |
-| M5 | 4 | 0 |
+| M0 | 11 | 7 |
+| M1 | 25 | 20 |
+| M2 | 8 | 7 |
+| M3 | 13 | 13 |
+| M4 **(in progress)** | 5 | 5 |
+| M5 | 5 | 0 |
 | M6 | 4 | 0 |
+
+## Waived specification sections
+
+Sections judged to carry no build obligation. Listed here so the judgement is visible
+rather than implied by absence.
+
+| Section | Why |
+| --- | --- |
+| `§0` | revision log; a record of decisions, not a decision |
+| `§1` | executive summary; narrative |
+| `§11` | risk register; the R-ids are tracked in IMPLEMENTATION-PLAN.md, not here |
+| `§2` | problem analysis; narrative |
+| `§3` | commercial packaging and unit economics; §3.3's mechanism is carried by FR-7.4.1–FR-7.4.6 |
+| `§4.1` | architecture diagram; IMPLEMENTATION-PLAN.md §1 overrides it in six places marked DEVIATION, so a test that the system matches it would assert the opposite of a settled decision |
+| `§4.2` | consolidated technology stack; same six DEVIATIONs. The stack is asserted where it is load-bearing — §4.4 for the database guarantees, §5.4 for the topology — not as a list to match |
+| `§5.1` | why not Azure; rationale for a decision recorded in §5.4 |
+| `§5.2` | what OCI Always Free provides; vendor fact, not an obligation |
+| `§5.3` | OCI setup notes; operator guidance |
+| `§5.5` | where the Azure credits go; budget allocation |
+| `§6.5` | on defensibility; states which moats to invest in, asserts nothing testable |
+| `§7.1` | project scope and target markets; narrative |
+| `§7.2` | stakeholder ecosystem; narrative |
+| `§9` | roadmap and prioritisation matrix; §9's items are scheduled by id elsewhere or are Phase 2 |

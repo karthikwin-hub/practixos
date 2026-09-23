@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+docs
+prototype
+infra
+web
+tests
+acceptance
+*.md
+.env
+.env.*

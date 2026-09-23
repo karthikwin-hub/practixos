@@ -1,0 +1,13 @@
+#cloud-config
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+runcmd:
+  - systemctl enable --now docker
+  - git clone --branch ${git_ref} ${repo_url} /opt/practixos
+  - |
+    cat > /etc/cron.d/practixos-restore <<'CRON'
+    0 3 * * 0 root cd /opt/practixos && bash scripts/restore-drill.sh >> /var/log/practixos-restore.log 2>&1
+    CRON

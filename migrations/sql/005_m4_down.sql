@@ -1,0 +1,50 @@
+DROP TRIGGER IF EXISTS package_redeem ON package_redemptions;
+DROP FUNCTION IF EXISTS redeem_package();
+DROP TABLE IF EXISTS proxy_consents;
+DROP TABLE IF EXISTS patient_relationships;
+DROP TABLE IF EXISTS expiry_notices;
+DROP TABLE IF EXISTS inventory_issues;
+DROP TABLE IF EXISTS inventory_batches;
+DROP TABLE IF EXISTS inventory_items;
+DROP TABLE IF EXISTS package_redemptions;
+DROP TABLE IF EXISTS patient_packages;
+DROP TABLE IF EXISTS package_definitions;
+DROP TABLE IF EXISTS recalls;
+DROP TABLE IF EXISTS recall_rules;
+DROP FUNCTION IF EXISTS list_clinic_ids();
+DROP INDEX IF EXISTS recovered_revenue_plan;
+DROP INDEX IF EXISTS recovered_revenue_consumable;
+
+CREATE OR REPLACE FUNCTION erase_clinic(p_id uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  DELETE FROM fee_lines WHERE clinic_id = p_id;
+  DELETE FROM settlements WHERE clinic_id = p_id;
+  DELETE FROM calendar_outbound WHERE clinic_id = p_id;
+  DELETE FROM calendar_events WHERE clinic_id = p_id;
+  DELETE FROM work_orders WHERE clinic_id = p_id;
+  DELETE FROM work_order_types WHERE clinic_id = p_id;
+  DELETE FROM treatment_steps WHERE clinic_id = p_id;
+  DELETE FROM tooth_charts WHERE clinic_id = p_id;
+  DELETE FROM patient_sessions WHERE clinic_id = p_id;
+  DELETE FROM otp_challenges WHERE clinic_id = p_id;
+  DELETE FROM staff_sessions WHERE clinic_id = p_id;
+  DELETE FROM deposits WHERE clinic_id = p_id;
+  DELETE FROM payment_events WHERE clinic_id = p_id;
+  DELETE FROM message_outbox WHERE clinic_id = p_id;
+  DELETE FROM vitals WHERE clinic_id = p_id;
+  DELETE FROM sync_applied WHERE clinic_id = p_id;
+  DELETE FROM import_batches WHERE clinic_id = p_id;
+  DELETE FROM appointments WHERE clinic_id = p_id;
+  DELETE FROM vault_notes WHERE clinic_id = p_id;
+  DELETE FROM patients WHERE clinic_id = p_id;
+  DELETE FROM staff_users WHERE clinic_id = p_id;
+  DELETE FROM queue_stages WHERE clinic_id = p_id;
+  DELETE FROM clinic_modules WHERE clinic_id = p_id;
+  DELETE FROM working_hours WHERE clinic_id = p_id;
+  DELETE FROM break_windows WHERE clinic_id = p_id;
+  DELETE FROM practitioners WHERE clinic_id = p_id;
+  DELETE FROM chairs WHERE clinic_id = p_id;
+  DELETE FROM clinics WHERE id = p_id;
+END;
+$$;

@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS appointments;
+DROP TABLE IF EXISTS vault_notes;
+DROP TABLE IF EXISTS patients;
+DROP TABLE IF EXISTS practitioners;
+DROP TABLE IF EXISTS chairs;
+DROP TABLE IF EXISTS audit_log;
+DROP TABLE IF EXISTS clinics;
+DROP FUNCTION IF EXISTS reject_audit_mutation();
+DROP EXTENSION IF EXISTS btree_gist;
