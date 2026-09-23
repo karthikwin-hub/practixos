@@ -1,0 +1,2 @@
+DROP ROLE IF EXISTS app_reception;
+DROP ROLE IF EXISTS app_rw;

@@ -10,21 +10,8 @@ coverage changes and a regression is visible in the diff.
 milestone in progress   M0
 requirements defined    50
 scheduled into M0-M6    57
-covered by a test       0
+covered by a test       5
 ```
-
-## Gate failure — M0 is incomplete
-
-Scheduled into M0 with no test claiming them:
-
-- `4.4.1`
-- `10.1`
-- `8.2`
-- `FR-1.1.2`
-- `FR-1.1.7`
-
-Tag a test with `@spec <id>`, or move the id to a later milestone in the
-scope map and say why in the specification's section 0.1 revision log.
 
 ## Defined but not scheduled
 
@@ -45,12 +32,12 @@ decision that nobody wrote down.
 | `BR-05` | M2 | — |
 | `FR-1.1` | M1 | — |
 | `FR-1.1.1` | M1 | — |
-| `FR-1.1.2` | M0 | — |
+| `FR-1.1.2` | M0 | `tests/gates/tenant-isolation.test.ts:19` |
 | `FR-1.1.3` | M1 | — |
 | `FR-1.1.4` | M1 | — |
 | `FR-1.1.5` | M3 | — |
 | `FR-1.1.6` | M1 | — |
-| `FR-1.1.7` | M0 | — |
+| `FR-1.1.7` | M0 | `tests/gates/fair-use.test.ts:10` |
 | `FR-1.2` | M1 | — |
 | `FR-1.3` | — | — |
 | `FR-1.4` | M1 | — |
@@ -88,20 +75,20 @@ decision that nobody wrote down.
 | `FR-7.4.4` | M1 | — |
 | `FR-7.4.5` | M1 | — |
 | `FR-7.4.6` | M5 | — |
-| `10.1` | M0 | — |
-| `4.4.1` | M0 | — |
+| `10.1` | M0 | `tests/gates/br02-concurrency.test.ts:18`<br>`tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/vault-non-recoverable.test.ts:26` |
+| `4.4.1` | M0 | `tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/tenant-isolation.test.ts:72`<br>`tests/unit/health.test.ts:20` |
 | `4.6.1` | M4 | — |
 | `4.6.2` | M4 | — |
 | `4.6.3` | M4 | — |
 | `4.6.4` | M4 | — |
 | `4.6.5` | M4 | — |
-| `8.2` | M0 | — |
+| `8.2` | M0 | `tests/gates/layout-integrity.test.ts:6` |
 
 ## Milestone scope
 
 | Milestone | Requirements | Covered |
 | --- | --- | --- |
-| M0 **(in progress)** | 5 | 0 |
+| M0 **(in progress)** | 5 | 5 |
 | M1 | 19 | 0 |
 | M2 | 7 | 0 |
 | M3 | 13 | 0 |

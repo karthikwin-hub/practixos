@@ -40,6 +40,7 @@ jobs:
 
     env:
       DATABASE_URL: postgres://postgres:ci@localhost:5432/practixos_test
+      APP_DATABASE_URL: postgres://app_rw:app_rw_local@localhost:5432/practixos_test
 
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +61,9 @@ jobs:
           python3 --version
           google-chrome --version || echo "no Chrome; the layout gate will skip"
 
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
       - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then npm ci
@@ -70,9 +74,6 @@ jobs:
       - name: Verify
         run: ./scripts/verify.sh
 
-      # TODO (M0): add the arm64 image build. Production runs on Ampere A1, so a
-      # CI that only ever builds amd64 will not catch an arch-specific break.
-
       - name: Explain the result
         if: always()
         run: |
@@ -81,13 +82,44 @@ jobs:
             echo
             echo 'Ran `./scripts/verify.sh` — the same command developers run locally.'
             echo
-            echo "### If this is red on the requirement traceability step"
+            echo "### If the requirement traceability step is red"
             echo
-            echo "That is expected until M0 is built. The gate lists every requirement"
-            echo "scheduled into the milestone in progress that no test claims yet, and"
-            echo "before M0 lands that is all of them. It is a to-do list, not a"
-            echo "misconfiguration."
+            echo "An id scheduled into the milestone in progress has no test that claims it."
+            echo "Tag the test with \`@spec <id>\`, or reschedule the id in the scope map"
+            echo "and record why in specification section 0.1."
             echo
             echo "**Do not fix it by deleting the gate.** See \`AGENTS.md\` section 6 and"
             echo "\`docs/plan/BUILD-PROTOCOL.md\` section 1."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  arm64-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  restore-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore drill
+        run: bash scripts/restore-drill.sh

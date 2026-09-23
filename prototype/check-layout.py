@@ -33,6 +33,7 @@ DEFAULT_WIDTHS = [320, 375, 390, 414, 768, 1024, 1280]
 CHROME_CANDIDATES = [
     "google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
     "/usr/bin/google-chrome", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
 ]
 
 HOST = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>probe</title>

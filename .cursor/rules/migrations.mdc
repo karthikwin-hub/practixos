@@ -18,7 +18,7 @@ ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patients FORCE  ROW LEVEL SECURITY;   -- without this the owning role skips every policy
 
 CREATE POLICY clinic_isolation ON patients
-  USING (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);
 ```
 
 The application connects as a role that does **not** own the tables.

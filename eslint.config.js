@@ -1,0 +1,46 @@
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+
+const tenantBypass = [
+  "error",
+  {
+    object: "pool",
+    property: "query",
+    message:
+      "Use withTenant(). pool.query is forbidden outside src/db/tenant.ts (R12, §4.4.1).",
+  },
+  {
+    object: "pool",
+    property: "connect",
+    message:
+      "Use withTenant(). pool.connect is forbidden outside src/db/tenant.ts (R12, §4.4.1).",
+  },
+];
+
+export default tseslint.config(
+  {
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      "prototype/**",
+      "docs/**",
+      "coverage/**",
+    ],
+  },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ["src/**/*.ts"],
+    rules: {
+      "no-restricted-properties": tenantBypass,
+    },
+  },
+  {
+    // Audited exemptions: both run outside any tenant context.
+    // The migration runner is the DDL role. pg-boss owns its queue tables.
+    files: ["src/db/tenant.ts", "src/db/migrate.ts", "src/platform/jobs/**/*.ts"],
+    rules: {
+      "no-restricted-properties": "off",
+    },
+  },
+);
