@@ -59,6 +59,7 @@ import {
   definePackage,
   issueBatch,
   purchasePackage,
+  practiceSnapshot,
   recordConsent,
   redeemPackage,
 } from "./modules/vertical/index.js";
@@ -431,6 +432,8 @@ export function buildApp(): FastifyInstance {
     const body = req.body as { appointmentId: string };
     return pushCalendar(staff.clinicId, body.appointmentId, ports.calendar);
   });
+
+  app.get("/api/practice", async (req) => practiceSnapshot((await staffFrom(req)).clinicId));
 
   app.post("/api/packages", async (req) => {
     const staff = await staffFrom(req);

@@ -292,6 +292,63 @@ export async function recordConsent(clinicId: string, guardianId: string, depend
   });
 }
 
+export async function practiceSnapshot(clinicId: string): Promise<unknown> {
+  return withTenant(clinicId, async (tx) => {
+    const rules = await tx.query(
+      `SELECT id, trigger, offset_days, template_key FROM recall_rules WHERE clinic_id = $1 ORDER BY template_key`,
+      [clinicId],
+    );
+    const recalls = await tx.query(
+      `SELECT r.id, r.due_on, r.state, rr.template_key, p.full_name
+       FROM recalls r
+       JOIN recall_rules rr ON rr.id = r.rule_id
+       JOIN patients p ON p.id = r.patient_id
+       WHERE r.clinic_id = $1
+       ORDER BY r.due_on`,
+      [clinicId],
+    );
+    const packages = await tx.query(
+      `SELECT d.id, d.name, d.sessions, d.price_paise
+       FROM package_definitions d WHERE d.clinic_id = $1 ORDER BY d.name`,
+      [clinicId],
+    );
+    const held = await tx.query(
+      `SELECT pp.id, pp.sessions_used, d.name, d.sessions, p.full_name
+       FROM patient_packages pp
+       JOIN package_definitions d ON d.id = pp.definition_id
+       JOIN patients p ON p.id = pp.patient_id
+       WHERE pp.clinic_id = $1
+       ORDER BY pp.purchased_at DESC`,
+      [clinicId],
+    );
+    const batches = await tx.query(
+      `SELECT b.id, i.name, b.batch_no, b.expires_on, b.qty_remaining
+       FROM inventory_batches b
+       JOIN inventory_items i ON i.id = b.item_id
+       WHERE b.clinic_id = $1
+       ORDER BY b.expires_on, b.id`,
+      [clinicId],
+    );
+    const relationships = await tx.query(
+      `SELECT rel.id, rel.relationship, rel.may_book, rel.may_consent, rel.may_view_clinical, rel.valid_until,
+              g.full_name AS guardian, d.full_name AS dependant
+       FROM patient_relationships rel
+       JOIN patients g ON g.id = rel.guardian_id
+       JOIN patients d ON d.id = rel.dependant_id
+       WHERE rel.clinic_id = $1`,
+      [clinicId],
+    );
+    return {
+      rules: rules.rows,
+      recalls: recalls.rows,
+      packages: packages.rows,
+      held: held.rows,
+      batches: batches.rows,
+      relationships: relationships.rows,
+    };
+  });
+}
+
 export async function assertCanBook(clinicId: string, guardianId: string, dependantId: string): Promise<void> {
   const relation = await liveRelationship(clinicId, guardianId, dependantId);
   if (!relation.may_book) fail(403, "this guardian cannot book");
