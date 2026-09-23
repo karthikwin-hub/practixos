@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PractixOS — one page</title>
+<meta name="description" content="PractixOS: the practice operating system for India's independent outpatient clinics. Investor one-pager.">
+<style>
+/* ===========================================================================
+   PractixOS investor one-pager.
+
+   Two audiences, one file. On screen it is a single scrolling page that works
+   on a phone. Printed to A4 it is exactly one sheet: the print block below
+   drops the page to 8pt, collapses the vertical rhythm and lets the two
+   columns run. Check it with Ctrl+P before sending.
+
+   Palette and type are lifted from prototype/PractixOS.html so the deck, the
+   product and the specification all read as the same company.
+   ========================================================================= */
+:root{
+  --paper:#FBFAF7; --paper-2:#F5F2EB; --surface:#FFFDF9;
+  --rule:#E2DDD1; --rule-strong:#CFC8B7;
+  --ink:#14211F; --ink-2:#3F534F; --ink-3:#6F817C; --ink-4:#9AA8A3;
+  --teal:#0B4F4A; --teal-2:#0E7C74; --teal-3:#159A8F; --teal-wash:#E2EFED;
+  --marigold:#C97A12; --marigold-wash:#FCF1DF;
+  --vermilion:#B33F33; --vermilion-wash:#FAE9E6;
+  --sage:#3F6B46; --sage-wash:#E8F1E8;
+  --indigo:#494A8C; --indigo-wash:#ECECF7;
+  --font-ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-note:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --font-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--paper-2); color:var(--ink);
+  font:400 15px/1.5 var(--font-ui);
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+  padding:18px 12px 48px;
+}
+
+/* --- the sheet ---------------------------------------------------------- */
+.sheet{
+  max-width:940px; margin:0 auto; background:var(--surface);
+  border:1px solid var(--rule); border-radius:4px;
+  box-shadow:0 2px 14px rgba(20,33,31,.09);
+  padding:26px 24px 20px;
+}
+
+/* --- masthead ----------------------------------------------------------- */
+.top{display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap}
+.mark{
+  width:44px; height:44px; flex:none; border-radius:9px;
+  background:var(--teal); color:#F2FAF8;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.15rem; letter-spacing:.02em;
+}
+.top h1{
+  font-size:1.5rem; line-height:1.1; letter-spacing:-.015em; font-weight:700;
+}
+.top h1 em{font-style:normal; color:var(--teal-2)}
+.tag{font-family:var(--font-note); font-size:1.02rem; color:var(--ink-2); margin-top:3px; line-height:1.35}
+.meta{
+  margin-left:auto; text-align:right; font-size:.7rem; line-height:1.7;
+  color:var(--ink-3); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.06em;
+}
+.rule{height:2px; background:var(--teal); margin:14px 0 0; border-radius:2px}
+
+/* --- the one-line thesis ------------------------------------------------ */
+.thesis{
+  margin-top:14px; padding:12px 14px; border-radius:6px;
+  background:var(--teal-wash); border-left:3px solid var(--teal);
+  font-family:var(--font-note); font-size:1.05rem; line-height:1.45; color:#0A3B37;
+}
+
+/* --- section furniture --------------------------------------------------
+   The two-column bands use column-count, not grid. Grid aligns row bands, so
+   one short section opposite a long one leaves a hole the height of the
+   difference; columns balance instead. The full-width bands (the leakage
+   table, the ask) sit between column blocks rather than inside them, because
+   a flowed column cannot contain a spanning child reliably.               */
+.cols{column-count:1; column-gap:26px; margin-top:4px}
+.band{margin-top:4px}
+section{padding-top:13px; break-inside:avoid}
+.cols section:first-child{padding-top:11px}
+h2{
+  font-size:.66rem; font-weight:700; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--teal-2); margin-bottom:5px;
+  display:flex; align-items:baseline; gap:7px;
+}
+h2::after{content:""; flex:1; height:1px; background:var(--rule)}
+p{font-size:.845rem; line-height:1.5; color:var(--ink-2)}
+p + p{margin-top:5px}
+strong{color:var(--ink); font-weight:600}
+.lead{color:var(--ink)}
+
+ul{list-style:none; margin-top:4px}
+li{
+  font-size:.83rem; line-height:1.45; color:var(--ink-2);
+  padding-left:13px; position:relative; margin-top:4px;
+}
+li::before{
+  content:""; position:absolute; left:2px; top:.52em;
+  width:4px; height:4px; border-radius:50%; background:var(--teal-3);
+}
+li b{color:var(--ink); font-weight:600}
+
+/* --- number tiles ------------------------------------------------------- */
+.tiles{display:grid; grid-template-columns:repeat(2,1fr); gap:7px; margin-top:7px}
+.tile{
+  background:var(--paper); border:1px solid var(--rule); border-radius:6px;
+  padding:8px 10px;
+}
+.tile .n{font-size:1.12rem; font-weight:700; color:var(--teal); line-height:1.15; letter-spacing:-.01em}
+.tile .k{font-size:.66rem; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em; margin-top:2px}
+.tile .s{font-size:.72rem; color:var(--ink-3); margin-top:2px; line-height:1.35}
+
+/* --- the leakage table -------------------------------------------------- */
+table{width:100%; border-collapse:collapse; margin-top:6px; font-size:.79rem}
+th{
+  text-align:left; font-size:.62rem; text-transform:uppercase; letter-spacing:.07em;
+  color:var(--ink-3); font-weight:600; padding:0 0 4px; border-bottom:1px solid var(--rule);
+}
+th.r,td.r{text-align:right}
+td{padding:3.5px 0; border-bottom:1px solid var(--paper-2); color:var(--ink-2)}
+th.r,td.r{padding-left:14px; white-space:nowrap}
+col.c-vol{width:8%} col.c-unit{width:13%} col.c-rec{width:15%}
+tr:last-child td{border-bottom:none}
+tfoot td{border-top:1px solid var(--rule-strong); font-weight:700; color:var(--ink); padding-top:5px}
+td .ev{font-family:var(--font-mono); font-size:.69rem; color:var(--ink-4); display:block}
+
+/* --- pricing strip ------------------------------------------------------ */
+.plans{display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:7px}
+.plan{
+  border:1px solid var(--rule); border-radius:6px; padding:7px 9px; background:var(--paper);
+}
+.plan.hi{border-color:var(--teal-3); background:var(--teal-wash)}
+.plan .p{font-size:.98rem; font-weight:700; color:var(--ink)}
+.plan .p span{font-size:.66rem; font-weight:500; color:var(--ink-3)}
+.plan .l{font-size:.68rem; color:var(--ink-3); text-transform:uppercase; letter-spacing:.05em; margin-top:1px}
+
+/* --- callouts ----------------------------------------------------------- */
+.note{
+  margin-top:7px; padding:8px 10px; border-radius:5px; font-size:.78rem; line-height:1.45;
+  background:var(--marigold-wash); border-left:3px solid var(--marigold); color:#6B4208;
+}
+.note.good{background:var(--sage-wash); border-left-color:var(--sage); color:#26482B}
+.note.moat{background:var(--indigo-wash); border-left-color:var(--indigo); color:#2E2F63}
+.note b{font-weight:700}
+
+/* Placeholders. Three things on this page are the founder's to supply and not
+   the document's to invent: the raise, the clinic target and the contact. They
+   are marked so nobody sends the page out with them still in it. */
+.fill{
+  display:inline-block; min-width:74px; padding:0 6px; border-radius:3px;
+  border:1px dashed var(--vermilion); background:var(--vermilion-wash);
+  color:var(--vermilion); font-family:var(--font-mono); font-size:.86em; font-weight:700;
+}
+.fill-q{min-width:0; font-size:1em; font-weight:400; letter-spacing:.06em}
+
+/* --- proof chips -------------------------------------------------------- */
+.chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px}
+.chip{
+  font-family:var(--font-mono); font-size:.68rem; padding:3px 8px; border-radius:20px;
+  background:var(--paper-2); border:1px solid var(--rule); color:var(--ink-2);
+}
+.chip b{color:var(--teal); font-weight:700}
+
+/* --- footer ------------------------------------------------------------- */
+footer{
+  margin-top:16px; padding-top:9px; border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  font-size:.7rem; color:var(--ink-4); font-family:var(--font-mono);
+  text-transform:uppercase; letter-spacing:.05em;
+}
+
+/* --- wider screens: two columns ----------------------------------------- */
+@media (min-width:760px){
+  body{padding:28px 20px 56px}
+  .sheet{padding:30px 32px 22px}
+  .cols{column-count:2}
+  .top h1{font-size:1.72rem}
+}
+
+/* --- A4, exactly one sheet ---------------------------------------------- */
+@media print{
+  @page{size:A4 portrait; margin:9mm 10mm 7mm}
+  body{background:#fff; padding:0; font-size:7.4pt; line-height:1.3}
+  .sheet{
+    max-width:none; margin:0; border:none; border-radius:0;
+    box-shadow:none; padding:0; background:#fff;
+  }
+  .cols{column-count:2; column-gap:7mm}
+  .mark{width:30pt; height:30pt; border-radius:6px; font-size:11pt}
+  .top h1{font-size:14pt}
+  .tag{font-size:8.2pt}
+  .meta{font-size:5.6pt; line-height:1.55}
+  .rule{margin-top:7px; height:1.5px}
+  .thesis{font-size:8.2pt; margin-top:7px; padding:5px 8px; line-height:1.36}
+  section{padding-top:6px}
+  .cols section:first-child{padding-top:5px}
+  h2{font-size:5.8pt; margin-bottom:2px; letter-spacing:.11em}
+  p,li{font-size:7pt; line-height:1.31}
+  p + p{margin-top:3px}
+  li{margin-top:2px; padding-left:10px}
+  li::before{width:3px; height:3px; left:1px}
+  table{font-size:6.6pt; margin-top:4px} td{padding:1.6px 0}
+  td .ev{font-size:5.9pt}
+  th{font-size:5.4pt; padding-bottom:2px}
+  tfoot td{padding-top:3px}
+  .tiles{gap:4px; margin-top:4px}
+  .tile{padding:4px 6px} .tile .n{font-size:9.4pt}
+  .tile .k{font-size:5.5pt} .tile .s{font-size:6pt; line-height:1.25}
+  .note{padding:4px 6px; font-size:6.6pt; margin-top:4px; line-height:1.3}
+  .plans{gap:4px; margin-top:4px}
+  .plan{padding:4px 6px} .plan .p{font-size:8.2pt} .plan .l{font-size:5.6pt}
+  .chips{gap:3px; margin-top:4px}
+  .chip{font-size:5.8pt; padding:1.5px 5px}
+  footer{margin-top:6px; padding-top:4px; font-size:5.6pt}
+  .fill{border-style:solid}
+  a{color:inherit; text-decoration:none}
+}
+</style>
+</head>
+<body>
+<main class="sheet">
+
+  <header class="top">
+    <div class="mark">Px</div>
+    <div>
+      <h1>Practix<em>OS</em></h1>
+      <div class="tag">The practice operating system for India&rsquo;s independent clinics.</div>
+    </div>
+    <div class="meta">
+      Seed &middot; India<br>
+      September 2026<br>
+      <span class="fill fill-q">contact</span>
+    </div>
+  </header>
+  <div class="rule"></div>
+
+  <div class="thesis">
+    Clinic software in India is sold on features and priced per doctor. PractixOS is sold on
+    <strong>a number the clinic can audit</strong>: the rupees it recovered this month from
+    appointments that would not have happened. The subscription is a rounding error against it.
+  </div>
+
+  <div class="cols">
+
+    <section>
+      <h2>The problem</h2>
+      <p class="lead">India has <strong>428,668</strong> outpatient practitioners. The overwhelming
+      majority run a paper register, a WhatsApp thread and an Excel sheet, and they leak money in
+      five predictable places every week.</p>
+      <p>Urban no-show rates routinely run <strong>20&ndash;30%</strong>. Phased treatment plans are
+      silently abandoned after visit two. Lab remakes are paid for by the dentist. Consumables used
+      chairside never reach the invoice. None of it is visible, so none of it is fixed.</p>
+      <p>What is sold to them makes it worse: per-seat pricing that pushes staff onto shared logins,
+      or a directory aggregator that rents their own patients back to them beside a competitor&rsquo;s
+      sponsored listing.</p>
+    </section>
+
+    <section>
+      <h2>The product</h2>
+      <p class="lead">One mobile-first application, in five Indian languages, covering the front desk,
+      the chair, the nurse&rsquo;s slate, billing and UPI, ABDM compliance and the owner&rsquo;s P&amp;L
+      &mdash; built for the phone each of those people is already holding.</p>
+      <p>The part that is not a feature list is the <strong>Recovered Revenue ledger</strong>. Every
+      rupee the platform saves is written as one evidenced row, pointing at a delivery receipt, a
+      payment reference or a work order. It is append-only and it refuses to double-count.</p>
+      <div class="note good"><b>This is also the churn defence.</b> A subsidy keeps paying after a
+      clinic cancels. Recovered revenue stops. The ledger is a monthly, evidenced statement of exactly
+      what ends the day they leave.</div>
+    </section>
+
+  </div>
+
+  <div class="band">
+    <section>
+      <h2>The unit that sells it &mdash; two-chair dental practice, 400 appointments a month</h2>
+      <table>
+        <colgroup><col><col class="c-vol"><col class="c-unit"><col class="c-rec"></colgroup>
+        <thead><tr>
+          <th>Leak, and what closes it</th><th class="r">Vol.</th><th class="r">Unit</th><th class="r">Recovered</th>
+        </tr></thead>
+        <tbody>
+          <tr><td>Patient forgets &mdash; confirmed WhatsApp reminder in their language <span class="ev">no_show_prevented</span></td><td class="r">5</td><td class="r">&#8377;800</td><td class="r">&#8377;4,000</td></tr>
+          <tr><td>High-value slot booked casually &mdash; UPI reservation deposit <span class="ev">deposit_converted</span></td><td class="r">2</td><td class="r">&#8377;2,500</td><td class="r">&#8377;5,000</td></tr>
+          <tr><td>Plan abandoned after visit two &mdash; clinical recall engine <span class="ev">plan_resumed</span></td><td class="r">1</td><td class="r">&#8377;6,000</td><td class="r">&#8377;6,000</td></tr>
+          <tr><td>Lab remake &mdash; work order that cannot be submitted incomplete <span class="ev">remake_avoided</span></td><td class="r">0.5</td><td class="r">&#8377;1,400</td><td class="r">&#8377;700</td></tr>
+          <tr><td>Consumable never invoiced &mdash; chairside notes carry onto the bill <span class="ev">consumable_billed</span></td><td class="r">15</td><td class="r">&#8377;60</td><td class="r">&#8377;900</td></tr>
+        </tbody>
+        <tfoot><tr>
+          <td>Recovered per month, against a &#8377;1,999 subscription</td><td class="r"></td><td class="r"></td><td class="r">&#8377;16,600</td>
+        </tr></tfoot>
+      </table>
+      <div class="note good">These are deliberately conservative. The headline is not the total, which
+      varies by practice &mdash; it is the break-even: <b>the subscription has paid for itself by the
+      third recovered no-show of the month.</b></div>
+    </section>
+  </div>
+
+  <div class="cols">
+
+    <section>
+      <h2>Why now</h2>
+      <ul>
+        <li><b>ABDM v3 API conformance becomes mandatory in July 2026.</b> Every incumbent has to
+        re-certify. The switching window opens for everybody at once.</li>
+        <li><b>NHA Corrigendum 7, April 2026,</b> cut the digital-health incentive for an outpatient
+        record from &#8377;20 to &#8377;5, excluded the first 100 transactions a month and restricted
+        it to KYC-verified ABHA. Every competitor selling &ldquo;the government pays for your
+        software&rdquo; has lost its pitch overnight. We rebuilt the ROI case off the subsidy
+        deliberately, and we can show the arithmetic.</li>
+        <li><b>UPI and WhatsApp are now universal in the waiting room,</b> which is what makes
+        deposits and reminders cost almost nothing to deliver.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Market</h2>
+      <div class="tiles">
+        <div class="tile"><div class="n">428,668</div><div class="k">TAM &middot; practitioners</div><div class="s">Indian outpatient, all specialties</div></div>
+        <div class="tile"><div class="n">~266,000</div><div class="k">SOM &middot; billable facilities</div><div class="s">Solo and small polyclinic</div></div>
+        <div class="tile"><div class="n">&#8377;356 cr</div><div class="k">ARR at list, full capture</div><div class="s">&asymp; $43M &middot; 1% = &#8377;3.6 cr</div></div>
+        <div class="tile"><div class="n">80,168</div><div class="k">Beachhead &middot; dentistry</div><div class="s">Then ophthalmology, dermatology, paediatrics</div></div>
+      </div>
+      <p style="margin-top:7px">We size in <strong>facilities, not practitioners</strong>, because the
+      pricing is per facility. Dentistry launches alone: highest procedure value, a natural recall
+      cycle, and the only vertical with a ready-made distribution channel.</p>
+    </section>
+
+    <section>
+      <h2>Business model</h2>
+      <div class="plans">
+        <div class="plan"><div class="p">&#8377;999<span>/mo</span></div><div class="l">Solo Practice</div></div>
+        <div class="plan hi"><div class="p">&#8377;1,999<span>/mo</span></div><div class="l">Clinic Pro</div></div>
+        <div class="plan"><div class="p">&#8377;3,499<span>/mo</span></div><div class="l">AI Enterprise</div></div>
+      </div>
+      <ul>
+        <li><b>Flat per facility, never per seat.</b> Unlimited front-desk and nurse logins. Per-seat
+        pricing is what drives Indian clinics onto shared accounts and destroys the audit trail we
+        are legally required to keep.</li>
+        <li><b>88&ndash;92% gross margin.</b> Marginal delivery cost is &#8377;100&ndash;250 per clinic
+        per month, all in: WhatsApp utility messages, gateway fees and support.</li>
+        <li><b>Self-service onboarding and CSV import ship in v1.</b> At &#8377;999 the unit economics
+        do not permit a sales call, so the product has to close itself.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Why it is hard to copy</h2>
+      <div class="note moat"><b>A new specialty is configuration, not a rebuild.</b> Queue stages,
+      recall rules, chairside measurements, packages and inventory are rows in a table. A continuous-
+      integration gate fails the build if any line of code branches on a clinic&rsquo;s specialty. We
+      added a complete ophthalmology practice &mdash; dilation stage, visual acuity, IOP, optical
+      dispensing &mdash; without writing a line of logic. A horizontal competitor forks its codebase
+      to do the same thing; a single-vertical competitor cannot do it at all.</div>
+      <ul>
+        <li><b>The ledger compounds.</b> Twelve months of evidenced recovery is a switching cost no
+        feature comparison beats.</li>
+        <li><b>Privacy enforced by the database, not the application.</b> Tenant isolation at the row
+        level; a cross-tenant read returns zero rows. A zero-knowledge psychotherapy vault, with no
+        administrator override, follows in Phase 2.</li>
+        <li><b>Cost is architectural.</b> Entirely free and open source on one VM inside India:
+        &#8377;0 a month of infrastructure at pilot scale. We can price where a field sales force
+        cannot follow.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Distribution</h2>
+      <p class="lead">The <strong>dental laboratory</strong> is the cheapest channel in the market and
+      nobody is using it. One commercial lab serves 100&ndash;300 dentists, the relationship is already
+      commercial, and our structured work order &mdash; tooth number, shade, due date, un-submittable
+      if incomplete &mdash; reduces the lab&rsquo;s own remake rate. The lab has a reason to introduce
+      us. This gets tested before any sales hire.</p>
+    </section>
+
+    <section>
+      <h2>Where we are</h2>
+      <p class="lead">Specification v2.2 is complete and the end-to-end product is prototyped, not
+      sketched. It runs four live workspaces, including the ophthalmology practice that proves the
+      configuration thesis, and it is verified on every commit.</p>
+      <div class="chips">
+        <span class="chip"><b>786</b> logic assertions</span>
+        <span class="chip"><b>630</b> layout screens, 7 widths, zero overflow</span>
+        <span class="chip"><b>4</b> isolated tenants</span>
+        <span class="chip"><b>5</b> Indian languages</span>
+        <span class="chip"><b>13</b> spec sections</span>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="band">
+    <section>
+      <h2>The ask</h2>
+      <p class="lead">Raising <span class="fill">&#8377;&nbsp;__ cr</span> to take dentistry from
+      prototype to <span class="fill">__</span> paying clinics over 18 months, and to land the first
+      two follow-on verticals on the same engine. Use of funds: a founding engineering pair to
+      production-harden the platform through ABDM v3 certification; a clinical product lead embedded
+      in pilot practices in Bengaluru, Pune and Hyderabad; the dental-laboratory channel experiment;
+      and WhatsApp, gateway and compliance costs through the free-usage ceiling. Infrastructure is not
+      a line item until roughly 300 clinics.</p>
+    </section>
+
+  </div>
+
+  <footer>
+    <span>PractixOS &middot; Investor one-pager &middot; Specification v2.2</span>
+    <span>Confidential</span>
+  </footer>
+
+</main>
+</body>
+</html>
