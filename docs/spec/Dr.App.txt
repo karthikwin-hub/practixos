@@ -28,6 +28,7 @@ The remaining changes follow from a market analysis that re-ranked the launch ve
 | 29 | Tenant context propagation | Row-Level Security with `app.clinic_id`, method unspecified | **`withTenant()` with `SET LOCAL` inside an explicit transaction**, an ESLint rule banning raw pool access, and a concurrency CI gate (§4.4.1, R12) | On a pooled connection a plain `SET` survives release and the next request inherits it. This is a silent total cross-tenant breach that passes every single-request test |
 | 30 | Verification of the guarantees | Demonstrated at milestone exit | **CI gates** for tenant isolation, BR-02 under concurrency, and vault non-recoverability (§10.1) | These three are what the product sells. A guarantee checked once at a milestone review is a guarantee that regresses in week three |
 | 31 | Status of §4.6 in the prototype | Specified only | **Built and demonstrated.** A fourth seeded workspace, Drishti Eye Care, is provisioned as configuration alone — a `Dilating` queue stage with a 20-minute dwell alert, an acuity-and-pressure triage set, a diabetic retinopathy recall rule and a cataract package. A CI assertion fails the build if the token `vertical` appears in any conditional | The configurable vertical engine is the central architectural bet of this document. A bet that is only described is indistinguishable from a bet that does not work. The prototype now carries the falsifiable version of the claim |
+| 32 | Unset `app.clinic_id` | The §4.4.1 sample policy calls `current_setting('app.clinic_id')`, which **raises** when the setting is absent | The policy uses `NULLIF(current_setting('app.clinic_id', true), '')::uuid`, so a missing setting matches **zero rows** | The prose in §4.4.1 and the §10.1 isolation gate require an unset context to return zero rows, not an error. The previous snippet contradicted that: without the missing-ok flag, PostgreSQL raises `unrecognized configuration parameter` and the request fails instead of returning nothing |
 
 ### 0.2 What changed in v2.1 and why
 
@@ -360,12 +361,14 @@ Every tenant-scoped table carries `clinic_id`, and isolation is enforced by the 
 ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY clinic_isolation ON patients
-  USING (clinic_id = current_setting('app.clinic_id')::uuid);
+  USING (clinic_id = NULLIF(current_setting('app.clinic_id', true), '')::uuid);
 
 -- BR-05 / FR-2.3: reception may read patients but never the real phone number.
 REVOKE SELECT (phone_e164)   ON patients FROM app_reception;
 GRANT  SELECT (phone_masked) ON patients TO   app_reception;
 ```
+
+`current_setting('app.clinic_id', true)` passes the missing-ok flag. Combined with `NULLIF`, an unset or empty setting compares as NULL and matches no row. Without the flag the same expression raises, which would fail the request instead of returning the zero rows §10.1 requires.
 
 `phone_masked` is a generated column. Because column-level access to the real number is revoked from the reception database role, FR-2.3 holds even against a SQL-injection vector: the role genuinely cannot read the column.
 
