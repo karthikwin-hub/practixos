@@ -1,8 +1,24 @@
 import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { closedBilling, localBilling, type BillingPort } from "./modules/billing/index.js";
+import { closedCalendar, localCalendar, type CalendarPort } from "./modules/calendar/index.js";
+import { buildPlan, chartTooth, createWorkOrder, dispatchWorkOrder, odontogramModel, readChart, requireCharting } from "./modules/clinical/chart.js";
 import { recordVitals, setAlerts } from "./modules/clinical/index.js";
 import { closedMessaging, localMessaging, type MessagingPort } from "./modules/messaging/index.js";
+import {
+  createMembership,
+  feeLedger,
+  ingestCalendar,
+  itinerary,
+  login,
+  markSettlementPaid,
+  printDocument,
+  pushCalendar,
+  recordFeeLine,
+  requestSettlement,
+  respondSettlement,
+  switchClinic,
+} from "./modules/practice/index.js";
 import {
   bookAppointment,
   cancelAppointment,
@@ -33,6 +49,20 @@ import {
 } from "./modules/scheduling/index.js";
 import { applySync } from "./modules/sync/index.js";
 import {
+  addBatch,
+  addItem,
+  addRelationship,
+  assertCanBook,
+  updateRelationship,
+  attributePlanResumed,
+  createDependant,
+  definePackage,
+  issueBatch,
+  purchasePackage,
+  recordConsent,
+  redeemPackage,
+} from "./modules/vertical/index.js";
+import {
   resolveClinicId,
   resolvePatientSession,
   resolveStaffSession,
@@ -42,10 +72,10 @@ import {
 
 type RequestWithRaw = FastifyRequest & { rawBody?: Buffer };
 
-function adapters(): { messaging: MessagingPort; billing: BillingPort } {
+function adapters(): { messaging: MessagingPort; billing: BillingPort; calendar: CalendarPort } {
   const secret = process.env.LOCAL_ADAPTER_SECRET;
-  if (!secret) return { messaging: closedMessaging(), billing: closedBilling() };
-  return { messaging: localMessaging(), billing: localBilling(secret) };
+  if (!secret) return { messaging: closedMessaging(), billing: closedBilling(), calendar: closedCalendar() };
+  return { messaging: localMessaging(), billing: localBilling(secret), calendar: localCalendar(secret) };
 }
 
 function slugFromHost(host: string | undefined): string | null {
@@ -80,7 +110,7 @@ async function staffFrom(req: FastifyRequest): Promise<{ clinicId: string; userI
   return session;
 }
 
-/** Health, the public portal, onboarding, and the clinic floor. No M3 routes. */
+/** Health, the portal, the floor, and the dental chart. No M5 routes. */
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
   const ports = adapters();
@@ -168,13 +198,15 @@ export function buildApp(): FastifyInstance {
     const body = req.body as {
       practitionerId: string; start: string; end: string; mode: "clinic" | "video"; lang?: string;
     };
-    return bookAppointment(clinicId, session.patientId, {
+    const booked = await bookAppointment(clinicId, session.patientId, {
       practitionerId: body.practitionerId,
       start: body.start,
       end: body.end,
       mode: body.mode,
       lang: body.lang ?? "en",
-    }, ports.billing, ports.messaging);
+    }, ports.billing, ports.messaging) as { appointmentId: string };
+    await attributePlanResumed(clinicId, booked.appointmentId);
+    return booked;
   });
 
   app.post("/api/portal/bookings/:id/cancel", async (req) => {
@@ -252,7 +284,9 @@ export function buildApp(): FastifyInstance {
   app.post("/api/walk-ins", async (req) => {
     const staff = await staffFrom(req);
     const body = req.body as { phone: string; name: string; practitionerId: string };
-    return createWalkIn(staff.clinicId, body);
+    const created = await createWalkIn(staff.clinicId, body);
+    await attributePlanResumed(staff.clinicId, created.appointmentId);
+    return created;
   });
 
   app.post("/api/queue/:id/stage", async (req) => {
@@ -285,6 +319,195 @@ export function buildApp(): FastifyInstance {
       patientId: string; appointmentId?: string; bpSystolic?: number; bpDiastolic?: number;
       pulse?: number; sugar?: number; weightG?: number;
     });
+  });
+
+  app.get("/api/odontogram", async (req) => {
+    const staff = await staffFrom(req);
+    await requireCharting(staff.clinicId);
+    return odontogramModel();
+  });
+
+  app.post("/api/chart/:patientId/teeth", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { tooth: number; state: string };
+    await chartTooth(staff.clinicId, (req.params as { patientId: string }).patientId, body.tooth, body.state);
+    return { ok: true };
+  });
+
+  app.post("/api/chart/:patientId/plans", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { tooth: number };
+    return buildPlan(staff.clinicId, (req.params as { patientId: string }).patientId, body.tooth);
+  });
+
+  app.get("/api/chart/:patientId", async (req) => {
+    const staff = await staffFrom(req);
+    return readChart(staff.clinicId, (req.params as { patientId: string }).patientId);
+  });
+
+  app.post("/api/lab-orders", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as {
+      patientId: string; appointmentId?: string; typeKey: string; lab?: string; dueOn?: string;
+      fields: Record<string, string>;
+    };
+    return createWorkOrder(staff.clinicId, body);
+  });
+
+  app.post("/api/lab-orders/:id/dispatch", async (req) => {
+    const staff = await staffFrom(req);
+    return dispatchWorkOrder(staff.clinicId, (req.params as { id: string }).id, ports.messaging);
+  });
+
+  app.post("/api/memberships", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { email: string; password: string; fullName: string; practitionerId: string; splitBps?: number };
+    return createMembership(staff.clinicId, staff.role, body);
+  });
+
+  app.post("/api/session", async (req) => {
+    const body = req.body as { email: string; password: string };
+    return login(body.email, body.password);
+  });
+
+  app.post("/api/session/switch", async (req) => {
+    const token = bearer(req);
+    if (!token) throw Object.assign(new Error("staff session required"), { statusCode: 401 });
+    const body = req.body as { clinicId: string };
+    return switchClinic(token, body.clinicId);
+  });
+
+  app.get("/api/itinerary", async (req) => {
+    const token = bearer(req);
+    if (!token) throw Object.assign(new Error("staff session required"), { statusCode: 401 });
+    return itinerary(token);
+  });
+
+  app.post("/api/fee-lines", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as {
+      appointmentId: string; practitionerId: string; grossPaise: number; labPaise: number; consumablePaise: number;
+    };
+    return recordFeeLine(staff.clinicId, body);
+  });
+
+  app.get("/api/fee-lines", async (req) => {
+    const staff = await staffFrom(req);
+    const practitionerId = (req.query as { practitionerId: string }).practitionerId;
+    return feeLedger(staff.clinicId, practitionerId);
+  });
+
+  app.post("/api/settlements", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { lineIds: string[] };
+    return requestSettlement(staff.clinicId, staff, body.lineIds);
+  });
+
+  app.post("/api/settlements/:id/respond", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { lineId: string; action: "approve" | "dispute"; reason?: string };
+    await respondSettlement(staff.clinicId, staff, (req.params as { id: string }).id, body);
+    return { ok: true };
+  });
+
+  app.post("/api/settlements/:id/paid", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { lineIds: string[] };
+    await markSettlementPaid(staff.clinicId, staff, (req.params as { id: string }).id, body.lineIds);
+    return { ok: true };
+  });
+
+  app.post("/api/calendar/webhook", async (req) => {
+    const raw = (req as RequestWithRaw).rawBody ?? Buffer.from("");
+    const signature = req.headers["x-practix-signature"];
+    const body = req.body as {
+      provider: string; providerEventId: string; clinicId: string; practitionerId: string; start: string; end: string;
+    };
+    return ingestCalendar(body, ports.calendar, raw, typeof signature === "string" ? signature : "");
+  });
+
+  app.post("/api/calendar/push", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { appointmentId: string };
+    return pushCalendar(staff.clinicId, body.appointmentId, ports.calendar);
+  });
+
+  app.post("/api/packages", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { name: string; sessions: number; pricePaise: number };
+    return definePackage(staff.clinicId, body);
+  });
+
+  app.post("/api/packages/purchase", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { patientId: string; definitionId: string };
+    return purchasePackage(staff.clinicId, body);
+  });
+
+  app.post("/api/packages/:id/redeem", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { appointmentId: string };
+    await redeemPackage(staff.clinicId, (req.params as { id: string }).id, body.appointmentId);
+    return { ok: true };
+  });
+
+  app.post("/api/inventory/items", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { name: string };
+    return addItem(staff.clinicId, body.name);
+  });
+
+  app.post("/api/inventory/batches", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { itemId: string; batchNo: string; expiresOn: string; qty: number };
+    return addBatch(staff.clinicId, body);
+  });
+
+  app.post("/api/inventory/issues", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { itemId: string; appointmentId: string; amountPaise: number };
+    return issueBatch(staff.clinicId, body);
+  });
+
+  app.post("/api/dependants", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { guardianId: string; name: string; phone: string };
+    return createDependant(staff.clinicId, body);
+  });
+
+  app.post("/api/relationships", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as {
+      guardianId: string; dependantId: string; relationship: string;
+      mayBook?: boolean; mayConsent?: boolean; mayViewClinical?: boolean; validUntil?: string;
+    };
+    return addRelationship(staff.clinicId, body);
+  });
+
+  app.patch("/api/relationships/:id", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { mayConsent?: boolean; mayBook?: boolean; mayViewClinical?: boolean; validUntil?: string | null };
+    await updateRelationship(staff.clinicId, (req.params as { id: string }).id, body);
+    return { ok: true };
+  });
+
+  app.post("/api/consents", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { guardianId: string; dependantId: string };
+    return recordConsent(staff.clinicId, body.guardianId, body.dependantId);
+  });
+
+  app.post("/api/relationships/book", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { guardianId: string; dependantId: string };
+    await assertCanBook(staff.clinicId, body.guardianId, body.dependantId);
+    return { ok: true };
+  });
+
+  app.post("/api/patients/:id/documents", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { kind: "prescription" | "receipt" };
+    return printDocument(staff.clinicId, (req.params as { id: string }).id, body.kind, ports.messaging);
   });
 
   app.post("/api/sync", async (req) => {

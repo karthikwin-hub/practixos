@@ -10,3 +10,15 @@ body {
 button, input {
   font: inherit;
 }
+
+.print-sheet {
+  font-family: "Nirmala UI", "Noto Sans", sans-serif;
+}
+
+@page {
+  size: A4;
+}
+
+@page a5 {
+  size: A5;
+}

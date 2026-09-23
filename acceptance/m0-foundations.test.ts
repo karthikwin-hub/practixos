@@ -8,14 +8,12 @@ import { buildApp } from "../src/app.ts";
  * and the restore drill has passed unattended. The timed terraform apply
  * transcript needs an OCI tenancy and is recorded separately.
  */
-test("M0 health check still answers and M3 routes are absent", async () => {
+test("M0 health check still answers and M5 routes are absent", async () => {
   const app = buildApp();
   const res = await app.inject({ method: "GET", url: "/healthz" });
   assert.equal(res.statusCode, 200);
   const routes = app.printRoutes();
-  for (const forbidden of ["/odontogram", "/lab-orders", "/abdm"]) {
-    assert.equal(routes.includes(forbidden), false);
-  }
+  assert.equal(routes.includes("/abdm"), false);
   await app.close();
 });
 

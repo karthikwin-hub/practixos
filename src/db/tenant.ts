@@ -63,14 +63,57 @@ export async function provisionClinic(
 
 export async function resolveStaffSession(
   token: string,
-): Promise<{ clinicId: string; userId: string; role: string } | null> {
-  const res = await getPool().query<{ clinic_id: string; user_id: string; role: string }>(
-    "SELECT clinic_id, user_id, role FROM resolve_staff_session($1)",
+): Promise<{ clinicId: string; userId: string; role: string; identityId: string | null } | null> {
+  const res = await getPool().query<{ clinic_id: string; user_id: string; role: string; identity_id: string | null }>(
+    "SELECT clinic_id, user_id, role, identity_id FROM resolve_staff_session($1)",
     [token],
   );
   const row = res.rows[0];
   if (!row) return null;
-  return { clinicId: row.clinic_id, userId: row.user_id, role: row.role };
+  return { clinicId: row.clinic_id, userId: row.user_id, role: row.role, identityId: row.identity_id };
+}
+
+export async function lookupIdentity(email: string): Promise<{
+  id: string; fullName: string; passwordHash: string; passwordSalt: Buffer;
+} | null> {
+  const res = await getPool().query<{ id: string; full_name: string; password_hash: string; password_salt: Buffer }>(
+    "SELECT id, full_name, password_hash, password_salt FROM lookup_identity($1)",
+    [email],
+  );
+  const row = res.rows[0];
+  if (!row) return null;
+  return { id: row.id, fullName: row.full_name, passwordHash: row.password_hash, passwordSalt: row.password_salt };
+}
+
+export async function membershipsFor(identityId: string): Promise<{
+  clinicId: string; userId: string; role: string; slug: string; displayName: string; practitionerId: string | null;
+}[]> {
+  const res = await getPool().query<{
+    clinic_id: string; user_id: string; role: string; slug: string; display_name: string; practitioner_id: string | null;
+  }>(
+    "SELECT clinic_id, user_id, role, slug, display_name, practitioner_id FROM identity_memberships($1)",
+    [identityId],
+  );
+  return res.rows.map((row) => ({
+    clinicId: row.clinic_id,
+    userId: row.user_id,
+    role: row.role,
+    slug: row.slug,
+    displayName: row.display_name,
+    practitionerId: row.practitioner_id,
+  }));
+}
+
+export async function createIdentitySession(token: string, identityId: string): Promise<void> {
+  await getPool().query("SELECT create_identity_session($1,$2)", [token, identityId]);
+}
+
+export async function resolveIdentitySession(token: string): Promise<string | null> {
+  const res = await getPool().query<{ identity_id: string }>(
+    "SELECT identity_id FROM resolve_identity_session($1)",
+    [token],
+  );
+  return res.rows[0]?.identity_id ?? null;
 }
 
 export async function resolvePatientSession(

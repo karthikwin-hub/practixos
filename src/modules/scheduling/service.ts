@@ -100,10 +100,27 @@ export async function openClinic(input: {
         [clinicId, moduleName],
       );
     }
+    for (const orderType of seed.workOrders) {
+      await tx.query(
+        `INSERT INTO work_order_types (clinic_id, type_key, required_fields) VALUES ($1,$2,$3)`,
+        [clinicId, orderType.typeKey, orderType.required],
+      );
+    }
+    for (const rule of seed.recalls) {
+      await tx.query(
+        `INSERT INTO recall_rules (clinic_id, trigger, offset_days, template_key)
+         VALUES ($1,$2,$3,$4)`,
+        [clinicId, rule.trigger, rule.offsetDays, rule.templateKey],
+      );
+    }
+    const identity = await tx.query<{ upsert_identity: string }>(
+      `SELECT upsert_identity($1,$2,$3,$4)`,
+      [input.email, input.ownerName, password.hash, password.salt],
+    );
     const user = await tx.query<{ id: string }>(
-      `INSERT INTO staff_users (clinic_id, email, full_name, role, password_hash, password_salt)
-       VALUES ($1,$2,$3,'owner',$4,$5) RETURNING id`,
-      [clinicId, input.email, input.ownerName, password.hash, password.salt],
+      `INSERT INTO staff_users (clinic_id, email, full_name, role, password_hash, password_salt, identity_id)
+       VALUES ($1,$2,$3,'owner',$4,$5,$6) RETURNING id`,
+      [clinicId, input.email, input.ownerName, password.hash, password.salt, identity.rows[0].upsert_identity],
     );
     await tx.query(
       `INSERT INTO staff_sessions (token, clinic_id, user_id, expires_at)
@@ -967,6 +984,7 @@ export async function queueBoard(clinicId: string): Promise<unknown> {
        JOIN patients p ON p.id = a.patient_id
        JOIN practitioners pr ON pr.id = a.practitioner_id
        WHERE a.clinic_id = $1 AND a.state NOT IN ('cancelled','no_show','done')
+         AND NOT a.external_hold
        ORDER BY a.token_no`,
       [clinicId],
     );

@@ -22,7 +22,11 @@ export async function resetDatabase(): Promise<void> {
     await client.query(`
       TRUNCATE TABLE
         recovered_revenue, payment_events, message_outbox, deposits, vitals, sync_applied,
-        import_batches, otp_challenges, patient_sessions, staff_sessions, staff_users,
+        proxy_consents, patient_relationships, expiry_notices, inventory_issues, inventory_batches,
+        inventory_items, package_redemptions, patient_packages, package_definitions, recalls, recall_rules,
+        import_batches, otp_challenges, patient_sessions, staff_sessions, identity_sessions,
+        fee_lines, settlements, calendar_outbound, calendar_events, work_orders, work_order_types,
+        treatment_steps, tooth_charts, staff_users, staff_identities,
         appointments, vault_notes, patients, queue_stages, clinic_modules, working_hours,
         break_windows, practitioners, chairs, audit_log, clinics
       RESTART IDENTITY CASCADE

@@ -171,7 +171,7 @@ Machine-readable. `scripts/trace.py` parses this block; keep the format exact. `
 milestone in progress, and is the only one whose uncovered ids fail the build.
 
 ```milestone-map
-current: M2
+current: M4
 M0: §4.4.1, §10.1, §8.2, FR-1.1.2, FR-1.1.7
 M1: FR-1.1, FR-1.1.1, FR-1.1.3, FR-1.1.4, FR-1.1.6, FR-1.2, FR-1.4, FR-1.5, FR-1.6, FR-1.7, BR-01, BR-02, BR-04, FR-7.4, FR-7.4.1, FR-7.4.2, FR-7.4.3, FR-7.4.4, FR-7.4.5
 M2: FR-2.1, FR-2.2, FR-2.3, FR-2.4, FR-3.1, FR-3.2, BR-05

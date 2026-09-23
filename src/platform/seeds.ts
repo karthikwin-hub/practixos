@@ -8,10 +8,23 @@ export interface StageSeed {
   dwell: number | null;
 }
 
+export interface WorkOrderSeed {
+  typeKey: string;
+  required: string[];
+}
+
+export interface RecallSeed {
+  trigger: "procedure_completed" | "plan_dormant" | "age_months" | "last_visit";
+  offsetDays: number;
+  templateKey: string;
+}
+
 export interface VerticalSeed {
   modules: string[];
   prepayRequired: boolean;
   stages: StageSeed[];
+  workOrders: WorkOrderSeed[];
+  recalls: RecallSeed[];
 }
 
 const dentalStages: StageSeed[] = [
@@ -26,6 +39,8 @@ export const verticalSeeds: Record<string, VerticalSeed> = {
     modules: ["portal", "queue", "triage", "charting", "billing"],
     prepayRequired: false,
     stages: dentalStages,
+    workOrders: [{ typeKey: "restoration", required: ["tooth", "restoration", "shade"] }],
+    recalls: [{ trigger: "last_visit", offsetDays: 180, templateKey: "checkup" }],
   },
   ophthalmology: {
     modules: ["portal", "queue", "triage", "billing"],
@@ -37,16 +52,22 @@ export const verticalSeeds: Record<string, VerticalSeed> = {
       { labelKey: "stageConsult", role: "in_service", dwell: null },
       { labelKey: "stageBilling", role: "post_service", dwell: null },
     ],
+    workOrders: [{ typeKey: "optical", required: ["prescription", "due"] }],
+    recalls: [{ trigger: "last_visit", offsetDays: 365, templateKey: "refraction" }],
   },
   dermatology: {
     modules: ["portal", "queue", "triage", "billing"],
     prepayRequired: false,
     stages: dentalStages,
+    workOrders: [],
+    recalls: [],
   },
   paediatrics: {
     modules: ["portal", "queue", "triage", "billing"],
     prepayRequired: false,
     stages: dentalStages,
+    workOrders: [],
+    recalls: [],
   },
   mental_health: {
     modules: ["portal", "queue", "vault", "billing"],
@@ -56,11 +77,15 @@ export const verticalSeeds: Record<string, VerticalSeed> = {
       { labelKey: "stageConsult", role: "in_service", dwell: null },
       { labelKey: "stageBilling", role: "post_service", dwell: null },
     ],
+    workOrders: [],
+    recalls: [],
   },
   polyclinic: {
     modules: ["portal", "queue", "triage", "charting", "vault", "billing"],
     prepayRequired: false,
     stages: dentalStages,
+    workOrders: [{ typeKey: "restoration", required: ["tooth", "restoration", "shade"] }],
+    recalls: [{ trigger: "last_visit", offsetDays: 180, templateKey: "checkup" }],
   },
 };
 

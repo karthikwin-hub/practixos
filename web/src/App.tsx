@@ -70,10 +70,16 @@ export function App() {
         <a href="#/setup">Setup</a>
         <a href="#/book">Book</a>
         <a href="#/desk">Desk</a>
+        <a href="#/chart">Chart</a>
+        <a href="#/print">Print</a>
+        <a href="#/settle">Settlement</a>
       </nav>
       {route.startsWith("#/setup") ? <Setup /> : null}
       {route.startsWith("#/book") ? <Book /> : null}
       {route.startsWith("#/desk") ? <Desk /> : null}
+      {route.startsWith("#/chart") ? <Chart /> : null}
+      {route.startsWith("#/print") ? <PrintSheet /> : null}
+      {route.startsWith("#/settle") ? <Settlement /> : null}
     </main>
   );
 }
@@ -343,5 +349,104 @@ function Keypad({ onSave }: { onSave: (reading: string) => void }) {
         Save vitals
       </button>
     </div>
+  );
+}
+
+function Chart() {
+  const [patientId, setPatientId] = useState("");
+  const [wide, setWide] = useState(window.innerWidth >= 600);
+  const [quadrant, setQuadrant] = useState("UR");
+  const [teeth, setTeeth] = useState<number[]>([]);
+  const [quadrants, setQuadrants] = useState<{ id: string; label: string; teeth: number[] }[]>([]);
+  const [sittings, setSittings] = useState<string[]>([]);
+  useEffect(() => {
+    const onResize = () => setWide(window.innerWidth >= 600);
+    window.addEventListener("resize", onResize);
+    void api("/api/odontogram").then((body) => {
+      const model = body as { teeth: number[]; quadrants: { id: string; label: string; teeth: number[] }[] };
+      setTeeth(model.teeth);
+      setQuadrants(model.quadrants);
+    }).catch(() => undefined);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const shown = wide ? teeth : (quadrants.find((item) => item.id === quadrant)?.teeth ?? []);
+  return (
+    <section className="grid gap-3">
+      <h1 className="text-xl">Odontogram</h1>
+      <input aria-label="Patient" className="min-h-12 rounded border px-3" value={patientId} onChange={(event) => setPatientId(event.target.value)} />
+      {wide ? null : (
+        <div className="flex gap-2">
+          {quadrants.map((item) => (
+            <button key={item.id} className="min-h-12 rounded border px-3" type="button" onClick={() => setQuadrant(item.id)}>{item.id}</button>
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-4 gap-2">
+        {shown.map((tooth) => (
+          <button
+            key={tooth}
+            className="min-h-12 rounded border"
+            type="button"
+            aria-label={`Tooth ${tooth}`}
+            onClick={() => {
+              void api(`/api/chart/${patientId}/teeth`, "POST", { tooth, state: "rct" }).then(() =>
+                api(`/api/chart/${patientId}/plans`, "POST", { tooth }),
+              ).then(() => api(`/api/chart/${patientId}`)).then((body) => {
+                const chart = body as { steps: { name: string }[] };
+                setSittings(chart.steps.map((step) => step.name));
+              });
+            }}
+          >
+            {tooth} RCT
+          </button>
+        ))}
+      </div>
+      <ul>{sittings.map((name) => <li key={name}>{name}</li>)}</ul>
+    </section>
+  );
+}
+
+function PrintSheet() {
+  const [text, setText] = useState("");
+  const [heading, setHeading] = useState("");
+  const patientId = new URLSearchParams(location.hash.split("?")[1] ?? "").get("patient") ?? "";
+  useEffect(() => {
+    if (!patientId) return;
+    void api(`/api/patients/${patientId}/documents`, "POST", { kind: "prescription" }).then((body) => {
+      const doc = body as { body: string; displayName: string; registrationNo: string | null; address: string | null };
+      setHeading([doc.displayName, doc.registrationNo, doc.address].filter(Boolean).join(" · "));
+      setText(doc.body);
+    }).catch(() => undefined);
+  }, [patientId]);
+  return (
+    <article className="print-sheet grid gap-3">
+      <h1 className="text-xl">Prescription</h1>
+      <p>{heading}</p>
+      <p>{text}</p>
+    </article>
+  );
+}
+
+function Settlement() {
+  const [lines, setLines] = useState<{ id: string; net_paise: number; status: string; settlement_id?: string }[]>([]);
+  const practitionerId = localStorage.getItem("practix.practitionerId") ?? "";
+  async function load(): Promise<void> {
+    const rows = await api(`/api/fee-lines?practitionerId=${practitionerId}`) as { id: string; net_paise: number; status: string }[];
+    setLines(rows);
+  }
+  useEffect(() => { void load().catch(() => undefined); }, []);
+  return (
+    <section className="grid gap-3">
+      <h1 className="text-xl">Settlement</h1>
+      {lines.map((line) => (
+        <article key={line.id} className="rounded border p-3">
+          <p>{line.status} · {line.net_paise}</p>
+          <div className="mt-2 flex gap-2">
+            <button className="min-h-12 rounded border px-3" type="button" onClick={() => void api(`/api/settlements/${line.settlement_id}/respond`, "POST", { lineId: line.id, action: "approve" }).then(load)}>Approve</button>
+            <button className="min-h-12 rounded border px-3" type="button" onClick={() => void api(`/api/settlements/${line.settlement_id}/respond`, "POST", { lineId: line.id, action: "dispute", reason: "query" }).then(load)}>Dispute</button>
+          </div>
+        </article>
+      ))}
+    </section>
   );
 }

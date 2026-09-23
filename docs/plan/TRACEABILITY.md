@@ -7,10 +7,10 @@ There is deliberately no timestamp in this file, so it changes only when
 coverage changes and a regression is visible in the diff.
 
 ```
-milestone in progress   M2
+milestone in progress   M4
 requirements defined    50
 scheduled into M0-M6    57
-covered by a test       31
+covered by a test       49
 ```
 
 ## Defined but not scheduled
@@ -27,7 +27,7 @@ decision that nobody wrote down.
 | --- | --- | --- |
 | `BR-01` | M1 | `tests/gates/followup.test.ts:6` |
 | `BR-02` | M1 | `acceptance/m1-chair-concurrency.test.ts:6` |
-| `BR-03` | M3 | — |
+| `BR-03` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `BR-04` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
 | `BR-05` | M2 | `acceptance/m2-walkin-under-10s.test.ts:36` |
 | `FR-1.1` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
@@ -35,7 +35,7 @@ decision that nobody wrote down.
 | `FR-1.1.2` | M0 | `tests/gates/tenant-isolation.test.ts:19` |
 | `FR-1.1.3` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7`<br>`tests/gates/followup.test.ts:6` |
 | `FR-1.1.4` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7`<br>`tests/unit/vertical.test.ts:6` |
-| `FR-1.1.5` | M3 | — |
+| `FR-1.1.5` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-1.1.6` | M1 | `acceptance/m1-self-onboard-15min.test.ts:7` |
 | `FR-1.1.7` | M0 | `tests/gates/fair-use.test.ts:10` |
 | `FR-1.2` | M1 | `acceptance/m1-book-pay-confirm.test.ts:7` |
@@ -50,21 +50,21 @@ decision that nobody wrote down.
 | `FR-2.4` | M2 | `acceptance/m2-offline-then-reconcile.test.ts:9`<br>`acceptance/m2-walkin-under-10s.test.ts:36` |
 | `FR-3.1` | M2 | `acceptance/m2-offline-then-reconcile.test.ts:9`<br>`acceptance/m2-walkin-under-10s.test.ts:36` |
 | `FR-3.2` | M2 | `acceptance/m2-walkin-under-10s.test.ts:36` |
-| `FR-4.1` | M3 | — |
-| `FR-4.2` | M3 | — |
-| `FR-4.3` | M3 | — |
-| `FR-4.4` | M3 | — |
-| `FR-4.5` | M3 | — |
-| `FR-4.6` | M3 | — |
+| `FR-4.1` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-4.2` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-4.3` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-4.4` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-4.5` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-4.6` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-5.1` | M6 | — |
 | `FR-5.2` | M6 | — |
 | `FR-5.3` | M6 | — |
 | `FR-5.4` | M6 | — |
-| `FR-6.1` | M3 | — |
-| `FR-6.2` | M3 | — |
-| `FR-6.3` | M3 | — |
-| `FR-6.4` | M3 | — |
-| `FR-6.5` | M3 | — |
+| `FR-6.1` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-6.2` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-6.3` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-6.4` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
+| `FR-6.5` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-7.1` | M5 | — |
 | `FR-7.2` | M5 | — |
 | `FR-7.3` | M5 | — |
@@ -76,12 +76,12 @@ decision that nobody wrote down.
 | `FR-7.4.5` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
 | `FR-7.4.6` | M5 | — |
 | `10.1` | M0 | `tests/gates/br02-concurrency.test.ts:18`<br>`tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/vault-non-recoverable.test.ts:26` |
-| `4.4.1` | M0 | `tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/tenant-isolation.test.ts:72`<br>`tests/unit/health.test.ts:20` |
-| `4.6.1` | M4 | — |
-| `4.6.2` | M4 | — |
-| `4.6.3` | M4 | — |
-| `4.6.4` | M4 | — |
-| `4.6.5` | M4 | — |
+| `4.4.1` | M0 | `tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/tenant-isolation.test.ts:72`<br>`tests/unit/health.test.ts:18` |
+| `4.6.1` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
+| `4.6.2` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
+| `4.6.3` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
+| `4.6.4` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
+| `4.6.5` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
 | `8.2` | M0 | `tests/gates/layout-integrity.test.ts:6` |
 
 ## Milestone scope
@@ -90,8 +90,8 @@ decision that nobody wrote down.
 | --- | --- | --- |
 | M0 | 5 | 5 |
 | M1 | 19 | 19 |
-| M2 **(in progress)** | 7 | 7 |
-| M3 | 13 | 0 |
-| M4 | 5 | 0 |
+| M2 | 7 | 7 |
+| M3 | 13 | 13 |
+| M4 **(in progress)** | 5 | 5 |
 | M5 | 4 | 0 |
 | M6 | 4 | 0 |
