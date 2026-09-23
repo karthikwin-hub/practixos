@@ -29,6 +29,7 @@ The remaining changes follow from a market analysis that re-ranked the launch ve
 | 30 | Verification of the guarantees | Demonstrated at milestone exit | **CI gates** for tenant isolation, BR-02 under concurrency, and vault non-recoverability (§10.1) | These three are what the product sells. A guarantee checked once at a milestone review is a guarantee that regresses in week three |
 | 31 | Status of §4.6 in the prototype | Specified only | **Built and demonstrated.** A fourth seeded workspace, Drishti Eye Care, is provisioned as configuration alone — a `Dilating` queue stage with a 20-minute dwell alert, an acuity-and-pressure triage set, a diabetic retinopathy recall rule and a cataract package. A CI assertion fails the build if the token `vertical` appears in any conditional | The configurable vertical engine is the central architectural bet of this document. A bet that is only described is indistinguishable from a bet that does not work. The prototype now carries the falsifiable version of the claim |
 | 32 | Unset `app.clinic_id` | The §4.4.1 sample policy calls `current_setting('app.clinic_id')`, which **raises** when the setting is absent | The policy uses `NULLIF(current_setting('app.clinic_id', true), '')::uuid`, so a missing setting matches **zero rows** | The prose in §4.4.1 and the §10.1 isolation gate require an unset context to return zero rows, not an error. The previous snippet contradicted that: without the missing-ok flag, PostgreSQL raises `unrecognized configuration parameter` and the request fails instead of returning nothing |
+| 33 | FR-1.3 scheduling | Natural-language symptom and doctor matching is defined in §8.1 and appears in no milestone | **Moved to Phase 2** (§9). It stays out of M0–M6 | The build protocol forbids implementing an unscheduled id and forbids quietly folding it into M1. Matching across Indic languages is a search product, not part of booking, deposits or the clinic floor |
 
 ### 0.2 What changed in v2.1 and why
 
@@ -903,7 +904,7 @@ Two implementation notes, both of which follow from the first.
   * **FR-1.1.6 — Onboarding and exit.** A new tenant is provisioned by inserting one clinic row and its configuration; no schema change, no new database and no new deployment. Exit is symmetrical: a per-tenant logical export for portability, and a per-tenant erasure job satisfying DPDP deletion requests without touching neighbouring tenants.
   * **FR-1.1.7 — Fair use.** Rate limits are applied per tenant at the edge, and a statement timeout is applied to the application database role, so one clinic running a heavy report cannot degrade another.
 * **FR-1.2** — The public portal supports on-the-fly language switching across English, Marathi, Telugu, Bengali and Konkani. *v2.0: this covers every patient-facing surface — confirmations, receipts, care notes and queue updates — not only the landing page.*
-* **FR-1.3** — Natural-language matching for symptoms, clinical terms and doctor names across all supported Indic languages.
+* **FR-1.3** — Natural-language matching for symptoms, clinical terms and doctor names across all supported Indic languages. *Moved to Phase 2 (§9, revision 33).* Not scheduled into M0–M6, and not part of the booking milestone.
 * **FR-1.4** — Patient authentication via WhatsApp OTP, eliminating username and password setup.
 * **FR-1.5** — The booking flow presents real-time open slots, confirms consultation mode (in-clinic or video), and applies follow-up fee rules before checkout.
 * **FR-1.6** — **Self-service onboarding.** *(New in v2.2.)* A clinic reaches its first live booking without human assistance. FR-1.1.6 already establishes that provisioning a tenant is one row insert; this requirement covers the path a clinic owner actually walks.
@@ -1072,6 +1073,7 @@ IMPACT
 | --- | --- | --- | --- |
 | Vernacular care drip journeys | Phase 1 (immediate) | Low — template engine | Eliminates repetitive post-operative phone calls; improves adherence |
 | Dynamic Token Radar | Phase 1 (immediate) | Medium — queue worker | Prevents crowded waiting rooms; reduces friction over delays |
+| Natural-language symptom and doctor matching (FR-1.3) | Phase 2 | High — Indic search | Cross-language discovery; deliberately not part of M1 booking |
 | Vernacular audio consent | Phase 2 (Q3) | Low — media storage | Legal protection under DPDP for non-English speaking patients |
 | Visual treatment explainers | Phase 2 (Q3) | Medium — content library | Increases acceptance of high-value multi-sitting dental work |
 | Auto-depletion inventory | Phase 2 (Q4) | Medium — relational logic | Prevents inventory leakage without manual data entry |
