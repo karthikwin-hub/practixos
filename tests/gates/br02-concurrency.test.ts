@@ -15,8 +15,10 @@ after(async () => {
 });
 
 /**
- * @spec 10.1 — N simultaneous bookings on one chair and an overlapping range
- * produce exactly one appointment.
+ * @spec 10.1, §4.4.2 — N simultaneous bookings on one chair and an overlapping
+ * range produce exactly one appointment. The inserts are raw SQL with no
+ * application-level check, so the seven that fail are refused by the exclusion
+ * constraint itself, which is what §4.4.2 requires.
  */
 test("eight simultaneous bookings on one chair produce exactly one appointment", async () => {
   const clinicId = randomUUID();

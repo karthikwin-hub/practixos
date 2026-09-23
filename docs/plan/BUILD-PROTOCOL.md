@@ -183,7 +183,7 @@ be claimed by a test rather than grandfathered in.
 
 ```milestone-map
 current: M4
-M0: §4.1, §4.2, §4.4.1, §4.4.2, §4.4.3, §4.4.4, §4.4.5, §5.4, §5.6, §8.2, §10.1, FR-1.1.2, FR-1.1.7
+M0: §4.4.1, §4.4.2, §4.4.3, §4.4.4, §4.4.5, §5.4, §5.6, §8.2, §10.1, FR-1.1.2, FR-1.1.7
 M1: §4.3, §4.5, §6.1, §6.3, §6.4, §6.6, FR-1.1, FR-1.1.1, FR-1.1.3, FR-1.1.4, FR-1.1.6, FR-1.2, FR-1.4, FR-1.5, FR-1.6, FR-1.7, BR-01, BR-02, BR-04, FR-7.4, FR-7.4.1, FR-7.4.2, FR-7.4.3, FR-7.4.4, FR-7.4.5
 M2: §6.2, FR-2.1, FR-2.2, FR-2.3, FR-2.4, FR-3.1, FR-3.2, BR-05
 M3: FR-4.1, FR-4.2, FR-4.3, FR-4.4, FR-4.5, FR-4.6, FR-1.1.5, FR-6.1, FR-6.2, FR-6.3, FR-6.4, FR-6.5, BR-03
@@ -228,6 +228,8 @@ without it.
 §1 — executive summary; narrative
 §2 — problem analysis; narrative
 §3 — commercial packaging and unit economics; §3.3's mechanism is carried by FR-7.4.1–FR-7.4.6
+§4.1 — architecture diagram; IMPLEMENTATION-PLAN.md §1 overrides it in six places marked DEVIATION, so a test that the system matches it would assert the opposite of a settled decision
+§4.2 — consolidated technology stack; same six DEVIATIONs. The stack is asserted where it is load-bearing — §4.4 for the database guarantees, §5.4 for the topology — not as a list to match
 §5.1 — why not Azure; rationale for a decision recorded in §5.4
 §5.2 — what OCI Always Free provides; vendor fact, not an obligation
 §5.3 — OCI setup notes; operator guidance
@@ -241,6 +243,10 @@ without it.
 
 Waiving a section is a decision with the same weight as scheduling one. If you are about to add a
 line here to make the build green, that is the moment to stop and ask — §6 of this protocol.
+
+The two §4 waivers are the shape of a legitimate one: not "this looks hard to test", but "the plan
+already overrode this, so demanding a test would demand a contradiction". A waiver argues; it does
+not shrug.
 
 ### 4.3 Per-milestone detail
 

@@ -1,10 +1,10 @@
 [
-  { "path": "/#/setup",    "label": "gate" },
-  { "path": "/#/desk",     "label": "board" },
-  { "path": "/#/nurse",    "label": "slate" },
-  { "path": "/#/chart",    "label": "chairside" },
-  { "path": "/#/recalls",  "label": "recalls" },
-  { "path": "/#/practice", "label": "practice" },
-  { "path": "/#/settle",   "label": "route-card" },
-  { "path": "/#/book",     "label": "doorway" }
+  { "path": "/#/setup",    "label": "gate",       "auth": false },
+  { "path": "/#/book",     "label": "doorway",    "auth": true },
+  { "path": "/#/desk",     "label": "board",      "auth": true },
+  { "path": "/#/nurse",    "label": "slate",      "auth": true },
+  { "path": "/#/chart",    "label": "chairside",  "auth": true },
+  { "path": "/#/recalls",  "label": "recalls",    "auth": true },
+  { "path": "/#/practice", "label": "practice",   "auth": true },
+  { "path": "/#/settle",   "label": "route-card", "auth": true }
 ]

@@ -111,13 +111,12 @@ else
   # Both checks exit 0 with a notice of their own when Chrome is absent.
   run "Layout integrity, prototype (spec 8.2)" python3 prototype/check-layout.py
   # The prototype check reads a file the build never touches, so on its own it
-  # is green regardless of what the product looks like. This is the one that
-  # measures the product.
-  if [ -d web ] && [ ! -d web/dist ]; then
-    skip "Layout integrity, client (spec 8.2, 6.6)" "no web/dist; run: npm --prefix web run build"
-  else
-    run "Layout integrity, client (spec 8.2, 6.6)" python3 scripts/check-client-layout.py
-  fi
+  # is green regardless of what the product looks like. The client check is the
+  # one that measures the product, and it needs a signed-in, populated client —
+  # so it runs from tests/gates/layout-integrity.test.ts, which boots the API
+  # and seeds a clinic. Run standalone here it would measure the sign-in screen
+  # and report PASS, which is the false green this whole gate exists to prevent.
+  skip "Layout integrity, client (spec 8.2, 6.6)" "runs inside the gates; needs a seeded API"
 fi
 
 # --------------------------------------------------------------------------- #

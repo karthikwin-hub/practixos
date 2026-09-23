@@ -9,19 +9,15 @@ coverage changes and a regression is visible in the diff.
 ```
 milestone in progress   M4
 requirements defined    50
-scheduled into M0-M6    73
-covered by a test       49
+scheduled into M0-M6    71
+covered by a test       52
 ```
 
 ## Gate failure — M0 through M4 are incomplete
 
 Scheduled into a milestone already reached, with no test claiming them:
 
-- `4.1` (M0)
-- `4.2` (M0)
-- `4.4.2` (M0)
 - `4.4.3` (M0)
-- `4.4.4` (M0)
 - `4.4.5` (M0)
 - `5.4` (M0)
 - `5.6` (M0)
@@ -30,7 +26,6 @@ Scheduled into a milestone already reached, with no test claiming them:
 - `6.1` (M1)
 - `6.3` (M1)
 - `6.4` (M1)
-- `6.6` (M1)
 - `6.2` (M2)
 
 Tag a test with `@spec <id>`, or move the id to a later milestone in the
@@ -100,13 +95,11 @@ decision that nobody wrote down.
 | `FR-7.4.6` | M5 | — |
 | `10.1` | M0 | `tests/gates/br02-concurrency.test.ts:18`<br>`tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/vault-non-recoverable.test.ts:26` |
 | `10.2` | M5 | — |
-| `4.1` | M0 | — |
-| `4.2` | M0 | — |
 | `4.3` | M1 | — |
 | `4.4.1` | M0 | `tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/tenant-isolation.test.ts:72`<br>`tests/unit/health.test.ts:18` |
-| `4.4.2` | M0 | — |
+| `4.4.2` | M0 | `tests/gates/br02-concurrency.test.ts:18` |
 | `4.4.3` | M0 | — |
-| `4.4.4` | M0 | — |
+| `4.4.4` | M0 | `tests/gates/vault-non-recoverable.test.ts:26` |
 | `4.4.5` | M0 | — |
 | `4.5` | M1 | — |
 | `4.6.1` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
@@ -120,15 +113,15 @@ decision that nobody wrote down.
 | `6.2` | M2 | — |
 | `6.3` | M1 | — |
 | `6.4` | M1 | — |
-| `6.6` | M1 | — |
-| `8.2` | M0 | `tests/gates/layout-integrity.test.ts:6` |
+| `6.6` | M1 | `tests/gates/layout-integrity.test.ts:34` |
+| `8.2` | M0 | `tests/gates/layout-integrity.test.ts:20`<br>`tests/gates/layout-integrity.test.ts:34` |
 
 ## Milestone scope
 
 | Milestone | Requirements | Covered |
 | --- | --- | --- |
-| M0 | 13 | 5 |
-| M1 | 25 | 19 |
+| M0 | 11 | 7 |
+| M1 | 25 | 20 |
 | M2 | 8 | 7 |
 | M3 | 13 | 13 |
 | M4 **(in progress)** | 5 | 5 |
@@ -147,6 +140,8 @@ rather than implied by absence.
 | `§11` | risk register; the R-ids are tracked in IMPLEMENTATION-PLAN.md, not here |
 | `§2` | problem analysis; narrative |
 | `§3` | commercial packaging and unit economics; §3.3's mechanism is carried by FR-7.4.1–FR-7.4.6 |
+| `§4.1` | architecture diagram; IMPLEMENTATION-PLAN.md §1 overrides it in six places marked DEVIATION, so a test that the system matches it would assert the opposite of a settled decision |
+| `§4.2` | consolidated technology stack; same six DEVIATIONs. The stack is asserted where it is load-bearing — §4.4 for the database guarantees, §5.4 for the topology — not as a list to match |
 | `§5.1` | why not Azure; rationale for a decision recorded in §5.4 |
 | `§5.2` | what OCI Always Free provides; vendor fact, not an obligation |
 | `§5.3` | OCI setup notes; operator guidance |

@@ -23,8 +23,9 @@ after(async () => {
 });
 
 /**
- * @spec 10.1 — note plaintext is unrecoverable from a full dump plus every
- * server-held secret, without the patient's PIN. There is no single-factor path.
+ * @spec 10.1, §4.4.4 — note plaintext is unrecoverable from a full dump plus
+ * every server-held secret, without the patient's PIN. There is no
+ * single-factor path, and no administrator override exists to find.
  */
 test("a dump plus the server secret does not yield note plaintext without the PIN", async () => {
   assert.equal(vault.vaultKdf.memoryKib, 64 * 1024);

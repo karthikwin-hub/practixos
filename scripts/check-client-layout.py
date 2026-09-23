@@ -36,6 +36,8 @@ import subprocess
 import sys
 import tempfile
 import threading
+import urllib.error
+import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLIENT = os.path.join(ROOT, "web")
@@ -64,6 +66,12 @@ def expected_lay(width):
 HOST = """<!DOCTYPE html><html><head><meta charset="utf-8"><title>probe</title>
 <style>html,body{margin:0;background:#222}iframe{border:0;display:block;height:900px;margin-bottom:4px}</style>
 </head><body>
+<script>
+// Runs before the iframes below are parsed, so the client reads a signed-in
+// session on its first render rather than bouncing to the sign-in screen.
+// Same origin as the iframes, which is the only reason this is visible to them.
+Object.entries(__SESSION__).forEach(([k, v]) => localStorage.setItem(k, v));
+</script>
 __IFRAMES__
 <pre id="out">PENDING</pre>
 <script>
@@ -105,19 +113,22 @@ def find_chrome():
 
 
 PROBE_PAGES: dict[str, bytes] = {}
+API_UPSTREAM = ""
 
 
 class SPAHandler(http.server.SimpleHTTPRequestHandler):
     """Static files, with any unknown path falling back to index.html, plus the
-    probe pages themselves.
+    probe pages, plus a pass-through to the API.
 
-    The probe must come from this same origin. Served from `file://` it cannot
-    read `contentDocument` on an `http://` iframe, and every measurement comes
-    back null — which reads in the output as a broken client rather than as a
-    broken harness.
+    Everything has to sit on one origin. The probe cannot read `contentDocument`
+    across origins, and the `practix.token` it seeds into `localStorage` would
+    not be visible to the iframes either — so the client would render its
+    sign-in screen and the run would measure that seven times.
     """
 
     def do_GET(self):
+        if self.path.startswith("/api/"):
+            return self.proxy("GET")
         page = PROBE_PAGES.get(self.path)
         if page is None:
             return super().do_GET()
@@ -126,6 +137,41 @@ class SPAHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(page)))
         self.end_headers()
         self.wfile.write(page)
+
+    def do_POST(self):
+        return self.proxy("POST")
+
+    def do_PATCH(self):
+        return self.proxy("PATCH")
+
+    def do_DELETE(self):
+        return self.proxy("DELETE")
+
+    def proxy(self, method):
+        if not API_UPSTREAM:
+            self.send_error(502, "no API upstream configured")
+            return
+        length = int(self.headers.get("Content-Length") or 0)
+        body = self.rfile.read(length) if length else None
+        req = urllib.request.Request(API_UPSTREAM + self.path, data=body, method=method)
+        for header in ("Content-Type", "Authorization", "Host"):
+            if self.headers.get(header):
+                req.add_header(header, self.headers[header])
+        try:
+            with urllib.request.urlopen(req, timeout=30) as up:
+                payload, status = up.read(), up.status
+                ctype = up.headers.get("Content-Type", "application/json")
+        except urllib.error.HTTPError as err:
+            payload, status = err.read(), err.code
+            ctype = err.headers.get("Content-Type", "application/json")
+        except OSError as err:
+            self.send_error(502, "API upstream unreachable: %s" % err)
+            return
+        self.send_response(status)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
 
     def send_head(self):
         path = self.translate_path(self.path)
@@ -151,12 +197,13 @@ def measure_js():
                .replace("__RAIL_SELECTOR__", ".rail"))
 
 
-def run_width(chrome, width, screens, base, workdir):
+def run_width(chrome, width, screens, base, session, workdir):
     frames = "\n".join(
         '<iframe id="f%d" width="%d" src="%s"></iframe>' % (i, width, base + s["path"])
         for i, s in enumerate(screens))
     host = (HOST.replace("__MEASURE__", measure_js())
                 .replace("__IFRAMES__", frames)
+                .replace("__SESSION__", json.dumps(session))
                 .replace("__SCREENS__", json.dumps(screens))
                 .replace("__W__", str(width)))
     route = "/__layout_probe_%d.html" % width
@@ -194,6 +241,9 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--widths", type=int, nargs="+", default=DEFAULT_WIDTHS)
     ap.add_argument("--dist", default=DIST, help="built client directory")
+    ap.add_argument("--api", help="base URL of a running API; /api is proxied to it")
+    ap.add_argument("--token", help="staff session token, so signed-in screens render")
+    ap.add_argument("--clinic", default="Layout Probe Clinic")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
 
@@ -208,6 +258,24 @@ def main():
 
     screens = read_screens()
 
+    global API_UPSTREAM
+    API_UPSTREAM = (args.api or "").rstrip("/")
+    session = {}
+    if args.token:
+        session = {"practix.token": args.token, "practix.clinicName": args.clinic,
+                   "practix.mark": "Px"}
+    else:
+        # Every signed-in route redirects to the sign-in screen without a token,
+        # so measuring them would measure that screen once per route.
+        skipped = [s["label"] for s in screens if s.get("auth")]
+        screens = [s for s in screens if not s.get("auth")]
+        if skipped:
+            print("No --token, so these signed-in screens are not measured: %s"
+                  % ", ".join(skipped))
+            print("The gate test in tests/gates/layout-integrity.test.ts supplies one.\n")
+        if not screens:
+            sys.exit("Every screen needs a session and none was given.")
+
     if not os.path.isdir(args.dist):
         sys.exit("No built client at %s. Build it first." % os.path.relpath(args.dist, ROOT))
     httpd, base = serve(args.dist)
@@ -219,12 +287,12 @@ def main():
     try:
         with tempfile.TemporaryDirectory(prefix="practix-client-layout-") as workdir:
             for width in args.widths:
-                batch = run_width(chrome, width, screens, base, workdir)
+                batch = run_width(chrome, width, screens, base, session, workdir)
                 worst = 0
                 if width == args.widths[0]:
                     for r in batch["results"]:
                         if not r.get("fatal"):
-                            signatures.setdefault(r["sig"], []).append(r["label"])
+                            signatures[r["label"]] = r["sig"]
                 for r in batch["results"]:
                     if r.get("fatal"):
                         print("  FATAL %4dpx  %-18s %s" % (width, r["label"], r["fatal"][:400]))
@@ -257,16 +325,21 @@ def main():
     finally:
         httpd.shutdown()
 
-    collapsed = [labels for labels in signatures.values() if len(labels) > 1]
+    # A signed-in screen that renders byte-for-byte like the sign-in screen did
+    # not get measured; the client bounced it. This is exact rather than a
+    # heuristic about duplicates, because two screens can legitimately look
+    # alike when both are empty.
+    public = [s["label"] for s in screens if not s.get("auth")]
+    gate_sigs = {signatures[label] for label in public if label in signatures}
+    bounced = [s["label"] for s in screens
+               if s.get("auth") and signatures.get(s["label"]) in gate_sigs]
 
     print("\n" + "=" * 62)
-    if collapsed:
-        print("These screens rendered identically, so they were not separately measured:")
-        for labels in collapsed:
-            print("  %s" % ", ".join(labels))
-        print("\nThe client redirected them to one place — usually the sign-in gate,")
-        print("because the run has no session. Measuring one screen seven times and")
-        print("reporting it as seven is worse than not running at all.")
+    if bounced:
+        print("These signed-in screens rendered as the sign-in screen, so they were")
+        print("not measured: %s" % ", ".join(bounced))
+        print("\nPass --token, or the run reports one screen several times over as")
+        print("several passing screens.")
         print("=" * 62)
         return 1
     if failures:
