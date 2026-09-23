@@ -1,0 +1,41 @@
+---
+description: Psychotherapy vault cryptography. A 4-digit PIN alone is not a secret; the key is split with a server-held factor and there is no administrator override.
+globs: src/modules/vault/**
+alwaysApply: false
+---
+
+# The vault must actually be zero-knowledge (FR-5.1, FR-5.2, plan §3.2)
+
+A 4-digit PIN has **10,000 possible values**. Against an attacker holding the database, no key
+derivation function saves you — an expensive KDF turns an instant break into a few hours of GPU
+time. The specification's original PBKDF2-from-PIN design does not deliver the property it promises.
+
+## Split the key
+
+```
+wrapping_key = Argon2id(
+    password = user_pin || server_secret,
+    salt     = per_note_salt,
+    m = 64 MiB, t = 3, p = 1
+)
+```
+
+`server_secret` lives in a **separate keystore, never in the application database**, and is released
+only to an authenticated, rate-limited, lockout-protected session. A stolen dump then contains no
+brute-forceable material, because the attacker holds only half the input. The therapist still types
+four digits; their experience is unchanged.
+
+## Non-negotiable
+
+- **Argon2id**, not PBKDF2. OWASP has recommended it since 2021.
+- **No administrator override, no recovery path, no server-side key capable of decryption alone.**
+  If you can write a code path that reveals a note without the patient's PIN, FR-5.2 is broken. This
+  is a gate (§10.1), asserted against a full dump plus every server-held secret.
+- Keys live in **JavaScript closure memory only**. Never `localStorage`, never `sessionStorage`,
+  never a cookie, never application state that a devtools inspection walks.
+- Auto re-lock after **10 minutes idle**; locked is the default state.
+- Every unlock writes to the append-only audit log.
+- When locked, only demographic and payment metadata is visible. All clinical text is masked.
+
+`prototype/PractixOS.html` uses PBKDF2 because the Web Crypto API offers no Argon2id, and says so on
+screen. That is a prototype limitation. Do not carry it into production.

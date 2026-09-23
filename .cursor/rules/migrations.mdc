@@ -1,0 +1,57 @@
+---
+description: Database migrations are plain SQL with an explicit down. Structural guarantees (RLS, exclusion constraints, grants) are written literally, never generated.
+globs: migrations/**/*.sql
+alwaysApply: false
+---
+
+# Migrations are plain SQL, and the guarantees are structural
+
+Most of this schema's correctness lives in things an ORM migration generator does not model:
+row-level security policies, `EXCLUDE USING gist` constraints, generated columns, partial unique
+indexes and column-level grants. Auto-generation round-trips those into something subtly different
+or silently drops them. Tool is `node-pg-migrate`; every `up` has an explicit `down`.
+
+## Row-level security — `FORCE`, or the owner bypasses it
+
+```sql
+ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patients FORCE  ROW LEVEL SECURITY;   -- without this the owning role skips every policy
+
+CREATE POLICY clinic_isolation ON patients
+  USING (clinic_id = current_setting('app.clinic_id')::uuid);
+```
+
+The application connects as a role that does **not** own the tables.
+
+## BR-02 — the database prevents double booking, not the application
+
+Between a `SELECT` that finds the chair free and the `INSERT` that books it, another transaction can
+do the same. Only a constraint closes that window.
+
+```sql
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+ALTER TABLE appointments
+  ADD CONSTRAINT chair_not_double_booked
+  EXCLUDE USING gist (chair_id WITH =, during WITH &&)
+  WHERE (chair_id IS NOT NULL AND state NOT IN ('cancelled','no_show'));
+```
+
+## Append-only means revoked, not conventional
+
+`audit_log` (BR-05) and the recovered-revenue ledger (FR-7.4.5) must survive a fully compromised
+application. Corrections are compensating negative rows, never edits.
+
+```sql
+REVOKE UPDATE, DELETE ON audit_log FROM app_rw;
+GRANT  INSERT, SELECT ON audit_log TO app_rw;
+```
+
+## Masking is a grant, not a view helper (BR-05, FR-2.3)
+
+```sql
+REVOKE SELECT (phone_e164)   ON patients FROM app_reception;
+GRANT  SELECT (phone_masked) ON patients TO   app_reception;
+```
+
+Store `phone_masked` as a generated column so FR-2.3 holds even against SQL injection.

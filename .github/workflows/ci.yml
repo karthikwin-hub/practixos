@@ -1,0 +1,93 @@
+name: verify
+
+# The gates of specification section 10.1 "run on every pull request, they block
+# merge, and they are written before the code they protect." This workflow is
+# how the first two of those happen.
+#
+# It deliberately runs ./scripts/verify.sh rather than restating the steps, so
+# that what CI checks and what a developer checks locally cannot drift apart.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Available for the section 10.1 gates once M0 writes them. The isolation
+    # gate must connect with pool max:1 against a real instance with the real
+    # policies applied — see docs/plan/BUILD-PROTOCOL.md section 3.3.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: practixos_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:ci@localhost:5432/practixos_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ubuntu-latest ships Google Chrome, which the layout gate needs.
+      # check-layout.py skips with a notice if it is ever absent.
+      - name: Report toolchain
+        run: |
+          node --version
+          python3 --version
+          google-chrome --version || echo "no Chrome; the layout gate will skip"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci
+          elif [ -f package.json ]; then npm install
+          else echo "No package.json yet; M0 creates it."
+          fi
+
+      - name: Verify
+        run: ./scripts/verify.sh
+
+      # TODO (M0): add the arm64 image build. Production runs on Ampere A1, so a
+      # CI that only ever builds amd64 will not catch an arch-specific break.
+
+      - name: Explain the result
+        if: always()
+        run: |
+          {
+            echo "## PractixOS verification"
+            echo
+            echo 'Ran `./scripts/verify.sh` — the same command developers run locally.'
+            echo
+            echo "### If this is red on the requirement traceability step"
+            echo
+            echo "That is expected until M0 is built. The gate lists every requirement"
+            echo "scheduled into the milestone in progress that no test claims yet, and"
+            echo "before M0 lands that is all of them. It is a to-do list, not a"
+            echo "misconfiguration."
+            echo
+            echo "**Do not fix it by deleting the gate.** See \`AGENTS.md\` section 6 and"
+            echo "\`docs/plan/BUILD-PROTOCOL.md\` section 1."
+          } >> "$GITHUB_STEP_SUMMARY"

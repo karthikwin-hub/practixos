@@ -1,0 +1,52 @@
+---
+description: Modular monolith boundaries, and the correctness rules for webhooks and external integrations.
+globs: src/modules/**/*.ts
+alwaysApply: false
+---
+
+# One deployable, enforced module boundaries
+
+Layout from `docs/plan/IMPLEMENTATION-PLAN.md` §1.5: `scheduling`, `clinical`, `vault`, `billing`,
+`messaging`, `abdm`, `sync`, over a shared `platform/`.
+
+Cross-module access goes through the other module's **exported service interface**, never into its
+tables. This preserves the option to extract a service later, at a point justified by load rather
+than by an architecture diagram.
+
+```ts
+// ❌ BAD — billing reaching into scheduling's tables
+const appt = await tx.query("SELECT * FROM appointments WHERE id = $1", [id]);
+
+// ✅ GOOD
+import { scheduling } from "../scheduling";
+const appt = await scheduling.getAppointment(tx, id);
+```
+
+## Webhooks are idempotent in the database, not in application logic
+
+Every gateway retries on non-2xx and on timeout, so each settlement arrives more than once. A
+duplicate double-credits a deposit and corrupts both FR-7.1 reconciliation and the FR-7.4 ledger.
+
+```ts
+// ❌ BAD — two concurrent retries both read "no" before either writes
+if (await seen(eventId)) return ok();
+
+// ✅ GOOD — insert the event and apply its financial effect in ONE transaction;
+//           treat a primary-key violation as a successful no-op returning 200.
+```
+
+Primary key is `(provider, provider_event_id)`.
+
+## Two more that are easy to get wrong
+
+- **Verify the HMAC over the raw body**, before parsing. Re-serialising JSON changes bytes and
+  invalidates the signature.
+- **Mask external calendar titles at write time** (FR-6.3), so a doctor's private event title never
+  enters our database at all. Masking at read time is a weaker guarantee.
+
+## Never branch on the vertical
+
+`clinics.vertical` seeds configuration at onboarding and is inert thereafter. No `if`, `switch`,
+ternary or lookup keyed on it. Queue stages, recall rules, measurements, packages and inventory are
+rows (§4.6). This is the whole of the M4 thesis; `AGENTS.md` §6 states it as a prohibition and
+`prototype/harness.js` already fails the build on it.

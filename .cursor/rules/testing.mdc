@@ -1,0 +1,45 @@
+---
+description: Test conventions. Tests are written before the code they protect, carry their spec id, and gate tests run against a real PostgreSQL instance.
+globs: tests/**,src/**/*.test.ts
+alwaysApply: false
+---
+
+# Tests come first and carry their id
+
+Specification §10.1: the gates "run on every pull request, they block merge, and they are written
+before the code they protect."
+
+```ts
+/** @spec BR-02 — one chair, overlapping range, concurrent attempts. */
+test("N simultaneous bookings on one chair produce exactly one appointment", async () => { ... });
+```
+
+`scripts/trace.py` reads the `@spec` tag. An untagged test covers nothing as far as the build is
+concerned.
+
+## Gate tests run against real PostgreSQL
+
+Four gates, defined in §10.1 and built in M0 before any business endpoint exists:
+
+| Gate | Asserts |
+| --- | --- |
+| Tenant isolation | Two tenants interleaved over a pool of size 1 never see each other's rows; an unset context reads zero rows |
+| BR-02 concurrency | N simultaneous bookings on one chair produce exactly one appointment |
+| Vault non-recoverability | No plaintext from a full dump plus every server-held secret, without the PIN |
+| Layout integrity | `python3 prototype/check-layout.py` |
+
+**A mocked database in a gate test is worse than no gate, because it reports green.** The spec puts
+it directly: "An isolation test that does not execute `CREATE POLICY` is testing the test." Spin up
+a container, run the real migrations, apply the real policies.
+
+The isolation gate must set pool `max: 1`, forcing every request onto one physical connection, and
+interleave two tenants. That is the only configuration that reproduces the R12 leak.
+
+## Discipline
+
+- Reproduce a bug with a failing test before fixing it.
+- Never weaken, skip or delete a gate to make a build pass. A red gate is information.
+- Assert the property, not the implementation. "No cross-tenant row is returned" survives a
+  refactor; "calls `withTenant` twice" does not.
+- Milestone exit criteria in §10 are acceptance tests with fixed names — see
+  `docs/plan/BUILD-PROTOCOL.md`.

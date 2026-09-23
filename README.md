@@ -47,9 +47,32 @@ Simulated: persistence (all state is in memory and resets on reload), payments, 
 
 **Stock is batches, never a total.** A clinic that knows it holds nine vials but not that six expire on Friday will use them on a patient. Issue is first-expiry-first-out, expired lots are named and discarded against an audit entry, and the chairside console shows the lot it is about to consume.
 
+## Building this
+
+Production code does not exist yet. When it does, it gets built to a protocol rather than to taste, because several guarantees in the specification — tenant isolation, the append-only audit trail, the vault — are the only reason a clinic can be asked to put patient data in at all.
+
+Start here, in this order:
+
+1. **[AGENTS.md](AGENTS.md)** — the contract. Loaded automatically into every Cursor session. Source-of-truth order, the spec-driven and test-driven loops, the prohibition list, and when to stop and ask.
+2. **[docs/plan/BUILD-PROTOCOL.md](docs/plan/BUILD-PROTOCOL.md)** — the long form. Bootstrap checklist, a worked example of the SDD loop, the four verification gates, and every milestone's exit criterion transcribed as a named acceptance test.
+3. **[docs/plan/TRACEABILITY.md](docs/plan/TRACEABILITY.md)** — generated coverage of all 50 requirement ids.
+
+Two rules carry most of the weight. **No code without a requirement id** — if the spec is silent or wrong, amend the spec first and log it in §0.1. And **no milestone is done until its acceptance test passes**, not when the code reads as though it should work.
+
+```bash
+./scripts/verify.sh            # lint, typecheck, tests, gates, layout, traceability
+./scripts/verify.sh --fast     # same, minus the slow layout pass
+```
+
+On a clean checkout this **exits non-zero**, and that is correct: the traceability gate lists every requirement scheduled into M0 that no test claims yet. That red list is the starting to-do list. A build that were green before anything had been built would be telling you nothing.
+
 ## Repository layout
 
 ```
+AGENTS.md                     the contract, auto-loaded by Cursor
+.cursor/rules/                glob-scoped rules: tenancy, migrations, client, vault, tests
+scripts/verify.sh             the single verification command
+scripts/trace.py              requirement traceability gate
 prototype/PractixOS.html      the prototype, one self-contained file
 prototype/check-layout.py     layout regression check, headless Chrome
 prototype/harness.js          logic harness, Node, no dependencies
@@ -58,7 +81,10 @@ docs/spec/Dr.App.Spec.html    the same specification, indexed and searchable
 docs/spec/build-spec-html.py  regenerates the HTML from the Markdown
 docs/spec/Market-Opportunity-Corrections.md
                               corrections against the market analysis PDF
-docs/plan/                    engineering plan and architecture decisions
+docs/spec/Market-Expansion-Thesis.md
+                              why the market is larger than one subscription number
+docs/pitch/                    investor one-pager
+docs/plan/                    engineering plan, build protocol, traceability
 docs/shots/                   review screenshots, phone and desktop
 ```
 

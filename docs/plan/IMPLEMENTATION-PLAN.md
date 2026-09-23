@@ -506,6 +506,8 @@ Google Calendar API v3 and Microsoft Graph, bidirectional, PractixOS as master. 
 
 Milestones are ordered by revenue impact rather than by specification order. Pre-payment and the follow-up engine ship before the odontogram, because deposits stop cash leaking from day one while the odontogram, valuable as it is, does not move money.
 
+> **How these milestones are actually executed** is set out in [BUILD-PROTOCOL.md](BUILD-PROTOCOL.md): the spec-driven and test-driven loops, the machine-readable milestone scope map that [../../scripts/trace.py](../../scripts/trace.py) gates against, and each exit criterion below transcribed into a named acceptance test. [../../AGENTS.md](../../AGENTS.md) is the short form and is loaded automatically into every agent session. Both exist because the six DEVIATIONs above, and the guarantees in section 2, are worth nothing if the next person to touch the codebase does not know they are decisions rather than accidents.
+
 ### M0 — Foundations (weeks 1–3)
 
 Terraform and cloud-init for the OCI host; Docker Compose topology; Postgres with `FORCE` RLS, `btree_gist` and the audit trigger; **the `withTenant` accessor and its lint rule (2.1.1)**; the migration runner; CI with arm64 builds; Caddy with Coraza and the public-surface rate limits; pgBackRest and the weekly restore drill.

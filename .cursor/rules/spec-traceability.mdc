@@ -1,0 +1,41 @@
+---
+description: Spec-driven development. Every change traces to a requirement id in Dr.App.txt, and every test declares which id it covers.
+alwaysApply: true
+---
+
+# No code without a spec id
+
+Valid ids live in `docs/spec/Dr.App.txt`: `FR-1.1.2`, `BR-02`, `§4.6.1`, or a named
+non-functional requirement from §8.2. `scripts/trace.py` extracts them.
+
+Tag every test with the id it covers. This is parsed, not decorative.
+
+```ts
+// ❌ BAD — nothing links this to the specification
+test("creates a walk-in patient", async () => { ... });
+
+// ✅ GOOD
+/** @spec FR-2.2 — walk-in needs only mobile number and name, under 10 seconds. */
+test("walk-in registration creates the patient and a per-practitioner token", async () => { ... });
+```
+
+Multiple ids on one test are fine: `@spec FR-1.5, BR-02`.
+
+## If the spec does not say
+
+Do not decide for it. In order:
+
+1. Amend `docs/spec/Dr.App.txt`, adding a row to the §0.1 revision log stating what changed and why.
+2. Regenerate: `python3 docs/spec/build-spec-html.py`.
+3. Then write the test, then the code.
+
+Never edit `docs/spec/Dr.App.Spec.html` by hand — it is generated output.
+
+## Before claiming done
+
+```bash
+python3 scripts/trace.py          # regenerates docs/plan/TRACEABILITY.md, exits non-zero on gaps
+./scripts/verify.sh               # everything
+```
+
+An id in the milestone currently in progress with no test covering it fails the build.

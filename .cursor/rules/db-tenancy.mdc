@@ -1,0 +1,47 @@
+---
+description: Tenant isolation in application code. withTenant is the only route to tenant-scoped data; a plain SET leaks tenant context across the connection pool.
+globs: src/**/*.ts
+alwaysApply: false
+---
+
+# Tenant context: SET LOCAL, inside a transaction, through one accessor
+
+Risk R12 in `docs/plan/IMPLEMENTATION-PLAN.md`. `SET` is **session-scoped** and survives the
+connection's return to the pool. The next request inherits the previous tenant's value, reads
+another clinic's rows, and row-level security permits it because the policy is doing what it was
+told. It raises no error, passes every single-request test, and gets more likely under load.
+
+```ts
+// ❌ BAD — leaks to the next borrower of this connection
+const c = await pool.connect();
+await c.query(`SET app.clinic_id = '${clinicId}'`);
+
+// ✅ GOOD — src/db/tenant.ts, the only sanctioned route
+export async function withTenant<T>(clinicId: string, fn: (tx: PoolClient) => Promise<T>) {
+  const tx = await pool.connect();
+  try {
+    await tx.query("BEGIN");
+    // set_config(..., true) is SET LOCAL: discarded on commit or rollback.
+    await tx.query("SELECT set_config('app.clinic_id', $1, true)", [clinicId]);
+    const result = await fn(tx);
+    await tx.query("COMMIT");
+    return result;
+  } catch (err) {
+    await tx.query("ROLLBACK");
+    throw err;
+  } finally {
+    tx.release();
+  }
+}
+```
+
+## Rules
+
+- `pool.query` and `pool.connect` are forbidden outside `src/db/tenant.ts`. Two audited exemptions:
+  the migration runner and pg-boss's own queue tables. Enforce with ESLint `no-restricted-properties`.
+- Never interpolate a tenant id into SQL text. Parameterise it — this string *is* the isolation
+  boundary.
+- pg-boss jobs have no request context. Every tenant-scoped job carries `clinic_id` in its payload
+  and runs inside `withTenant`. A job inferring its tenant any other way is a defect.
+- A cross-tenant read returns **zero rows, never an authorization error** (FR-1.1.2). A denial
+  confirms the record exists.

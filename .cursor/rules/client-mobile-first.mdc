@@ -1,0 +1,44 @@
+---
+description: Client rules. Mobile-first is a requirement, not a preference; every screen must be complete at 320px and every interaction reachable with one thumb.
+globs: src/client/**/*.ts,src/client/**/*.tsx,src/client/**/*.css
+alwaysApply: false
+---
+
+# The phone is the design target (§8.2)
+
+Every screen must be complete and usable at **320 px wide, in portrait, on a mid-range Android
+phone**. Tablet and desktop add density — more lanes, real tables, the full dental arch — never
+capability. No task may be possible on a desktop and impossible on a phone.
+
+## Verified mechanically, so these are not opinions
+
+- **No horizontal overflow at any width.** A dense artefact that genuinely needs more room sits in
+  an explicitly scrollable container with a visible affordance; it never pushes the page sideways.
+- **No collapsed content.** The converse defect: a mis-specified grid can squeeze a screen to a
+  sliver while producing no overflow at all. This is why §10.1 lists layout as a gate — it happened.
+
+`prototype/check-layout.py` asserts both, across seven widths from 320 to 1280.
+
+## Touch
+
+- Minimum **48 × 48 px** targets, rising to **64 × 64** in nurse triage.
+- **Pointer Events, never HTML5 drag-and-drop** — it does not fire on touch at all. Every draggable
+  card also needs a non-drag path (a "Move to…" sheet), because on a phone only one lane is on
+  screen and there is nowhere to drag to.
+- Primary actions sit within thumb reach, meaning the bottom of the screen.
+- Text inputs render at **minimum 16 px** on touch layouts, or iOS zooms on focus.
+
+## Layout and viewport
+
+- Layout is an attribute on `<html>` (`data-lay="phone|tab|desk"`), selected from the viewport and
+  overridable per device. One codebase, one component set; the override changes an attribute, not a
+  build target. The preference is device-local and never propagates to other staff.
+- `viewport-fit=cover`, respect `env(safe-area-inset-*)`, and use `dvh` not `vh` — collapsing
+  browser chrome otherwise clips the last row of the queue.
+
+## Accessibility and offline
+
+- **Never signal by colour alone.** Tooth states carry colour *and* fill pattern *and* text label.
+- Script-appropriate line-height per language; honour `prefers-reduced-motion`.
+- **Read from Dexie first, always.** Every operational surface must render from IndexedDB with the
+  network down — that is the availability claim (§8.2), not a nicety.
