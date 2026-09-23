@@ -148,7 +148,7 @@ Backing this claim requires three things, all of which are non-optional:
 
 The Microsoft for Startups self-serve offer is $1,000 valid for 90 days, followed by a further $4,000 for 180 days after business verification. That is roughly ₹4.4 lakh across about nine months, after which the subscription converts automatically to pay-as-you-go. Investor Network-backed startups begin at $100,000 with up to $150,000 available over two years.
 
-Either way, credits are a subsidy with an expiry date. Putting the production database of a clinical system on an expiring subsidy guarantees a migration under deadline pressure at exactly the moment the business is trying to grow. And the commercial pitch in specification section 3.3 — that ABDM DHIS incentives cover the subscription — requires a defensible cost-per-clinic figure. "Currently free because Microsoft is paying" is not that figure.
+Either way, credits are a subsidy with an expiry date. Putting the production database of a clinical system on an expiring subsidy guarantees a migration under deadline pressure at exactly the moment the business is trying to grow. And the commercial pitch in specification section 3.3 — that the platform recovers multiples of its own price out of clinic leakage — requires a defensible cost-per-clinic figure. "Currently free because Microsoft is paying" is not that figure.
 
 If the Investor Network offer is available, take it. Spend it as described in 1.9.4. Do not move production onto it.
 
@@ -208,12 +208,13 @@ The governing rule: **anything running on credits must be movable in an afternoo
 | Workload | Rationale |
 | --- | --- |
 | Geo-redundant encrypted backups (Blob, Central India) | High value, low cost, worth continuing to pay for after credits lapse |
-| Staging and demo environments (Container Apps) | Genuinely disposable |
+| Staging and demo environments (an Azure VM running the production `compose.yml`) | Genuinely disposable. *Corrected after review: originally Container Apps. Staging on a different runtime to production cannot catch what staging exists to catch — Compose networking, volume permissions, memory limits and container start ordering are exactly where a single-host deployment breaks, and a managed container service papers over all four. Same Compose file, smaller VM.* |
 | Load and soak testing before pilot go-live | Burst compute is precisely what credits are for |
 | **GPU time to fine-tune IndicWhisper for Speech-to-Rx** | The highest-value use available: expensive compute we would never otherwise buy, and the output is model weights — a durable asset that outlives the credits |
 | Azure OpenAI / Foundry for AI Enterprise tier research | Time-boxed R&D |
 | ~~Production database~~ | Never |
 | ~~Production application~~ | Never |
+| ~~Production on any non-Indian edge, including Vercel~~ | Never. The interactive prototype is hosted on Vercel for pilot feedback, which is fine — fictional data, no backend. It must not become the production path: Vercel terminates TLS outside India, which contradicts the residency argument that Caddy-in-Mumbai, OCI `ap-mumbai-1` and DNS-only Cloudflare exist to support |
 
 #### Cost trajectory
 
@@ -236,6 +237,7 @@ Every band clears the specification's ₹250 per clinic target. Total marginal c
 | API | Fastify, Node 22, TypeScript | MIT |
 | Auth | Better Auth | MIT |
 | Database | PostgreSQL 16 (+ `btree_gist`, RLS) | PostgreSQL Licence |
+| Migrations | node-pg-migrate, plain SQL, explicit down for every up | MIT |
 | Jobs | pg-boss | MIT |
 | Realtime | Postgres `LISTEN/NOTIFY` → WebSocket | — |
 | FHIR | HAPI FHIR (validation and serialisation) | Apache 2.0 |
@@ -246,6 +248,8 @@ Every band clears the specification's ₹250 per clinic target. Total marginal c
 | CI | GitHub Actions | — |
 
 Every component is free and open source. There is no commercial licence anywhere in the production path.
+
+**On the migration tool, added after review.** The v2.1 plan left this unnamed, which is a real gap rather than a detail. Most of this schema's correctness lives in things an ORM's migration generator does not model: row-level security policies, `EXCLUDE USING gist` constraints, generated columns, partial unique indexes and column-level `REVOKE` grants. Auto-generation round-trips those into something subtly different, or silently drops them. `node-pg-migrate` is chosen because migrations are plain SQL — a policy is written as the `CREATE POLICY` statement it actually is — with an explicit `down` for every `up`, so a failed deploy is reversible rather than archaeological. The migration runner connects as a DDL-capable role that the application role is not, and is one of the two audited exemptions from the `withTenant` lint rule in 2.1.1.
 
 ---
 
@@ -274,6 +278,50 @@ GRANT  SELECT (phone_masked) ON patients TO app_reception;
 ```
 
 Storing `phone_masked` as a generated column and revoking column-level access to the real number means FR-2.3 holds even against a SQL-injection vector, because the reception database role genuinely cannot read the column.
+
+Policies use `FORCE ROW LEVEL SECURITY`, and the application connects as a role that does not own the tables. Without `FORCE`, the owning role bypasses every policy above.
+
+#### 2.1.1 Setting `app.clinic_id` — the defect that would undo all of this
+
+*Added after review. This is the highest-severity gap found in the v2.1 plan, and M0 does not exit without the three controls below.*
+
+Everything in 2.1 depends on `app.clinic_id` being correct. The obvious way to set it is wrong.
+
+We use a connection pool. `SET app.clinic_id = ...` is **session-scoped** and survives the connection's return to the pool. The next request to borrow that connection inherits the previous tenant's value. If that request then fails to set its own — an early return, an error path, a code path added six months later — it reads another clinic's rows, and the RLS policy happily permits it because the policy is doing exactly what it was told.
+
+What makes this worth a subsection rather than a code comment: it **passes every single-request test**, it **raises no error**, and it becomes **more likely as concurrency rises**, so its first appearance is in production during a busy clinic hour. It is also, in DPDP terms, a reportable breach.
+
+**Control 1 — a single accessor built on `SET LOCAL`.** `SET LOCAL` is transaction-scoped and is discarded on commit or rollback, so a released connection cannot carry it.
+
+```ts
+// src/db/tenant.ts — the only sanctioned route to tenant-scoped data.
+export async function withTenant<T>(
+  clinicId: string,
+  fn: (tx: PoolClient) => Promise<T>,
+): Promise<T> {
+  const tx = await pool.connect();
+  try {
+    await tx.query("BEGIN");
+    // set_config(..., true) is SET LOCAL. Parameterised: interpolating a tenant
+    // id into this string would hand an attacker the isolation boundary itself.
+    await tx.query("SELECT set_config('app.clinic_id', $1, true)", [clinicId]);
+    const result = await fn(tx);
+    await tx.query("COMMIT");
+    return result;
+  } catch (err) {
+    await tx.query("ROLLBACK");
+    throw err;
+  } finally {
+    tx.release();
+  }
+}
+```
+
+**Control 2 — make the bypass fail the build.** An ESLint `no-restricted-properties` rule forbids `pool.query` and `pool.connect` outside `src/db/tenant.ts`. Two audited exemptions exist, both genuinely outside any tenant context: the migration runner, and pg-boss's own queue tables. A rule that developers must remember is not a control.
+
+**Control 3 — a CI gate that reproduces the breach conditions.** Pool `max: 1`, forcing every request onto one physical connection, two tenants interleaved, asserting that neither observes the other. It additionally asserts that a query issued with **no** tenant context returns zero rows rather than the previous tenant's — which `SET LOCAL` gives us for free, since an unset `app.clinic_id` matches nothing.
+
+The worker is where this will be reintroduced if anywhere: pg-boss jobs have no request context, so every tenant-scoped job carries `clinic_id` in its payload and runs inside `withTenant`. A job that infers its tenant from anything else is a defect.
 
 ### 2.2 Core schema
 
@@ -431,6 +479,25 @@ DHIS accounting is a ledger, not a counter: every qualifying transaction is reco
 
 UPI via a PSP supporting dynamic QR with settlement webhooks. Every payment is reconciled against a webhook rather than a client-side success callback, since the client can lie or simply disconnect.
 
+**Webhooks must be idempotent, and the enforcement belongs in the database.** Every gateway retries on a non-2xx response and on timeout, so each settlement will arrive more than once. Duplicate application double-credits a deposit and corrupts both the daily reconciliation (FR-7.1) and the Recovered Revenue ledger (FR-7.4).
+
+```sql
+CREATE TABLE payment_events (
+  provider       text   NOT NULL,
+  provider_event_id text NOT NULL,
+  clinic_id      uuid   NOT NULL REFERENCES clinics(id),
+  payload        jsonb  NOT NULL,
+  received_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (provider, provider_event_id)
+);
+```
+
+The handler inserts the event and applies its financial effect **in one transaction**, and treats a primary-key violation as a successful no-op returning 200. An application-level "have I already seen this?" lookup is not equivalent: two concurrent retries both read "no" before either writes.
+
+Signature verification happens before anything else, and the raw body is verified rather than the re-serialised JSON, because re-serialisation changes bytes and invalidates the HMAC.
+
+**Rate limiting the public surface.** Every tenant portal exposes unauthenticated OTP and booking endpoints. Each OTP send costs real money, and sustained abuse degrades the WhatsApp quality rating that all 1,000 tenants share (R11). Limits are applied in two independent places, because the edge can be bypassed if the origin is ever reachable directly: Caddy enforces per-IP and per-path ceilings, and the application enforces per-phone and per-tenant ceilings with exponential backoff per destination number. Each tenant carries a monthly messaging spend cap that degrades to SMS rather than failing open, so a booking cannot be silently lost to a budget control.
+
 Google Calendar API v3 and Microsoft Graph, bidirectional, PractixOS as master. External events are written as blocking appointments with titles masked to "Doctor Unavailable (External Sync)" per FR-6.3 — masked at write time, so the private title never enters our database at all. That is a stronger guarantee than masking at read time, and it means a database compromise cannot reveal a doctor's personal calendar.
 
 ---
@@ -441,17 +508,30 @@ Milestones are ordered by revenue impact rather than by specification order. Pre
 
 ### M0 — Foundations (weeks 1–3)
 
-Terraform and cloud-init for the OCI host; Docker Compose topology; Postgres with RLS, `btree_gist` and the audit trigger; CI with arm64 builds; Caddy with Coraza; pgBackRest and the weekly restore drill.
+Terraform and cloud-init for the OCI host; Docker Compose topology; Postgres with `FORCE` RLS, `btree_gist` and the audit trigger; **the `withTenant` accessor and its lint rule (2.1.1)**; the migration runner; CI with arm64 builds; Caddy with Coraza and the public-surface rate limits; pgBackRest and the weekly restore drill.
+
+**The four verification gates land here, before any business logic exists**, because each is cheaper to write against an empty schema than to retrofit against a full one, and because their purpose is to fail on the commit that breaks them rather than at a milestone review weeks later:
+
+| Gate | Asserts |
+| --- | --- |
+| Tenant isolation | Two tenants interleaved over a pool of size 1 never see each other's rows; an unset context reads zero rows (2.1.1) |
+| BR-02 concurrency | N simultaneous bookings on one chair and overlapping range produce exactly one appointment (2.3) |
+| Vault non-recoverability | Plaintext is unrecoverable from a full dump plus all server-held secrets, without the patient PIN (3.2) |
+| Layout integrity | `prototype/check-layout.py` — every view, every tenant, seven widths, no overflow and no collapse |
+
+The isolation gate runs against a real Postgres container with the real policies applied. An isolation test that never executes `CREATE POLICY` is testing itself.
 
 Started in parallel because of lead time: **ABDM sandbox registration** and **WhatsApp template submission**.
 
-*Exit:* a rebuild from `terraform apply` to serving traffic completes in under 20 minutes, and the restore drill passes unattended.
+*Exit:* a rebuild from `terraform apply` to serving traffic completes in under 20 minutes; the restore drill passes unattended; and all four gates run green in CI.
 
 ### M1 — Booking and money (weeks 4–8)
 
-Clinic and practitioner setup; public portal with five-language switching (FR-1.1, FR-1.2); WhatsApp OTP authentication (FR-1.4); slot search honouring the chair and practitioner exclusion constraints (FR-1.5, BR-02); the follow-up rule engine (BR-01); UPI deposits with webhook reconciliation; psychotherapy pre-payment and the 24-hour cancellation policy (BR-04).
+Self-service onboarding wizard and CSV import (FR-1.6, FR-1.7); public portal with five-language switching (FR-1.1, FR-1.2); WhatsApp OTP authentication (FR-1.4); slot search honouring the chair and practitioner exclusion constraints (FR-1.5, BR-02); the follow-up rule engine (BR-01); UPI deposits with idempotent webhook reconciliation (4.3); pre-payment and the 24-hour cancellation policy (BR-04); **Recovered Revenue capture for `no_show_prevented` and `deposit_converted`, with delivery-receipt storage and the anti-double-counting constraint (FR-7.4)**.
 
-*Exit:* a patient books, pays and receives a WhatsApp confirmation in Marathi; concurrent booking attempts on one chair produce exactly one appointment.
+The ledger capture ships alongside the mechanisms it measures rather than with the dashboard in M5. Retrofitting it later would mean a dashboard whose first months are empty, which is the same as not having it — and delivery receipts not stored at the time cannot be reconstructed.
+
+*Exit:* a patient books, pays and receives a WhatsApp confirmation in Marathi; concurrent booking attempts on one chair produce exactly one appointment; an owner takes a clinic from signup to a live test booking in under 15 minutes without assistance; a deposit-secured attended appointment writes exactly one ledger row.
 
 ### M2 — The clinic floor (weeks 9–13)
 
@@ -461,25 +541,37 @@ Reception Kanban with realtime updates (FR-2.1, FR-2.4); two-input walk-in regis
 
 ### M3 — Dental vertical (weeks 14–18)
 
-FDI odontogram (FR-4.1, FR-4.2); treatment plan generation from charted conditions (FR-4.3); lab work-order tracker with WhatsApp dispatch (FR-4.4, FR-4.5); visiting consultant hub with calendar sync and fee-split ledger (FR-6.1 to FR-6.4, BR-03).
+FDI odontogram (FR-4.1, FR-4.2); treatment plan generation from charted conditions (FR-4.3); lab work-order tracker with WhatsApp dispatch, undispatchable while tooth number, restoration type or shade is missing (FR-4.4, FR-4.5); print artifacts for prescription and receipt (FR-4.6); visiting consultant hub with calendar sync, fee-split ledger and owner-side settlement approval (FR-6.1 to FR-6.5, BR-03).
 
-*Exit:* charting tooth 16 produces a three-sitting plan, dispatches a lab order and credits the consultant ledger correctly.
+*Exit:* charting tooth 16 produces a three-sitting plan, dispatches a lab order, credits the consultant ledger correctly, and the owner can approve or dispute the resulting settlement.
 
-### M4 — Mental health vertical (weeks 19–22)
+### M4 — The configurable vertical engine (weeks 19–22)
 
-Split-key Argon2id vault (FR-5.1, FR-5.2); SOAP editor with DSM-5 coding; GAD-7 and PHQ-9 tracking (FR-5.3); recurring weekly series linked to pre-payment (FR-5.4).
+*Replaces the mental health vertical, which moves to M6. See specification 2.4: mental health is 1.6% of the addressable market and was consuming a milestone and the hardest security subsystem in the build.*
+
+Per-tenant queue stages replacing the hardcoded lanes (4.6.1); the recall engine on pg-boss (4.6.2); package and series billing (4.6.3); batch and expiry inventory (4.6.4); dependant and guardian accounts with consent by proxy (4.6.5).
+
+These four weeks are the difference between a second vertical costing a milestone and a second vertical costing an afternoon. The governing constraint is that **no code may branch on `clinics.vertical`** — the column seeds configuration at onboarding and is otherwise inert.
+
+*Exit:* an ophthalmology tenant is stood up **entirely through configuration, with no code change** — a *Waiting for Dilation* stage with a dwell alert, an annual refraction recall, an optical work-order type — and passes the same test suite as the dental tenant.
+
+### M5 — Administration, recovered revenue and ABDM (weeks 23–27)
+
+Daily cash and UPI reconciliation (FR-7.1); the Recovered Revenue owner dashboard and break-even display (FR-7.4.6, capture having landed in M1–M2); ABDM M1/M2/M3 in production against the **v3 APIs** with the Category-aware DHIS ledger (FR-7.2); chair-time profitability (FR-7.3); Phase 1 roadmap features — vernacular care drip, and the Dynamic Token Radar with its rolling-median per-practitioner estimator.
+
+v3 API conformance is not optional: from July 2026 a non-conformant facility or Digital Solution Company earns no incentive at all.
+
+*Exit:* ABDM production certification granted against v3; a clinic's DHIS accrual reconciles line by line against NHA records; every rupee in the Recovered Revenue total resolves to a delivery receipt, payment reference or invoice line, and no appointment is credited twice.
+
+### M6 — Mental health vertical (weeks 28–31)
+
+Split-key Argon2id vault (FR-5.1, FR-5.2); SOAP editor with DSM-5 coding; GAD-7 and PHQ-9 tracking (FR-5.3); recurring weekly series linked to pre-payment (FR-5.4), built on the M4 package engine rather than as bespoke recurrence.
 
 *Exit:* an independent reviewer with full database access cannot recover note plaintext.
 
-### M5 — Administration and ABDM (weeks 23–27)
-
-Daily cash and UPI reconciliation (FR-7.1); ABDM M1/M2/M3 in production with the DHIS ledger (FR-7.2); chair-time profitability (FR-7.3); Phase 1 roadmap features — vernacular care drip and Dynamic Token Radar.
-
-*Exit:* ABDM production certification granted; a clinic's DHIS accrual reconciles line by line against NHA records.
-
 ### Phase 2 and beyond
 
-Vernacular audio consent, visual treatment explainers and auto-depletion inventory follow M5. Speech-to-Rx and NHCX cashless claims are Phase 3, gated on the IndicWhisper fine-tuning funded by Azure GPU credits.
+Ophthalmology, dermatology and paediatrics follow as configuration exercises on the M4 engine, in that order and for the reasons set out in specification 2.4. Vernacular audio consent and visual treatment explainers follow M6. Speech-to-Rx and NHCX cashless claims are Phase 3, gated on the IndicWhisper fine-tuning funded by Azure GPU credits.
 
 ---
 
@@ -507,13 +599,16 @@ Runs in parallel throughout, not as a phase.
 | R1 | OCI Ampere capacity unavailable in Mumbai | Blocks provisioning | Pay-as-you-go account from day one; Terraform retry; fallback to paid A1 at ~$55/month, which remains within budget |
 | R2 | Oracle terminates the account | Total loss of production | PAYG with card on file; weekly verified restores; a documented and rehearsed migration to a second Indian provider |
 | R3 | Single host fails | Outage until rebuild | Offline-first client keeps clinics operating (1.8); 20-minute automated rebuild; 5-minute RPO |
-| R4 | ABDM certification slips | Delays the DHIS revenue story that justifies pricing | Start in M0; the product remains saleable without it, though at a weaker ROI pitch |
+| R4 | ABDM certification slips | Blocks interoperability and any DHIS accrual; v3 conformance is a hard gate from July 2026 | Start in M0; the product remains fully saleable without it, because the ROI argument is leakage recovery rather than subsidy |
 | R5 | WhatsApp templates rejected | Blocks launch messaging | Submit in M0; keep a plain-SMS fallback path |
-| R6 | **DHIS scheme revised or withdrawn** | Undermines the core commercial pitch | Do not make DHIS the only ROI argument; chair-time profitability and no-show recovery must stand alone |
+| R6 | **DHIS scheme revised or withdrawn** — *materialised, April 2026* | The commercial pitch was overstated by roughly 5× | **Already occurred.** NHA Corrigendum 7 cut the outpatient Category 2 facility rate from ₹20 to ₹5, excluded Scan & Share and Health Locker, and restricted eligibility to KYC-verified ABHA records. Specification 3.3 and 3.4 rewritten in v2.2; the ROI argument is now the Recovered Revenue ledger, which no policy change can withdraw |
 | R7 | Konkani translation quality | Poor experience in a launch language | Budget for a native reviewer; treat Konkani as beta until reviewed |
 | R8 | Azure credits expire with production dependencies attached | Forced migration under pressure | The movable-in-an-afternoon rule (1.9.4); production never runs on credits |
 | R9 | Offline sync conflicts corrupt clinical data | Patient safety issue | Per-field last-write-wins with vector clocks for operational data; clinical notes never auto-merge, and conflicts surface for explicit clinician resolution |
 | R10 | 2 OCPU insufficient sooner than projected | Degraded performance | Netdata alerting at 70% sustained CPU; vertical scale to 4/24 is a reboot, not a migration |
+| R11 | **One shared WhatsApp Business Account across all tenants** | One clinic's poor templates degrade the quality rating every other clinic messages through; at the limit Meta throttles or bans the number and all tenants lose their primary patient channel at once | Platform-owned parameterised templates, never tenant-authored free text; per-tenant quality and block-rate monitoring with automatic suspension of an offending tenant's marketing sends; marketing separated from utility traffic so a marketing problem cannot stop appointment confirmations; a documented path to per-tenant WABAs for high-volume clinics |
+| R12 | **Tenant context leaks across pooled connections** | Silent total cross-tenant exposure: wrong rows, no error, reportable under DPDP. Passes every single-request test and worsens under load | `SET LOCAL` inside an explicit transaction via the single `withTenant` accessor; an ESLint rule making the bypass fail the build; a CI gate over a pool of size 1 asserting an unset context reads zero rows (2.1.1) |
+| R13 | **Unauthenticated OTP and booking endpoints abused** | Direct messaging cost, plus damage to the shared quality rating R11 depends on; one public portal per tenant multiplies the surface by the tenant count | Per-IP and per-path limits at Caddy, per-phone and per-tenant limits in the application, exponential backoff per destination number, a monthly spend cap per tenant that degrades to SMS rather than failing open, and alerting on send-rate anomalies (4.3) |
 
 ---
 

@@ -1,6 +1,6 @@
 # Comprehensive Product Specification & Strategic Blueprint: PractixOS
 
-**Version 2.1** · 11 September 2026 · Supersedes v2.0 and v1.0
+**Version 2.2** · 23 September 2026 · Supersedes v2.1, v2.0 and v1.0
 
 | | |
 | --- | --- |
@@ -12,7 +12,24 @@
 
 ## 0. Revision Log
 
-### 0.1 What changed in v2.1 and why
+### 0.1 What changed in v2.2 and why
+
+Version 2.2 is the first revision to change the **commercial** case rather than the technical one, and it does so because an external fact changed underneath the document. In April 2026 the National Health Authority cut the Digital Health Incentive Scheme rate for outpatient records from ₹20 to ₹5 and restricted eligibility. The return-on-investment argument that v1.0 through v2.1 placed at the centre of the product was overstated by roughly a factor of five. Risk R6 — written in v2.0 to warn against exactly this dependency — had already materialised five months before it was recorded.
+
+The remaining changes follow from a market analysis that re-ranked the launch verticals, and from a review of the tenancy implementation that found one latent defect severe enough to gate the first server endpoint.
+
+| # | Area | v2.1 | v2.2 | Rationale |
+| --- | --- | --- | --- | --- |
+| 24 | Primary ROI argument | ABDM DHIS subsidy covers the subscription several times over | **Leakage recovery** (new §3.3), measured and evidenced by the **Recovered Revenue ledger** (new FR-7.4) | A subsidy is external, revocable, and continues if the clinic cancels. Recovered revenue is none of those things. The platform now proves its return from the clinic's own data rather than asserting it |
+| 25 | DHIS economics | ₹10–20 per transaction; 450 × ₹20 = ₹9,000/month | **₹5** for Category 2 outpatient records; first 100 transactions excluded; KYC-verified ABHA only; corrected worked example **₹1,525/month** (§3.4) | NHA Corrigendum 7, effective April 2026. Scan & Share and Health Locker now earn nothing, and v3 API compliance is a hard gate from July 2026. R6 rewritten to record the risk as materialised |
+| 26 | Launch verticals | Dentistry **and** Mental Health Counselling in Phase 1 | **Dentistry first**, then Ophthalmology, Dermatology, Paediatrics (§2.4). Mental health and the encrypted vault move to Phase 2 | Mental health is 6,970 practitioners — 1.6% of the addressable market — yet consumed a full milestone and the hardest security subsystem in the build. The vault remains a genuine differentiator; it is a Phase 2 differentiator |
+| 27 | How a vertical is added | Implicit; specialty workflows written per vertical | **Four configurable subsystems** (§4.6): per-tenant queue stages, a recall engine, package and series billing, batch and expiry inventory — plus dependant and guardian accounts | Each named vertical needs a variation of the same four things. Built as configuration they cost one milestone; built per vertical they cost one milestone each |
+| 28 | Self-serve readiness | Not specified | **FR-1.6** onboarding wizard, **FR-1.7** data import, **FR-4.6** print artifacts, **FR-6.5** owner-side settlement approval, per-practitioner tokens, self-hosted Indic fonts | A 1,000-tenant product with no stated sales team cannot configure tenants by hand, and cannot win a clinic whose patients are already in a spreadsheet |
+| 29 | Tenant context propagation | Row-Level Security with `app.clinic_id`, method unspecified | **`withTenant()` with `SET LOCAL` inside an explicit transaction**, an ESLint rule banning raw pool access, and a concurrency CI gate (§4.4.1, R12) | On a pooled connection a plain `SET` survives release and the next request inherits it. This is a silent total cross-tenant breach that passes every single-request test |
+| 30 | Verification of the guarantees | Demonstrated at milestone exit | **CI gates** for tenant isolation, BR-02 under concurrency, and vault non-recoverability (§10.1) | These three are what the product sells. A guarantee checked once at a milestone review is a guarantee that regresses in week three |
+| 31 | Status of §4.6 in the prototype | Specified only | **Built and demonstrated.** A fourth seeded workspace, Drishti Eye Care, is provisioned as configuration alone — a `Dilating` queue stage with a 20-minute dwell alert, an acuity-and-pressure triage set, a diabetic retinopathy recall rule and a cataract package. A CI assertion fails the build if the token `vertical` appears in any conditional | The configurable vertical engine is the central architectural bet of this document. A bet that is only described is indistinguishable from a bet that does not work. The prototype now carries the falsifiable version of the claim |
+
+### 0.2 What changed in v2.1 and why
 
 Version 2.1 changes no business rule and adds no module. It corrects two things v2.0 left implicit, both of which turned out to be load-bearing once the prototype was built and measured on a real phone viewport.
 
@@ -25,7 +42,7 @@ Version 2.1 changes no business rule and adds no module. It corrects two things 
 | 22 | Odontogram on small screens | A single 32-tooth arch (FR-4.1) | Full arch at 600 px and above; **quadrant selector** below it | Sixteen teeth across a 375 px screen is 21 px per target, against a 48 px accessibility floor |
 | 23 | Verification | Manual review | **`prototype/check-layout.py`** — every view × every tenant × seven widths, asserting neither horizontal overflow nor collapsed content, exiting non-zero on failure | The grid bug that collapsed the phone layout to 100 px produced no overflow at all; an overflow-only check cannot see it |
 
-### 0.2 What changed in v2.0 and why
+### 0.3 What changed in v2.0 and why
 
 Version 1.0 established the product thesis, the market analysis and the requirement set. All of that survives intact. What changed is the **technical architecture**, which in v1.0 specified infrastructure costing roughly ₹35,000–60,000 per month before the first clinic signed up, contradicting the document's own target of under ₹250 per clinic per month.
 
@@ -55,7 +72,7 @@ Version 1.0 established the product thesis, the market analysis and the requirem
 
 ### 1.1 Executive Thesis
 
-PractixOS is a verticalized Practice Operating System designed specifically for independent outpatient medical practices in India, launching initially in two distinct clinical verticals — **Dentistry** and **Mental Health Counselling** — with an underlying architecture engineered for expansion into general outpatient polyclinics.
+PractixOS is a verticalized Practice Operating System designed specifically for independent outpatient medical practices in India. It launches in a single clinical vertical — **Dentistry** — on an architecture in which the operational differences between specialties are expressed as per-tenant configuration rather than as code, so that Ophthalmology, Dermatology, Paediatrics and Mental Health Counselling follow without a rebuild, and general outpatient polyclinics after them. *(v2.2: v1.0–v2.1 launched two verticals simultaneously; see §2.4 for why that changed.)*
 
 In the Indian private healthcare ecosystem, generic appointment schedulers fail because they address scheduling as a standalone administrative task. In reality, clinic viability is determined by specialty-specific workflows:
 
@@ -63,14 +80,15 @@ In the Indian private healthcare ecosystem, generic appointment schedulers fail 
 * Mental health practices are time-bounded operations governed by strict clinical confidentiality, recurring appointments, and high unrecoverable losses from patient no-shows.
 * Across all Indian private practices, front-desk staff have limited digital literacy, digital personal data regulations are tightening under the Digital Personal Data Protection (DPDP) Act 2023, and patient footfall spans diverse socioeconomic and linguistic backgrounds.
 
-PractixOS rejects the marketplace aggregator model, which commoditizes doctors, and the horizontal calendar model, which creates administrative burden. Instead it provides an end-to-end operational operating system that runs friction-free on low-cost hardware, embeds natively into WhatsApp, supports major Indic languages (English, Marathi, Telugu, Bengali, Konkani), enforces medical privacy law, and turns statutory digital health adoption (ABDM) into a direct revenue driver for clinics.
+PractixOS rejects the marketplace aggregator model, which commoditizes doctors, and the horizontal calendar model, which creates administrative burden. Instead it provides an end-to-end operational operating system that runs friction-free on low-cost hardware, embeds natively into WhatsApp, supports major Indic languages (English, Marathi, Telugu, Bengali, Konkani), enforces medical privacy law, and pays for itself out of revenue the clinic is currently losing to no-shows, abandoned treatment plans and unbilled work (Section 3.3).
 
 ### 1.2 Core Product Pillars
 
 * **Zero-App Patient Engagement.** Patients interact entirely through sovereign clinic web portals (Progressive Web Apps) and two-way WhatsApp Business flows, eliminating app-download drop-off.
 * **Bifurcated Localization Model.** High-velocity dense interfaces for clinicians and staff, paired with generous native-script Indic typography and vernacular voice notes for patients. This is a typographic and interaction-design commitment, not only a translation commitment — see Section 6.
 * **Specialty-Specific Operational Workflows.** Interactive 32-tooth graphical odontograms and lab trackers for dentists; PIN-encrypted psychotherapy vaults for counsellors.
-* **Regulatory Compliance & Government Arbitrage.** Native Milestone 1/2/3 integration with the Ayushman Bharat Digital Mission, converting digital records into financial subsidy via the Digital Health Incentive Scheme.
+* **Measured Revenue Recovery.** *(Promoted to a pillar in v2.2.)* The platform does not assert a return on investment; it records one. Every no-show prevented by a confirmed reminder, every booking secured by a deposit, every dormant treatment plan resumed by a recall and every lab remake avoided is written to an auditable ledger with its evidence reference (FR-7.4). The owner sees what the software recovered, in rupees, from their own data.
+* **Regulatory Compliance.** Native Milestone 1/2/3 integration with the Ayushman Bharat Digital Mission. This is primarily a compliance and interoperability capability; the Digital Health Incentive Scheme adds a modest secondary payment on top, not a subsidy that funds the subscription (see Section 3.4).
 * **Autonomous Schedule & Cash-Flow Protection.** Two-way synchronization with personal Google and Outlook calendars, dynamic UPI reservation deposits, and rule-based follow-up fee calculation.
 * **Structural Cost Discipline.** *(New in v2.0.)* The platform runs entirely on free and open-source software with no commercial licence anywhere in the production path, on infrastructure that costs ₹0 per month at pilot scale. Low cost is an architectural property, not a discount.
 
@@ -104,8 +122,39 @@ Independent clinics in India operate in high-pressure environments that render W
 | **Solo dental surgeon** | Unmonitored lab delays; slow typing during clinical examination; high treatment-plan drop-off | Interactive 32-tooth FDI odontogram; automated WhatsApp lab work orders; auto-generated phased treatment plans | Saves 15 minutes per chair sitting; prevents delayed lab appointments |
 | **Visiting MDS specialist** | Juggling four to six clinics; calendar collisions with personal commitments; opaque revenue splits | Unified multi-clinic mobile hub; two-way Google and Outlook sync; automated 60/40 fee-split ledger | Eliminates double-booking; automates consultant payroll reconciliation |
 | **Mental health counsellor** | Front-desk staff able to view sensitive session notes; revenue loss from unfillable 50-minute no-shows | PIN-locked encrypted vault; 100% upfront UPI pre-payment; automated cancellation policy | Guaranteed session revenue; statutory privacy protection for psychotherapy notes |
-| **Clinic owner / administrator** | Front-desk cash leakage; rising per-doctor software costs; unmonitored chair-time cost | Flat facility pricing with unlimited staff; daily cash-versus-UPI reconciliation; chair-time profitability calculator | Prevents financial leakage; software pays for itself via ABDM DHIS claims |
+| **Clinic owner / administrator** | Front-desk cash leakage; rising per-doctor software costs; unmonitored chair-time cost | Flat facility pricing with unlimited staff; daily cash-versus-UPI reconciliation; chair-time profitability calculator; Recovered Revenue ledger (FR-7.4) | Prevents financial leakage; the subscription is justified against an auditable record of revenue the platform recovered |
 | **Commercial dental laboratories** | Shade and tooth-number errors from phone-call orders, causing remakes | Structured WhatsApp work orders carrying tooth number, restoration type, shade and due date | Reduces remake rate; streamlines lab billing |
+
+### 2.4 Vertical Sequencing  *(new in v2.2)*
+
+Versions 1.0 to 2.1 named **Dentistry and Mental Health Counselling** as co-equal Phase 1 verticals. Market sizing across the ten largest Indian metropolitan areas plus Goa does not support that pairing.
+
+| Vertical | Practitioners in the target geography | Share | Status in v2.2 |
+| --- | --- | --- | --- |
+| General practice & others | 247,435 | 57.7% | Deferred — see below |
+| Dentistry | 80,168 | 18.7% | **Phase 1, sole launch vertical** |
+| Obstetrics, gynaecology & IVF | 34,850 | 8.1% | Deferred — see below |
+| Paediatrics | 27,880 | 6.5% | Phase 2, fourth |
+| Ophthalmology | 17,425 | 4.1% | Phase 2, second |
+| Dermatology | 13,940 | 3.3% | Phase 2, third |
+| Mental health counselling | 6,970 | 1.6% | **Moved to Phase 2** |
+| **Total** | **428,668** | | |
+
+Mental health counselling is the smallest identified segment. In v2.1 it nonetheless consumed an entire milestone and the single hardest security subsystem in the product — the split-key encrypted vault. That is the correct investment eventually and the wrong investment first. The vault remains fully specified (FR-5.1 to FR-5.4, §4.4.4) and remains a genuine competitive moat; it ships in Phase 2.
+
+**The sequence, and the reasoning behind it.** Ordering is by market size weighted against how much of the existing dental build each vertical reuses — because the cost of the *second* vertical determines whether there is ever a third.
+
+1. **Dentistry (80,168).** The largest single specialty after undifferentiated general practice, with the deepest operational pain the product already addresses: physical chair constraints, external fabrication laboratories, visiting specialists and high-value multi-sitting treatment plans that are frequently abandoned. It is also the only vertical with a natural third-party distribution channel — see below.
+2. **Ophthalmology (17,425).** The highest reuse of the dental build of any candidate. Its signature operational need, the multi-stage wait (*Waiting for Dilation* → *Ready for Doctor*), is satisfied entirely by the configurable queue stages of §4.6.1. More significantly, **optical dispensing maps almost one-to-one onto the dental laboratory work-order tracker**: an order carrying a prescription and a due date goes to an external lens laboratory, returns, and the patient is notified. The only genuinely new artefact is the refraction prescription format, which is a form rather than a subsystem.
+3. **Dermatology (13,940).** The smallest of the three but the strongest unit economics in the market: cash-pay aesthetic work with no insurance friction, a short sales cycle, and practices that sit comfortably on the AI Enterprise tier rather than Solo Practice. It exercises package and series billing (§4.6.3) and batch-and-expiry inventory (§4.6.4), both of which dentistry also benefits from.
+4. **Paediatrics (27,880).** The largest of the three and the most acute pain — 60 to 80 patients in a condensed evening session makes the Dynamic Token Radar a requirement rather than a differentiator — and immunisation recall is the strongest retention mechanism available anywhere in the product, because a missed immunisation is a clinical event rather than an inconvenience. It ranks fourth only because it is the one vertical requiring a genuine data-model change: **dependant and guardian accounts** (§4.6.5), since a parent books, consents and pays on behalf of a child.
+
+**Deliberately deferred.**
+
+* **Obstetrics, gynaecology and IVF (34,850)** is the largest deferred segment and the temptation is real. It is deferred because it needs a longitudinal nine-month care-cycle subsystem that has no analogue anywhere in the current product, it is imaging-heavy, and a substantial share of the segment practises inside hospitals rather than in the independent outpatient setting this product is built for.
+* **General practice and others (247,435)** is 57.7% of the market and is deferred deliberately rather than dismissively. It is the least differentiated need, the lowest willingness to pay, and the segment every incumbent already contests. The correct approach is to arrive at it *last*, once queue stages, recalls, billing and inventory are all per-tenant configuration — at which point a general practice is a configuration file rather than a project. That same configurability is the precondition for any institutional or government deployment.
+
+**Distribution note.** The dental laboratory is the product's most under-exploited commercial asset. The platform already creates direct value for laboratories (structured work orders carrying tooth number, shade and due date, reducing remakes), a single commercial laboratory serves between 100 and 300 dentists, and the relationship is already commercial. This is the cheapest distribution channel available at a ₹999–3,499 price point, where direct field sales cannot be afforded, and it should be tested before any sales hire.
 
 ---
 
@@ -148,22 +197,66 @@ Every band clears the ₹250 per clinic target set in v1.0.
 
 Total marginal delivery cost per active clinic, including messaging, payment gateway fees and support, falls between **₹100 and ₹250 per month**, against v1.0's estimate of ₹350 to ₹550. This lifts blended gross margin from 80–85% to **88% to 92%**.
 
-### 3.3 The ABDM Digital Health Incentive Scheme Arbitrage
+### 3.3 The Leakage Recovery Model  *(new in v2.2 — the primary return-on-investment argument)*
 
-Under active National Health Authority operational guidelines, the government financially subsidises digital health transactions:
+Until v2.1 the commercial case rested on a government subsidy. Section 3.4 explains why it no longer can. The return-on-investment argument is now built on money the clinic is **already losing**, which has three advantages over a subsidy: it does not depend on policy, it is larger, and the platform can prove it after the fact rather than promise it in advance.
 
-* Digital Solution Companies earn **₹5 per qualifying transaction** once baseline transaction tiers are achieved.
-* Healthcare facilities earn **₹10 to ₹20 per qualifying transaction** above baseline volume thresholds.
+Section 2.1 establishes that urban outpatient no-show rates routinely exceed 20–30%. That is the single largest controllable loss in an independent practice, and it is joined by four smaller ones. PractixOS addresses all five, and — critically — **measures its own effect on each**, writing every recovery to an auditable ledger (FR-7.4).
 
-*ROI impact.* A two-chair dental clinic or outpatient polyclinic handling 20 patients daily generates roughly 450 eligible ABDM care-context bundles per month.
+| Leakage source | Mechanism that recovers it | Ledger event |
+| --- | --- | --- |
+| Patient forgets the appointment | Confirmed WhatsApp reminder in the patient's language, with a one-tap confirm | `no_show_prevented` |
+| High-value slot booked casually, then abandoned | UPI reservation deposit at the time of booking (BR-03) | `deposit_converted` |
+| Phased treatment plan silently abandoned after visit two | Recall engine re-contacts the patient at the clinically appropriate interval | `plan_resumed` |
+| Lab remake caused by a missing shade or tooth number | Structured work order that cannot be submitted incomplete | `remake_avoided` |
+| Consumable used chairside but never invoiced | Items logged in clinical notes are carried onto the invoice automatically | `consumable_billed` |
 
-> Clinic incentive = 450 × ₹20 = **₹9,000 monthly government payout**
+**Worked example — two-chair dental practice, 400 appointments per month, Clinic Pro at ₹1,999.** These are deliberately conservative per-clinic assumptions; the sales motion must quote these rather than the optimistic case.
 
-A clinic owner paying ₹1,999 per month for Clinic Pro receives ₹9,000 in monthly government health incentives, fully covering the software cost and generating over ₹7,000 in monthly net profit.
+| Event | Monthly volume | Unit value | Recovered |
+| --- | --- | --- | --- |
+| `no_show_prevented` | 5 | ₹800 | ₹4,000 |
+| `deposit_converted` | 2 | ₹2,500 | ₹5,000 |
+| `plan_resumed` | 1 | ₹6,000 | ₹6,000 |
+| `remake_avoided` | 1 every 2 months | ₹1,400 | ₹700 |
+| `consumable_billed` | 15 | ₹60 | ₹900 |
+| | | **Total** | **₹16,600** |
 
-**Commercial caution added in v2.0.** DHIS is a government scheme and its rates and eligibility are subject to revision. It must not be the only return-on-investment argument in the sales motion. Chair-time profitability (FR-7.3) and no-show recovery (BR-04) must stand on their own, so that a change to the scheme damages a pricing argument rather than the entire commercial case. See risk R6.
+The headline is not the total, which will vary widely by practice. The headline is the break-even: at an average realised appointment value of ₹800, **the subscription has paid for itself by the third recovered no-show of the month.** Everything after that is margin the clinic keeps.
 
-Accrual is recorded as a **ledger, not a counter**: every qualifying transaction is stored with its FHIR bundle reference so that a clinic's claim can be reconciled line by line against NHA records. Owners audit this number, because it is the number that justifies the subscription.
+**Anti-double-counting rule.** A single appointment may generate at most one attribution event. An appointment secured by a deposit is credited as `deposit_converted` and is explicitly *not* also credited as `no_show_prevented`, even where a reminder was delivered. Recovery totals that inflate under audit destroy the credibility of the entire number, and this figure exists precisely to survive an owner's scepticism.
+
+**Why this is also the churn defence.** A subsidy is external; if the clinic cancels, the subsidy continues. Recovered revenue is not. The ledger is a running, evidenced statement of what stops happening the month the clinic leaves, and it is visible on the owner's dashboard every single month.
+
+### 3.4 ABDM Compliance and the Digital Health Incentive Scheme  *(materially revised in v2.2)*
+
+**The economics of this scheme changed in April 2026, and earlier versions of this document were wrong by roughly a factor of five.** Versions 1.0 to 2.1 stated that a clinic earns ₹20 per qualifying transaction and therefore around ₹9,000 a month, covering the subscription several times over. That is no longer true, and the claim must not appear in any sales material.
+
+**Current rates — NHA Corrigendum 7 to the DHIS, effective April 2026** (`S-12021/070/2022-ABDM(Coord)`, published 09 April 2026):
+
+| Recipient | Category 1 — Diagnostic Report, Discharge Summary | Category 2 — Prescription, OP Consultation, Immunization Record, Wellness Record, Invoice |
+| --- | --- | --- |
+| Health facility | ₹10 per eligible transaction | **₹5 per eligible transaction** |
+| Digital Solution Company | ₹5 per eligible transaction | ₹2.50 per eligible transaction |
+
+Four conditions materially reduce the realisable amount, and all four are new or tightened:
+
+* **The first 100 transactions each month earn nothing.** The eligibility threshold is retained at 100 transactions, and those 100 are deducted before the incentive is computed.
+* **Only KYC-verified ABHA-linked records qualify.** Scan & Share and Health Locker transactions no longer earn any incentive at all. In walk-in outpatient practice the KYC-verified fraction is well below 100%, and this is the largest single discount on the figure.
+* **A 1-per-day and 5-per-month per-ABHA cap** applies to Category 2, limiting what a high-frequency returning patient can generate.
+* **v3 API compliance is mandatory from July 2026.** A non-compliant facility or Digital Solution Company earns nothing, which makes the ABDM integration work a *gate* on any incentive rather than an enhancement to it.
+
+*Corrected ROI impact.* An outpatient dental or counselling practice produces OP Consultations and Prescriptions. Those are **Category 2**. Taking the same 450 eligible bundles per month used in earlier versions, and assuming a favourable 90% KYC-verified rate:
+
+> Clinic incentive = (450 × 0.90 − 100) × ₹5 = **₹1,525 per month**
+
+against the ₹9,000 previously claimed. This does not cover the ₹1,999 Clinic Pro subscription. It is a useful contribution to it, and it should be sold as exactly that.
+
+**Scheme durability.** DHIS has been amended seven times since its launch on 1 January 2023, and Corrigendum 7 is stated to be effective only to **September 2026**. The rate trend across those amendments is downward. No part of the commercial model may assume the scheme's continuation, its current rates, or its current eligibility rules. See risk R6, which this scheme has already triggered.
+
+**What ABDM is genuinely for.** Interoperability and statutory compliance. Clinics will increasingly be required to produce ABDM-conformant records regardless of incentive, insurers and the National Health Claims Exchange consume the same FHIR artifacts, and a practice that cannot emit them will be progressively excluded from those flows. That is the durable argument, and it does not depend on a payment rate.
+
+Accrual is recorded as a **ledger, not a counter**: every qualifying transaction is stored with its FHIR bundle reference, its Category 1 or 2 classification, and its KYC-verification status, so that a clinic's claim can be reconciled line by line against NHA records — and so that a future change to rates or categories is a repricing of existing rows rather than a rebuild.
 
 ---
 
@@ -235,6 +328,7 @@ Every component is free and open source. There is no commercial licence anywhere
 | API | Fastify, Node 22, TypeScript | MIT |
 | Authentication | Better Auth | MIT |
 | Database | PostgreSQL 16 (`btree_gist`, Row-Level Security) | PostgreSQL Licence |
+| Migrations | node-pg-migrate, plain SQL up and down *(named in v2.2)* | MIT |
 | Job queues | pg-boss | MIT |
 | Realtime | Postgres `LISTEN/NOTIFY` → WebSocket | — |
 | FHIR | HAPI FHIR (validation and serialisation) | Apache 2.0 |
@@ -245,6 +339,8 @@ Every component is free and open source. There is no commercial licence anywhere
 | CI | GitHub Actions | — |
 
 Two deliberate substitutions: **Valkey** rather than Redis if an in-memory cache later earns its place, following Redis's 2024 relicensing; and **Netdata** rather than Prometheus, Grafana and Loki, which together want more memory than a 12 GB host can spare.
+
+**On migrations, added in v2.2.** v2.1 left the migration mechanism unnamed, which is a gap rather than a detail: this schema's correctness lives in row-level security policies, exclusion constraints, generated columns, partial unique indexes and `REVOKE` grants. An ORM-driven migrator models tables and columns and treats all of that as foreign, typically round-tripping it into something subtly different or dropping it on the next auto-generation. The migrator here writes **plain SQL, with an explicit down for every up**, so that a policy is expressed as the `CREATE POLICY` statement it actually is. Migrations run as a separate database role with DDL rights that the application role does not hold, and they are one of the two audited exemptions from the `withTenant` lint rule (§4.4.1), because DDL is genuinely not tenant-scoped.
 
 ### 4.3 Application & Client Tier Specifications
 
@@ -272,6 +368,68 @@ GRANT  SELECT (phone_masked) ON patients TO   app_reception;
 ```
 
 `phone_masked` is a generated column. Because column-level access to the real number is revoked from the reception database role, FR-2.3 holds even against a SQL-injection vector: the role genuinely cannot read the column.
+
+Policies are created with `FORCE ROW LEVEL SECURITY` so that they apply to the table owner as well, and the application connects as a role that is not the owner. Without `FORCE`, the owning role bypasses every policy above and the entire isolation guarantee is decorative.
+
+##### How `app.clinic_id` is set — the defect this prevents  *(new in v2.2)*
+
+The policies above are only as strong as the mechanism that sets `app.clinic_id`, and the obvious implementation of that mechanism is wrong in a way that produces a silent, total cross-tenant breach.
+
+The application uses a connection pool. `SET app.clinic_id = ...` is **session-scoped**: it persists on the physical connection after the request that issued it returns the connection to the pool. The next request to borrow that connection inherits the previous tenant's identifier, and if that request fails to set its own — an error path, an early return, a code path someone added later — it reads another clinic's data under a policy that believes it is doing the right thing.
+
+```
+  Request (tenant A)          Pooled connection #7          Request (tenant B)
+        |                             |                             |
+        |--- SET app.clinic_id = A -->|                             |
+        |--- SELECT ... patients ---->|                             |
+        |<-- A's rows. Correct. ------|                             |
+        |--- release to pool -------->|                             |
+        |                       [ setting survives ]                |
+        |                             |<---- acquire connection ----|
+        |                             |<---- SELECT ... patients ---|
+        |                             |----- A's rows ------------->|
+        |                             |                             |
+        |                   BREACH. No error raised. ---------------+
+```
+
+This defect has three properties that make it unusually dangerous, and they are the reason it is specified here rather than left to implementation. It **passes every single-request test**, because with one request in flight the setting is always correct. It **produces no error**, only wrong rows. And it **grows more likely under load**, meaning it will first manifest in production during a busy clinic hour rather than in development.
+
+Three controls are mandatory, and M0 does not exit without them:
+
+1. **One accessor, using `SET LOCAL` inside an explicit transaction.** `SET LOCAL` is transaction-scoped and is discarded at commit or rollback, so releasing the connection cannot leak it.
+
+   ```ts
+   // The only sanctioned path from application code to tenant-scoped data.
+   export async function withTenant<T>(
+     clinicId: string,
+     fn: (tx: PoolClient) => Promise<T>,
+   ): Promise<T> {
+     const tx = await pool.connect();
+     try {
+       await tx.query("BEGIN");
+       // set_config's third argument = true means SET LOCAL. Parameterised,
+       // because string-interpolating a tenant id into this statement would
+       // hand an attacker the isolation boundary itself.
+       await tx.query("SELECT set_config('app.clinic_id', $1, true)", [clinicId]);
+       const result = await fn(tx);
+       await tx.query("COMMIT");
+       return result;
+     } catch (err) {
+       await tx.query("ROLLBACK");
+       throw err;
+     } finally {
+       tx.release();
+     }
+   }
+   ```
+
+2. **A lint rule that makes the unsafe path unavailable.** `pool.query` and `pool.connect` are forbidden outside this module by an ESLint `no-restricted-properties` rule, with a single audited exemption for migrations and the pg-boss scheduler, which run outside any tenant context. A convention that relies on developers remembering is not a control; the point is that the wrong thing must fail the build.
+
+3. **A CI gate that reproduces the breach conditions.** With `max: 1` on the pool, forcing every request onto the same physical connection, the test interleaves requests for two tenants and asserts that neither sees the other's rows. It additionally asserts that a request which *forgets* to set the context reads **zero rows** rather than the previous tenant's — which is the behaviour `SET LOCAL` gives for free, since an unset `app.clinic_id` matches nothing.
+
+The background worker deserves explicit mention because it is the most likely place for this to be reintroduced: pg-boss jobs do not arrive with a request context, so every tenant-scoped job must carry its `clinic_id` in the payload and execute inside `withTenant`. A job that derives the tenant from anything other than its own payload is a defect.
+
+See risk R12.
 
 #### 4.4.2 BR-02 enforced by the database
 
@@ -333,7 +491,9 @@ CREATE TABLE clinics (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   slug          text UNIQUE NOT NULL,                  -- drsharma -> drsharma.practix.in
   legal_name    text NOT NULL,
-  vertical      text NOT NULL CHECK (vertical IN ('dental','mental_health','polyclinic')),
+  vertical      text NOT NULL CHECK (vertical IN                 -- v2.2: sequence per §2.4
+                  ('dental','ophthalmology','dermatology','paediatrics',
+                   'mental_health','polyclinic')),
   followup_days int  NOT NULL DEFAULT 7 CHECK (followup_days BETWEEN 3 AND 15),   -- BR-01
   timezone      text NOT NULL DEFAULT 'Asia/Kolkata'
 );
@@ -349,8 +509,12 @@ CREATE TABLE patients (
                    CHECK (preferred_lang IN ('en','mr','te','bn','kok')),
   abha_id        text,
   alerts         text[] NOT NULL DEFAULT '{}',         -- FR-3.2
-  UNIQUE (clinic_id, phone_e164)
+  self_managing  boolean NOT NULL DEFAULT true         -- false for dependants (§4.6.5)
 );
+-- v2.2: a family shares one phone number, so uniqueness applies only to patients
+-- who manage their own account. Dependants are reached via patient_relationships.
+CREATE UNIQUE INDEX patients_phone_self ON patients (clinic_id, phone_e164)
+  WHERE self_managing;
 
 CREATE TABLE appointments (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -371,9 +535,156 @@ CREATE TABLE appointments (
 
 * **Meta WhatsApp Cloud API.** Direct integration with Meta's Graph API for template registration, interactive webhook management and two-way conversational routing, bypassing reseller surcharges of 30 to 100 percent.
   *Critical path:* every utility template must be approved by Meta **per language** before it can be sent. Five languages across roughly a dozen template types is around sixty approvals, each taking days, with opaque rejections. Template submission is a week-one task, not a launch task.
-* **NPCI / UPI payment adapter.** Instant UPI intent links for mobile web checkout, and dynamic time-limited UPI QR codes. **Every payment is reconciled against a server-side settlement webhook, never a client-side success callback**, since the client can disconnect or lie.
+* **NPCI / UPI payment adapter.** Instant UPI intent links for mobile web checkout, and dynamic time-limited UPI QR codes. **Every payment is reconciled against a server-side settlement webhook, never a client-side success callback**, since the client can disconnect or lie. *v2.2: webhook handling must be idempotent.* Gateways retry on any non-2xx response and on timeout, so the same settlement will arrive more than once; without protection this credits a deposit twice and corrupts both the day's reconciliation (FR-7.1) and the Recovered Revenue ledger (FR-7.4). Idempotency is enforced by a unique constraint on the provider's event identifier — inserting the event and applying its effect in one transaction, and treating a unique violation as a successful no-op — rather than by an application-level "have I seen this?" check, which races against itself under concurrent retries.
 * **ABDM gateway connector.** M1 creates and verifies ABHA IDs via Aadhaar or mobile OTP. M2 serializes clinical visit summaries into HL7 FHIR profiles and pushes them to the national gateway. M3 manages consent requests for querying historical records. Bundles are constructed and validated with HAPI FHIR rather than assembled by hand, because profile conformance is where these integrations fail. Sandbox certification is a week-one task; lead time is measured in weeks and is outside our control.
 * **Bi-directional calendar synchronization.** Google Calendar API v3 and Microsoft Graph, with PractixOS as master scheduler. Personal events block patient booking slots, and their titles are **masked at write time** to `"Doctor Unavailable (External Sync)"` — so the private title never enters clinic storage at all. This is a stronger guarantee than masking at read time: a database compromise cannot reveal a doctor's personal calendar.
+
+### 4.6 The Configurable Vertical Engine  *(new in v2.2)*
+
+§2.4 commits to four further verticals after dentistry. The economics of that commitment depend entirely on whether the second vertical costs a milestone or a configuration file. Examining what Ophthalmology, Dermatology, Paediatrics and Mental Health each actually need, the answer is that they need **variations of the same five things**. Built once as configuration they cost one milestone in total (M4); built per vertical they cost one milestone each.
+
+| Subsystem | Dentistry needs | Ophthalmology | Dermatology | Paediatrics | Mental health |
+| --- | --- | --- | --- | --- | --- |
+| Queue stages | 4 lanes | *Waiting for Dilation* | Patch-test wait | High-velocity list | Quiet single-room |
+| Recalls | 6-month check-up | Annual refraction | Session intervals | Immunisation schedule | Weekly series |
+| Packages | Multi-sitting plans | — | 6-session laser | — | Therapy blocks |
+| Batch inventory | Consumables | Lens stock | Injectables, expiry-critical | Vaccine cold chain | — |
+| Dependants | Family bookings | Elderly by proxy | — | **Mandatory** | Minors by guardian |
+
+The governing rule: **no subsystem below may branch on `clinics.vertical`.** The vertical column selects a seed configuration at onboarding and is otherwise inert. Any `if vertical = 'x'` in application code is a defect, and the M4 exit criterion is precisely that a second vertical stands up with no code change at all.
+
+#### 4.6.1 Per-tenant queue stages
+
+FR-2.4's four lanes become rows. Ophthalmology's dilation wait, the single most-cited operational need in that vertical, is then a seed row rather than a feature.
+
+```sql
+CREATE TABLE queue_stages (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id   uuid NOT NULL REFERENCES clinics(id),
+  position    int  NOT NULL,
+  label_key   text NOT NULL,                        -- i18n key, not display text
+  role        text NOT NULL CHECK (role IN          -- semantics the engine relies on
+                 ('pre_arrival','waiting','in_service','post_service','settlement')),
+  dwell_alert_mins int,                             -- amber past this, e.g. dilation 20 min
+  UNIQUE (clinic_id, position)
+);
+```
+
+`role` exists because some behaviour is genuinely semantic rather than cosmetic: arrival timestamps attach on the first transition into a `waiting` role, chair occupancy is computed from `in_service`, and the Recovered Revenue ledger treats reaching `post_service` as attendance. Labels and ordering are free; roles are a closed set. `dwell_alert_mins` is what makes a dilation wait operationally useful — the board flags a patient who has been dilating for 25 minutes.
+
+#### 4.6.2 The recall engine
+
+Named by the market analysis for at least four verticals, and currently reduced to a single WhatsApp marketing template. It is also the mechanism behind the `plan_resumed` event in FR-7.4, and therefore load-bearing for the commercial case.
+
+```sql
+CREATE TABLE recall_rules (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id      uuid NOT NULL REFERENCES clinics(id),
+  trigger        text NOT NULL CHECK (trigger IN
+                   ('procedure_completed','plan_dormant','age_months','last_visit')),
+  trigger_ref    text,                              -- procedure code, or null
+  offset_days    int  NOT NULL,
+  template_key   text NOT NULL,
+  max_attempts   int  NOT NULL DEFAULT 2,
+  active         boolean NOT NULL DEFAULT true
+);
+
+CREATE TABLE recalls (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id   uuid NOT NULL REFERENCES clinics(id),
+  patient_id  uuid NOT NULL REFERENCES patients(id),
+  rule_id     uuid NOT NULL REFERENCES recall_rules(id),
+  due_on      date NOT NULL,
+  state       text NOT NULL DEFAULT 'pending'
+                CHECK (state IN ('pending','sent','booked','declined','expired')),
+  attempts    int  NOT NULL DEFAULT 0,
+  UNIQUE (clinic_id, patient_id, rule_id, due_on)    -- idempotent generation
+);
+CREATE INDEX ON recalls (clinic_id, due_on) WHERE state = 'pending';
+```
+
+A pg-boss scheduled job materialises due recalls and dispatches them. The `age_months` trigger is what makes a paediatric immunisation schedule expressible — a rule per vaccine, offset from date of birth — without a line of paediatrics-specific code. The unique constraint matters more than it looks: a scheduled job that runs twice must not message a patient twice.
+
+#### 4.6.3 Package and series billing
+
+A prepaid block of sessions that draws down per visit. Dermatology's six-session laser course, mental health's therapy block and dentistry's multi-sitting plan are the same object.
+
+```sql
+CREATE TABLE package_definitions (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id     uuid NOT NULL REFERENCES clinics(id),
+  name          text NOT NULL,
+  sessions      int  NOT NULL CHECK (sessions > 0),
+  price_paise   bigint NOT NULL,
+  valid_days    int,                                -- null = no expiry
+  min_gap_days  int                                 -- clinical interval between sessions
+);
+
+CREATE TABLE patient_packages (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id      uuid NOT NULL REFERENCES clinics(id),
+  patient_id     uuid NOT NULL REFERENCES patients(id),
+  definition_id  uuid NOT NULL REFERENCES package_definitions(id),
+  purchased_at   timestamptz NOT NULL DEFAULT now(),
+  expires_on     date,
+  sessions_used  int NOT NULL DEFAULT 0
+);
+
+ALTER TABLE patient_packages
+  ADD CONSTRAINT no_overdraw CHECK (sessions_used >= 0);
+```
+
+Redemption is a row in a `package_redemptions` table referencing the appointment, with `sessions_used` maintained by trigger rather than by the application, so that two concurrent front-desk redemptions cannot both succeed against a single remaining session. The remaining balance is visible on the patient portal and at the front desk, because a patient who cannot see what they have left will dispute it.
+
+#### 4.6.4 Batch and expiry inventory
+
+Roadmap feature 6 specifies auto-depletion against a count and a buffer. That is sufficient for a rubber dam sheet and insufficient for a botulinum toxin vial, a vaccine or a contact lens solution, where the batch number is a regulatory traceability requirement and the expiry date is a patient-safety one.
+
+```sql
+CREATE TABLE inventory_batches (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id     uuid NOT NULL REFERENCES clinics(id),
+  item_id       uuid NOT NULL REFERENCES inventory_items(id),
+  batch_no      text NOT NULL,
+  expires_on    date NOT NULL,
+  qty_received  int  NOT NULL CHECK (qty_received > 0),
+  qty_remaining int  NOT NULL CHECK (qty_remaining >= 0),
+  UNIQUE (clinic_id, item_id, batch_no)
+);
+CREATE INDEX ON inventory_batches (clinic_id, expires_on) WHERE qty_remaining > 0;
+```
+
+Depletion consumes the earliest-expiring batch with stock remaining, and every consumption records the batch against the clinical encounter — which is what makes a product recall answerable. Expiry alerting reuses the recall engine's scheduled job rather than adding a second scheduler.
+
+#### 4.6.5 Dependants, guardians and consent by proxy
+
+Specified now, ahead of the paediatric vertical, because retrofitting proxy consent into a live DPDP-regulated schema is disproportionately expensive and because dental families book together from day one.
+
+```sql
+CREATE TABLE patient_relationships (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinic_id     uuid NOT NULL REFERENCES clinics(id),
+  guardian_id   uuid NOT NULL REFERENCES patients(id),
+  dependant_id  uuid NOT NULL REFERENCES patients(id),
+  relationship  text NOT NULL CHECK (relationship IN
+                  ('parent','legal_guardian','spouse','carer')),
+  may_book      boolean NOT NULL DEFAULT true,
+  may_consent   boolean NOT NULL DEFAULT false,     -- deliberately off by default
+  may_view_clinical boolean NOT NULL DEFAULT false,
+  valid_until   date,                               -- e.g. the dependant's 18th birthday
+  CHECK (guardian_id <> dependant_id),
+  UNIQUE (clinic_id, guardian_id, dependant_id)
+);
+```
+
+Four obligations attach to this table, and none of them are optional:
+
+* **A dependant is a full patient record**, never a field on the guardian. A child has their own clinical history, their own ABHA identifier and their own immunisation schedule, and will one day have their own account.
+* **The three capabilities are independent.** Booking on someone's behalf is routine; consenting to a procedure on their behalf is a legal act; reading their clinical record is a third thing again. `may_consent` and `may_view_clinical` default to false and must be granted explicitly.
+* **Proxy consent is recorded as proxy consent.** Every consent captured under this relationship stores the guardian's identity, the relationship type and the relationship row as it stood at that moment. A consent record that merely says "the patient agreed" when a parent agreed is not a defensible record under the DPDP Act.
+* **Expiry is enforced, not advisory.** `valid_until` passing revokes the capabilities. A guardian relationship over a minor must not silently persist past majority; the platform surfaces the transition and requires the now-adult patient to re-establish any continuing access.
+
+Guardian phone numbers are shared across dependants by design, which means the `UNIQUE (clinic_id, phone_e164)` constraint on `patients` must be relaxed to accommodate a family on one number. It is replaced by a partial unique index on self-managing patients only, with the guardian's number carried on the relationship rather than implied by equality of phone numbers.
 
 ---
 
@@ -441,12 +752,13 @@ The governing rule: **anything running on credits must be movable in an afternoo
 | Workload | Rationale |
 | --- | --- |
 | Geo-redundant encrypted backups (Blob, Central India) | High value, low cost, worth paying for after credits lapse |
-| Staging and demo environments (Container Apps) | Genuinely disposable |
+| Staging and demo environments (Azure VM running the production Docker Compose file) | Genuinely disposable. *Corrected in v2.2: originally specified as Container Apps. A staging environment on a different runtime to production cannot catch what staging exists to catch — Compose networking, volume behaviour, resource limits and container startup ordering are precisely where single-host deployments break. Staging runs the same `compose.yml` as production, on a smaller VM.* |
 | Load and soak testing before pilot go-live | Burst compute is exactly what credits are for |
 | **GPU time to fine-tune IndicWhisper for Speech-to-Rx** | The highest-value use available: compute we would never otherwise buy, producing model weights — a durable asset that outlives the credits |
 | Azure OpenAI / Foundry for AI Enterprise tier research | Time-boxed R&D |
 | ~~Production database~~ | Never |
 | ~~Production application~~ | Never |
+| ~~Production on any non-Indian edge, including Vercel~~ | Never. *Added in v2.2.* `prototype/PractixOS.html` is deployed to Vercel for pilot feedback, which is appropriate: it carries fictional data and no backend. That deployment must not become the production path. Vercel terminates TLS outside India, which would contradict the data-residency argument in §8.2 that the entire architecture — Caddy in Mumbai, OCI `ap-mumbai-1`, DNS as the only third party in the request path — exists to support |
 
 ### 5.6 Availability, backup and recovery
 
@@ -484,7 +796,11 @@ The same system presents itself in the register each role needs. Role-adaptive m
 * **Two registers.** A dense staff face optimised for information density, and a generous patient face at a larger scale with wider leading and a constrained measure. Same family, deliberately different rhythm.
 * **Script-aware Indic typography.** Devanagari, Telugu and Bengali each receive their own font stack and their own line-height. A global `line-height: 1.5` clips Telugu and Bengali conjuncts — a real defect in the v1.0 reference prototype, and the kind that only surfaces after shipping to a Bengali-speaking clinic.
 * **Tabular numerals** everywhere numbers are compared in a column: fees, vitals, tokens, ledger lines.
-* Fonts must be self-hosted (Noto Sans Devanagari / Telugu / Bengali, SIL Open Font License) rather than loaded from a third-party CDN, both for offline capability and for data residency.
+* Fonts must be self-hosted (Noto Sans Devanagari / Telugu / Bengali, SIL Open Font License) rather than loaded from a third-party CDN, both for offline capability and for data residency. *Restated as a build requirement in v2.2, because the prototype does not yet satisfy it.* Relying on a system font stack is not self-hosting. The devices this product explicitly targets — low-cost Android handsets and ageing Windows reception machines — frequently ship without Telugu or Bengali installed, and the failure mode is that the flagship localisation renders as rows of empty boxes on precisely the hardware it was built for. Concretely:
+  * Ship **subsetted `woff2`** files per script, built from the Google Fonts sources at package time and checked into the deployment artifact. Full Noto Devanagari is several hundred kilobytes; a subset covering the glyphs the product actually emits is a fraction of that, which matters on a 4G connection.
+  * **Load per language, never all at once.** A clinic operating in English and Marathi must not download Telugu and Bengali.
+  * Declare `unicode-range` on each `@font-face` so the browser fetches a script only when it encounters it, and `font-display: swap` so a slow font never blanks the queue board.
+  * The same files serve the print stylesheet of FR-4.6.
 
 ### 6.4 Interaction rules
 
@@ -587,13 +903,23 @@ Two implementation notes, both of which follow from the first.
 * **FR-1.3** — Natural-language matching for symptoms, clinical terms and doctor names across all supported Indic languages.
 * **FR-1.4** — Patient authentication via WhatsApp OTP, eliminating username and password setup.
 * **FR-1.5** — The booking flow presents real-time open slots, confirms consultation mode (in-clinic or video), and applies follow-up fee rules before checkout.
+* **FR-1.6** — **Self-service onboarding.** *(New in v2.2.)* A clinic reaches its first live booking without human assistance. FR-1.1.6 already establishes that provisioning a tenant is one row insert; this requirement covers the path a clinic owner actually walks.
+  * A guided wizard collects, in order: clinic identity and slug; the vertical, which seeds queue stages, recall rules and the module set per §4.6 rather than branching code; practitioners; chairs or rooms; working hours and break windows; a fee schedule; and the enabled language set.
+  * **Every step is skippable and resumable.** An owner interrupted by a patient must be able to close the browser and return. Nothing collected in the wizard is unavailable later in settings.
+  * The wizard terminates in a **live test booking against the clinic's own portal**, because the moment of conviction is seeing a real WhatsApp confirmation arrive, not reaching the end of a form.
+  * The target is a working clinic in under fifteen minutes with no call, no email and no implementation consultant. At the scale §2.4 contemplates, hand-configuration is not merely expensive; it is the constraint on growth.
+* **FR-1.7** — **Data import.** *(New in v2.2.)* Every clinic worth winning already keeps patients somewhere — a spreadsheet, Dentee, Practo or a paper register transcribed into Excel. A practice that cannot bring them runs two systems in parallel, and within a quarter runs only the old one.
+  * CSV and Excel upload with **interactive column mapping**, including reasonable automatic guesses for common headings in English and transliterated forms.
+  * A **dry run is mandatory before any write**: the importer reports rows that will be created, rows that will be merged against an existing patient, and rows that will be rejected with the reason, and the owner confirms before anything is committed.
+  * Phone numbers are normalised to E.164 and duplicates are surfaced for a merge decision rather than silently unified, since two patients genuinely can share a household number (§4.6.5).
+  * The import runs as one transaction per batch under the tenant context of FR-1.1.2, is fully reversible for 24 hours, and writes a summary to the audit trail.
 
 #### Module 2: Front-Desk Reception & Queue Management
 
-* **FR-2.1** — A single-screen, real-time Kanban queue with four columns: *Expected Today*, *Waiting Room*, *In Consultation*, *Billing / Exit*.
-* **FR-2.2** — Walk-in patient creation requires only two inputs, mobile number and patient name, creating the record and a queue token in under 10 seconds.
+* **FR-2.1** — A single-screen, real-time queue board whose columns are the tenant's configured stages (§4.6.1), seeded for dentistry as *Expected Today*, *Waiting Room*, *In Consultation*, *Billing / Exit*. *v2.2: at high consultation velocity — a paediatric evening session running sixty to eighty patients — the board offers an equivalent compact list presentation with search, because a card grid stops being legible well before that volume.*
+* **FR-2.2** — Walk-in patient creation requires only two inputs, mobile number and patient name, creating the record and a queue token in under 10 seconds. *v2.2: the token is issued **per practitioner**, not once per clinic per day. A patient in a three-doctor polyclinic cares about their position in Dr. Rao's queue; a clinic-wide token number tells them nothing and is actively misleading when one practitioner runs late and another does not.*
 * **FR-2.3** — Front-desk views mask patient phone numbers by default (e.g. `+91 98220•••10`), with unmasking restricted to authorized administrative roles and written to the audit trail.
-* **FR-2.4** — Moving a patient card between columns immediately updates the doctor's chamber screen and waiting-room displays. *v2.1: drag is implemented on Pointer Events, not HTML5 drag-and-drop, so it behaves identically under a mouse, a stylus and a thumb. Every card also carries an equivalent non-drag path — a "Move to…" sheet — because on a phone only one lane is on screen and there is nowhere to drag to.*
+* **FR-2.4** — Moving a patient card between columns immediately updates the doctor's chamber screen and waiting-room displays. *v2.1: drag is implemented on Pointer Events, not HTML5 drag-and-drop, so it behaves identically under a mouse, a stylus and a thumb. Every card also carries an equivalent non-drag path — a "Move to…" sheet — because on a phone only one lane is on screen and there is nowhere to drag to.* *v2.2: the columns themselves are per-tenant configuration rather than four fixed lanes (§4.6.1). A stage may carry a dwell alert, so an ophthalmology board can flag a patient who has been dilating for longer than expected.*
 
 #### Module 3: Nurse Triage & Clinical Vitals Desk
 
@@ -606,7 +932,13 @@ Two implementation notes, both of which follow from the first.
 * **FR-4.2** — Tooth states: healthy, caries, RCT needed or done, crown or prosthetic, missing. *v2.0: each state is encoded by colour **and** fill pattern **and** text label; colour alone is never the signal.*
 * **FR-4.3** — Selecting clinical conditions auto-populates a phased, multi-sitting treatment plan with procedural steps, estimates, completed treatments and remaining balance.
 * **FR-4.4** — A digital dental lab work-order tracker recording assigned lab, tooth number, shade guide, restoration type and delivery date.
-* **FR-4.5** — One-click dispatch of structured work orders to lab managers over WhatsApp.
+* **FR-4.5** — One-click dispatch of structured work orders to lab managers over WhatsApp. *v2.2: the order cannot be dispatched with tooth number, restoration type or shade missing. This is the control that makes the `remake_avoided` ledger event (FR-7.4.1) evidentiary rather than assumed, and it is also the whole of the value the platform offers the laboratory — see the distribution note in §2.4.*
+* **FR-4.6** — **Print artifacts.** *(New in v2.2.)* Indian outpatient practice is substantially paper-terminated: the patient leaves with a prescription in hand and frequently requires a printed receipt for reimbursement. A product with no print path will be asked for one in the first week of the first pilot.
+  * Prescription and payment receipt, each rendering correctly on **A5 and A4**, which are the two sizes clinic printers are actually loaded with.
+  * Clinic letterhead from the tenant configuration of FR-1.1.3: display name, mark, registration number and address.
+  * **Indic-script safe.** Print uses the same self-hosted subsetted fonts as the screen (§6.6), because a prescription that renders as boxes at the pharmacy counter is worse than no prescription.
+  * Rendered from the same document the patient receives over WhatsApp, so the printed and digital artifacts cannot diverge.
+  * Print is a browser print stylesheet, not a server-side PDF service. It costs nothing to run, works offline, and adds no dependency to the production path.
 
 #### Module 5: Mental Health Confidentiality Vault
 
@@ -621,12 +953,37 @@ Two implementation notes, both of which follow from the first.
 * **FR-6.2** — Bi-directional synchronization with Google Calendar and Microsoft Outlook.
 * **FR-6.3** — Personal calendar events automatically block clinical availability with titles masked from receptionists. *v2.0: masked at write time, so the private title never enters clinic storage.*
 * **FR-6.4** — An automated fee-split ledger tracking gross billings, lab and consumable deductions, and net payouts.
+* **FR-6.5** — **Two-sided settlement.** *(New in v2.2.)* The consultant can request settlement; the owner must be able to respond to it. A settlement moves through `requested` → `approved` → `paid`, or `requested` → `disputed`, with the owner's view itemising the same gross, deduction and net lines the consultant sees.
+  * A dispute attaches to specific ledger lines rather than to the settlement as a whole, so the undisputed remainder can still be paid.
+  * Every transition is written to the audit trail with the acting identity, because the purpose of this requirement is to replace an argument conducted over WhatsApp with a record neither party can revise afterwards.
+  * Payment itself remains outside the platform; PractixOS records agreement, not the transfer.
 
-#### Module 7: Clinic Administration & ABDM Arbitrage
+#### Module 7: Clinic Administration, Recovered Revenue & ABDM Compliance
 
 * **FR-7.1** — Reconcile daily collections, balancing physical cash handovers against digital UPI settlements.
-* **FR-7.2** — Track generated ABHA records, M2 clinical pushes, and accrued DHIS subsidy in real time, as a reconcilable ledger rather than a counter.
+* **FR-7.2** — Track generated ABHA records, M2 clinical pushes, and accrued DHIS incentive in real time, as a reconcilable ledger rather than a counter. *v2.2: each row additionally stores its Category 1 or Category 2 classification and its KYC-verification status, and the accrual formula applies the 100-transaction monthly exclusion, so that a rate or category change is a repricing of existing rows rather than a rebuild (§3.4).*
 * **FR-7.3** — A chair-time profitability calculator analysing fixed clinic overhead against procedure duration to display net margin per chair-minute. *v2.0: computed against minutes actually utilised as well as minutes available, since the two produce materially different rates and utilisation is the lever the owner controls.*
+* **FR-7.4** — **The Recovered Revenue ledger.** *(New in v2.2. This is the requirement that carries the product's commercial case; see §3.3.)* The platform records, as an append-only ledger, every instance in which it demonstrably recovered revenue the practice would otherwise have lost.
+
+  **FR-7.4.1 — Event types.** Exactly five events may be written, each only when its evidentiary precondition is met:
+
+  | Event | Written when | Credited value |
+  | --- | --- | --- |
+  | `no_show_prevented` | A reminder was *delivered* (provider receipt, not merely queued), the patient confirmed, and the appointment was subsequently attended | Realised fee for the appointment |
+  | `deposit_converted` | A UPI reservation deposit was collected at booking (BR-03) and the appointment was attended | Realised fee for the appointment |
+  | `plan_resumed` | A recall was delivered against a treatment plan dormant beyond its clinical interval, and a booking followed within the attribution window | Value of the plan phase subsequently delivered |
+  | `remake_avoided` | A lab work order was submitted carrying complete tooth number, restoration type and shade, and was accepted without a remake request | The practice's configured remake cost |
+  | `consumable_billed` | An item logged against the clinical encounter was carried onto the invoice by the platform rather than entered manually | Line value of the item |
+
+  **FR-7.4.2 — Evidence.** Every row stores the identifier of the artefact that justifies it: the message-delivery receipt, the payment reference, the recall identifier, the work-order identifier or the invoice line identifier. A row without a resolvable evidence reference is not written. The owner can expand any total to the individual events, and any event to its evidence.
+
+  **FR-7.4.3 — Attribution must not double-count.** An appointment may generate at most one attribution event. Where both a deposit and a confirmed reminder exist, the appointment is credited as `deposit_converted` only. The platform must be able to demonstrate this constraint, because a recovery total that inflates under audit discredits every other number the product reports.
+
+  **FR-7.4.4 — Attribution window.** Each event type carries a configurable window beyond which a subsequent booking is no longer attributed to the platform's intervention. Defaults: 72 hours for `no_show_prevented` and `deposit_converted`, 30 days for `plan_resumed`. Events outside the window are not written rather than written and discounted.
+
+  **FR-7.4.5 — Append-only.** The ledger is subject to the same `REVOKE UPDATE, DELETE` treatment as `audit_log` (BR-05, §4.4.3). Corrections are issued as compensating negative rows carrying a reason, never as edits. A clinic disputing a figure must be able to see the correction, not a silently changed total.
+
+  **FR-7.4.6 — Presentation.** The owner dashboard displays the rolling monthly recovered total against the subscription price, and states the break-even explicitly — the number of recovered events at which the subscription is paid for. Conservative per-event values are used by default; the practice may substitute its own realised figures, and the source of each value is disclosed.
 
 ### 8.2 Non-Functional Requirements
 
@@ -656,6 +1013,13 @@ The following capabilities represent the Phase 2 and Phase 3 pipeline. They expa
 #### 1. Dynamic Token Radar — WhatsApp live queue tracker
 
 A zero-install tracking link sent over WhatsApp 45 minutes before an appointment, showing the patient their live queue position: *"Dr. Sharma is currently consulting Token #3. You are Token #5. Estimated entry 11:20 AM."* If delayed, the patient taps to request a later arrival, and the system automatically swaps their queue position with a patient already waiting, reducing waiting-room crowding.
+
+**The estimator, specified in v2.2.** This feature lives or dies on whether the time it quotes is believed, and a quoted time that is wrong twice is worse than no quote at all. The estimate is therefore not a nominal slot duration:
+
+* Entry time is projected from a **rolling median of actual consultation duration, per practitioner, per session type**, measured as the interval between the `in_service` and `post_service` stage transitions of §4.6.1. The median rather than the mean, because one emergency root canal must not distort the afternoon for everyone behind it.
+* A practitioner with insufficient history falls back to the clinic's configured slot length, and the message is hedged accordingly rather than quoting a false precision.
+* Queue position is **per practitioner** (FR-2.2), since a clinic-wide token is meaningless to a patient waiting for one specific doctor.
+* The estimate is expressed as a range once the projection exceeds twenty minutes out, and the patient is re-notified only when it moves materially — a link that re-messages every five minutes trains patients to mute the clinic.
 
 #### 2. Vernacular post-care messaging sequences
 
@@ -717,16 +1081,36 @@ IMPACT
 
 Milestones are ordered by revenue impact rather than by specification order. Pre-payment and the follow-up engine ship before the odontogram, because deposits stop cash leaking from day one while the odontogram, valuable as it is, does not move money.
 
+*Restated in v2.2.* Two changes follow from §2.4 and §3.3. **M4 now builds the configurable vertical engine** rather than the mental health vertical: the same four weeks that would have opened a 1.6% segment instead reduce every subsequent vertical from a milestone to a configuration exercise. And the Recovered Revenue ledger (FR-7.4) is pulled forward into **M1 and M2**, alongside the mechanisms it measures, because a ledger retrofitted after the fact cannot evidence events that were never captured.
+
 | Milestone | Weeks | Scope | Exit criterion |
 | --- | --- | --- | --- |
-| **M0 — Foundations** | 1–3 | Terraform and cloud-init for the OCI host; Docker Compose topology; Postgres with RLS, `btree_gist` and the audit trigger; CI with arm64 builds; Caddy with Coraza; pgBackRest and the weekly restore drill. **In parallel, because of lead time: ABDM sandbox registration and WhatsApp template submission.** | A rebuild from `terraform apply` to serving traffic completes in under 20 minutes, and the restore drill passes unattended |
-| **M1 — Booking and money** | 4–8 | Clinic and practitioner setup; public portal in five languages (FR-1.1, FR-1.2); WhatsApp OTP (FR-1.4); slot search honouring the exclusion constraints (FR-1.5, BR-02); follow-up rule engine (BR-01); UPI deposits with webhook reconciliation; psychotherapy pre-payment and cancellation policy (BR-04) | A patient books, pays and receives a WhatsApp confirmation in Marathi; concurrent booking attempts on one chair produce exactly one appointment |
+| **M0 — Foundations** | 1–3 | Terraform and cloud-init for the OCI host; Docker Compose topology; Postgres with `FORCE` RLS, `btree_gist` and the audit trigger; **the `withTenant` accessor, the lint rule that forbids bypassing it, and the four continuous verification gates of §10.1**; the migration tool; CI with arm64 builds; Caddy with Coraza; pgBackRest and the weekly restore drill. **In parallel, because of lead time: ABDM sandbox registration and WhatsApp template submission.** | A rebuild from `terraform apply` to serving traffic completes in under 20 minutes; the restore drill passes unattended; **and all four verification gates run green in CI before a single business endpoint exists** |
+| **M1 — Booking and money** | 4–8 | Clinic and practitioner setup; public portal in five languages (FR-1.1, FR-1.2); WhatsApp OTP (FR-1.4); slot search honouring the exclusion constraints (FR-1.5, BR-02); follow-up rule engine (BR-01); UPI deposits with idempotent webhook reconciliation; pre-payment and cancellation policy (BR-04); **Recovered Revenue capture for `no_show_prevented` and `deposit_converted`, including delivery-receipt storage and the anti-double-counting constraint (FR-7.4.1 to FR-7.4.5)** | A patient books, pays and receives a WhatsApp confirmation in Marathi; concurrent booking attempts on one chair produce exactly one appointment; a deposit-secured attended appointment writes exactly one ledger row, never two |
 | **M2 — The clinic floor** | 9–13 | Reception Kanban with realtime updates (FR-2.1, FR-2.4); two-input walk-in (FR-2.2); phone masking with audited unmask (FR-2.3); nurse vitals and alert tagging (FR-3.1, FR-3.2); **the offline layer** — Dexie mirror, service worker, sync queue, conflict resolution | A receptionist registers a walk-in in under 10 seconds; pulling the network cable leaves check-in, vitals and queue movement fully functional, and everything reconciles on reconnect |
-| **M3 — Dental vertical** | 14–18 | FDI odontogram (FR-4.1, FR-4.2); treatment plan generation (FR-4.3); lab tracker with WhatsApp dispatch (FR-4.4, FR-4.5); visiting consultant hub with calendar sync and fee-split ledger (FR-6.1 to FR-6.4, BR-03) | Charting tooth 16 produces a three-sitting plan, dispatches a lab order and credits the consultant ledger correctly |
-| **M4 — Mental health vertical** | 19–22 | Split-key Argon2id vault (FR-5.1, FR-5.2); SOAP editor with DSM-5 coding; GAD-7 and PHQ-9 tracking (FR-5.3); recurring series linked to pre-payment (FR-5.4) | An independent reviewer with full database access cannot recover note plaintext |
-| **M5 — Administration and ABDM** | 23–27 | Cash and UPI reconciliation (FR-7.1); ABDM M1/M2/M3 in production with the DHIS ledger (FR-7.2); chair-time profitability (FR-7.3); Phase 1 roadmap features — vernacular care drip and Dynamic Token Radar | ABDM production certification granted; a clinic's DHIS accrual reconciles line by line against NHA records |
+| **M3 — Dental vertical** | 14–18 | FDI odontogram (FR-4.1, FR-4.2); treatment plan generation (FR-4.3); lab tracker with WhatsApp dispatch (FR-4.4), which cannot be submitted without tooth number, restoration type and shade, and therefore writes `remake_avoided`; print artifacts for prescription and receipt (FR-4.6); visiting consultant hub with calendar sync, fee-split ledger and **owner-side settlement approval** (FR-6.1 to FR-6.5, BR-03) | Charting tooth 16 produces a three-sitting plan, dispatches a lab order, credits the consultant ledger correctly, and the owner can approve or dispute the resulting settlement |
+| **M4 — The configurable vertical engine** *(replaces the mental health vertical in v2.2)* | 19–22 | Per-tenant queue stages replacing the hardcoded lanes (§4.6.1); the recall engine (§4.6.2); package and series billing (§4.6.3); batch and expiry inventory (§4.6.4); dependant and guardian accounts with consent by proxy (§4.6.5) | A second vertical is stood up **entirely through configuration, with no code change**: an ophthalmology tenant is provisioned with a *Waiting for Dilation* stage, an annual refraction recall and an optical work-order type, and passes the same test suite as the dental tenant |
+| **M5 — Administration, recovered revenue and ABDM** | 23–27 | Cash and UPI reconciliation (FR-7.1); the Recovered Revenue owner dashboard and break-even display (FR-7.4.6, with capture landed in M1–M2); ABDM M1/M2/M3 in production with the v3 APIs and the Category-aware DHIS ledger (FR-7.2); chair-time profitability (FR-7.3); Phase 1 roadmap features — vernacular care drip and Dynamic Token Radar with its rolling-median estimator | ABDM production certification granted against the v3 APIs; a clinic's DHIS accrual reconciles line by line against NHA records; **every rupee in the Recovered Revenue total resolves to a delivery receipt, payment reference or invoice line, and no appointment is credited twice** |
+| **M6 — Mental health vertical** *(moved from M4 in v2.2)* | 28–31 | Split-key Argon2id vault (FR-5.1, FR-5.2); SOAP editor with DSM-5 coding; GAD-7 and PHQ-9 tracking (FR-5.3); recurring series linked to pre-payment (FR-5.4), built on the M4 package engine | An independent reviewer with full database access cannot recover note plaintext |
 
-### 10.1 Compliance workstream
+### 10.1 Continuous verification gates  *(new in v2.2)*
+
+Three of the guarantees in this document are not features — they are the reasons a clinic can be asked to put patient data into the product at all. In v2.1 all three were demonstrated once, at a milestone review. A guarantee verified once is a guarantee that regresses quietly in week three, and none of these three fail loudly.
+
+They become **CI gates**: they run on every pull request, they block merge, and they are written before the code they protect.
+
+| Gate | Asserts | Fails if |
+| --- | --- | --- |
+| **Tenant isolation** (FR-1.1.2, §4.4.1) | Two tenants interleaved across a pool of size 1 never observe each other's rows; a request with no tenant context reads zero rows | Any cross-tenant row is returned, or an absent context reads the previous tenant's data |
+| **BR-02 under concurrency** (§4.4.2) | N simultaneous booking attempts on one chair and overlapping time range produce exactly one appointment | Two appointments exist, or zero do |
+| **Vault non-recoverability** (FR-5.2, §4.4.4) | Note plaintext is unrecoverable from a full database dump plus all server-held secrets, without the patient's PIN | Any plaintext or any single-factor decryption path is reachable |
+| **Layout integrity** (§8.2, added in v2.1) | Every view, every tenant, seven widths: no horizontal overflow and no collapsed content | `prototype/check-layout.py` exits non-zero |
+
+The fourth is listed because it is the precedent. It was added in v2.1 after a grid defect collapsed the phone layout to roughly 100 px while producing no horizontal overflow at all — invisible to manual review and invisible to an overflow-only check. The general lesson, and the reason for this section, is that the properties a product sells are exactly the properties that need mechanical verification, because they are the ones everybody assumes are still true.
+
+A note on the isolation gate specifically: it must exercise the real policies against a real Postgres instance, not a mock. An isolation test that does not execute `CREATE POLICY` is testing the test.
+
+### 10.2 Compliance workstream
 
 Runs in parallel throughout, not as a phase.
 
@@ -750,13 +1134,16 @@ Runs in parallel throughout, not as a phase.
 | R1 | OCI Ampere capacity unavailable in Mumbai | Blocks provisioning | Pay-as-you-go account from day one; Terraform retry; fallback to paid A1 at ~$55/month, still within budget |
 | R2 | Oracle terminates the account | Total loss of production | Pay-as-you-go with card on file; weekly verified restores; a documented and rehearsed migration to a second Indian provider |
 | R3 | Single host fails | Outage until rebuild | Offline-first client keeps clinics operating (§8.2); 20-minute automated rebuild; 5-minute RPO |
-| R4 | ABDM certification slips | Delays the DHIS revenue story that justifies pricing | Start in M0; the product remains saleable without it, at a weaker ROI pitch |
+| R4 | ABDM certification slips | Blocks interoperability and any DHIS accrual; v3 API compliance is a hard gate from July 2026 | Start in M0; the product remains fully saleable without it, because the ROI argument is now leakage recovery (§3.3) rather than subsidy |
 | R5 | WhatsApp templates rejected | Blocks launch messaging | Submit in M0; retain a plain-SMS fallback path |
-| R6 | **DHIS scheme revised or withdrawn** | Undermines the core commercial pitch | Do not make DHIS the only ROI argument; chair-time profitability and no-show recovery must stand alone (§3.3) |
+| R6 | **DHIS scheme revised or withdrawn** — *materialised, April 2026* | The commercial pitch in v1.0–v2.1 was overstated by roughly 5× | **This risk has already occurred.** NHA Corrigendum 7 cut the outpatient (Category 2) facility rate from ₹20 to ₹5, excluded Scan & Share and Health Locker, and restricted eligibility to KYC-verified ABHA records, reducing the worked example from ₹9,000 to ~₹1,525. §3.3 and §3.4 were rewritten in v2.2 accordingly. The scheme's current terms expire September 2026. Standing mitigation: the ROI argument is leakage recovery (§3.3, FR-7.4), which no policy change can withdraw; DHIS is modelled as a variable contribution, never as a cost offset |
 | R7 | Konkani translation quality | Poor experience in a launch language | Budget for a native reviewer; treat Konkani as beta until reviewed |
 | R8 | Azure credits expire with production dependencies attached | Forced migration under pressure | The movable-in-an-afternoon rule (§5.5); production never runs on credits |
 | R9 | Offline sync conflicts corrupt clinical data | Patient safety issue | Per-field last-write-wins with vector clocks for operational data; clinical notes never auto-merge (§4.3) |
 | R10 | 2 OCPU insufficient sooner than projected | Degraded performance | Netdata alerting at 70% sustained CPU; vertical scale to 4/24 is a reboot, not a migration |
+| R11 | **One shared WhatsApp Business Account across all tenants** *(new in v2.2)* | A single clinic sending poor templates degrades the quality rating of the number every other clinic messages through. At the limit Meta throttles or bans it, and all 1,000 tenants lose their primary patient channel simultaneously | Templates are platform-owned and parameterised, never tenant-authored free text; per-tenant quality and block-rate monitoring with automatic suspension of an offending tenant's marketing sends; marketing and utility traffic separated so a marketing problem cannot degrade appointment confirmations; a documented path to per-tenant WABAs for high-volume clinics before the shared number becomes a single point of commercial failure |
+| R12 | **Tenant context leaks across pooled connections** *(new in v2.2)* | Silent, total cross-tenant data exposure: wrong rows, no error, and DPDP breach notification obligations. It passes every single-request test and becomes more likely under load, so it surfaces first in production during a busy hour | `SET LOCAL` inside an explicit transaction via the single `withTenant` accessor; an ESLint rule making the bypass fail the build; a CI gate that interleaves two tenants over a pool of size 1 and asserts an unset context reads zero rows (§4.4.1, §10.1) |
+| R13 | **Unauthenticated OTP and booking endpoints abused** *(new in v2.2)* | Every OTP send costs money, and sustained abuse damages the WhatsApp quality rating that R11 depends on. A public portal per tenant multiplies the attack surface by the tenant count | Per-phone, per-IP and per-tenant ceilings enforced at Caddy and independently in the application; exponential backoff per destination number; a monthly spend cap per tenant that degrades to SMS rather than failing open; alerting on send-rate anomalies |
 
 ### 11.1 Open questions
 
@@ -771,7 +1158,7 @@ Runs in parallel throughout, not as a phase.
 
 Generic scheduling tools fail in the Indian healthcare market because of low willingness to pay, commoditized alternatives, and an operational mismatch with high-velocity clinics.
 
-PractixOS establishes an enduring position by executing as a **verticalized Practice Operating System**. By integrating deeply into Indian operational realities — zero-app WhatsApp workflows, Indic languages, operatory chair and visiting consultant allocation, PIN-encrypted mental health documentation, and ABDM DHIS revenue generation — the platform becomes an indispensable practice engine rather than an easily discarded administrative cost.
+PractixOS establishes an enduring position by executing as a **verticalized Practice Operating System**. By integrating deeply into Indian operational realities — zero-app WhatsApp workflows, Indic languages, operatory chair and visiting consultant allocation, PIN-encrypted mental health documentation, and ABDM-conformant interoperability — the platform becomes an indispensable practice engine rather than an easily discarded administrative cost. Its commercial defensibility rests on the Recovered Revenue ledger (§3.3, FR-7.4): a practice that can see, every month, the rupees the platform recovered from its own leakage does not experience the subscription as a cost.
 
 Version 2.0 adds the discipline that makes this survivable as a business. The architecture is entirely free and open source, running at ₹0 per month at pilot scale on infrastructure inside India, with a stated migration path at each stage of growth. The privacy guarantees are enforced by the database rather than asserted by the application. The availability claim is one the product can actually keep. And the design system gives the product a form that matches its thesis: built for Indian clinics, by people who looked closely at how they work.
 

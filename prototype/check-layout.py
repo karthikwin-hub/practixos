@@ -117,9 +117,16 @@ f.onload = () => {
       api.S.gatePick = job.tenant;
       if(job.view === "__gate__"){
         api.S.session.tenantId = null; api.S.tenants = {};
-        api.S.gate = job.gate; api.S.gatePick = job.gate === "signin" ? job.tenant : null;
+        if(job.gate === "onboard"){
+          api.ACT.onboard();
+          Object.assign(api.S.onboard, {name:"Layout Probe Clinic", city:"Chennai",
+                                        docName:"Dr. Layout Probe", vertical:job.vertical, step:job.step});
+        } else {
+          api.S.gate = job.gate; api.S.gatePick = job.gate === "signin" ? job.tenant : null;
+        }
         api.render();
       } else {
+        api.S.dense = !!job.dense;
         api.signIn(job.view);
       }
       // Exercise the transient surfaces that only exist after a tap.
@@ -129,8 +136,19 @@ f.onload = () => {
         api.S.nursePatient = api.T().patients[0].id;
         api.ACT.vital("bp", {dataset:{label:"Blood pressure", unit:"mmHg", mode:"bp"}});
       }
+      if(job.open === "rx" || job.open === "receipt"){
+        const t = api.T();
+        api.ACT.print(job.open === "rx" ? "rx|" + t.patients[0].id
+                                        : "receipt|" + t.appointments[0].id);
+      }
+      if(job.open === "dispute"){
+        const l = api.T().ledger[0];
+        if(l) api.ACT["settle-dispute"](l.id);
+      }
       const m = measure(doc);
-      m.tenant = job.tenant; m.view = job.view; m.open = job.open || null;
+      m.tenant = job.tenant; m.view = job.view;
+      m.open = job.open || (job.dense ? "dense" : null)
+               || (job.gate === "onboard" ? "onboard:" + job.vertical + ":" + (job.step+1) : null);
       m.lay = doc.documentElement.getAttribute("data-lay");
       results.push(m);
       if(job.open) api.closeModal();
@@ -187,6 +205,25 @@ SHOTS = [
     ("10-board-desktop",    1360, 900,  "?clinic=aarav-dental&as=reception"),
     ("11-chairside-desktop",1360, 1000, "?clinic=aarav-dental&as=dental"),
     ("12-routecard-desktop",1360, 900,  "?clinic=sushrut-polyclinic&as=consultant"),
+    # The owner ledger leads with recovered revenue (FR-7.4) and is the screen
+    # that changed most in v2.2, so it is reviewed at both ends of the ladder.
+    ("13-ledger-desktop",   1360, 1200, "?clinic=aarav-dental&as=owner"),
+    # v2.2 additions. Drishti Eye Care is the whole M4 argument in one picture:
+    # a five-stage board with a dilation lane, provisioned as rows.
+    ("14-eye-board-desktop",1360, 900,  "?clinic=drishti-eye&as=reception"),
+    ("15-eye-board-phone",   390, 1000, "?clinic=drishti-eye&as=reception"),
+    ("16-eye-slate-phone",   390, 1000, "?clinic=drishti-eye&as=nurse"),
+    ("17-recalls-desktop",  1360, 1100, "?clinic=drishti-eye&as=recalls"),
+    ("18-recalls-phone",     390, 1200, "?clinic=aarav-dental&as=recalls"),
+    ("19-practice-desktop", 1360, 1500, "?clinic=aarav-dental&as=practice"),
+    ("20-practice-phone",    390, 1400, "?clinic=drishti-eye&as=practice"),
+    ("21-coverage-desktop", 1360, 1500, "?clinic=aarav-dental&as=coverage"),
+    # FR-1.6 / FR-1.7. Step 2 is the specialty picker, step 3 shows what that
+    # choice configures, step 4 is the import dry run.
+    ("22-onboard-specialty",  390, 1100, "?onboard=dermatology:1"),
+    ("23-onboard-yourday",    390, 1000, "?onboard=dermatology:2"),
+    ("24-onboard-import",    1360, 1300, "?onboard=dermatology:3"),
+    ("25-onboard-golive",     390, 1100, "?onboard=dermatology:4"),
 ]
 SHOT_HOST = ('<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
              'html,body{margin:0;background:#3A3A3A}'
@@ -215,15 +252,44 @@ def capture_shots(chrome, outdir, workdir):
         print("  %-24s %4dx%-5d %8d bytes" % (name, w, h, size))
 
 
+def read_app_config():
+    """Read the tenant list and module map out of the app rather than restating
+    them. A hand-copied list here silently stops covering a new tenant, which is
+    precisely the sort of gap this script exists to catch."""
+    src = open(APP, encoding="utf-8").read()
+
+    def array_of(name):
+        block = re.search(r"const %s = \{(.*?)\n\};" % name, src, re.S)
+        if not block:
+            raise SystemExit("cannot find %s in %s" % (name, APP))
+        return {k: re.findall(r'"([a-z_]+)"', v)
+                for k, v in re.findall(r"^\s*([a-z_]+):\s*\[([^\]]*)\]", block.group(1), re.M)}
+
+    by_vertical = array_of("MODULES_BY_VERTICAL")
+    utility = re.findall(r'"([a-z]+)"',
+                         re.search(r"const UTILITY_MODULES = \[(.*?)\];", src, re.S).group(1))
+
+    tenants = {}
+    for tid, vert in re.findall(r'\n  id:"([a-z\-]+)", mark:"[A-Z]{2}",(?:.|\n)*?'
+                                r'\n  vertical:"([a-z_]+)"', src):
+        tenants[tid] = by_vertical[vert]
+    if not tenants:
+        raise SystemExit("no tenants parsed out of %s" % APP)
+    return tenants, utility
+
+
 def build_plan(tenants_filter):
-    """Mirror of MODULES_BY_VERTICAL and UTILITY_MODULES in the app."""
-    verticals = {
-        "aarav-dental":       ["reception", "nurse", "dental", "consultant", "owner", "patient"],
-        "anandi-wellness":    ["reception", "therapy", "owner", "patient"],
-        "sushrut-polyclinic": ["reception", "nurse", "dental", "therapy", "consultant", "owner", "patient"],
-    }
-    utility = ["whatsapp", "roadmap", "isolation", "system", "coverage"]
+    verticals, utility = read_app_config()
     plan = []
+    if not tenants_filter:
+        # The onboarding wizard is gate-level, so it belongs to no tenant. Every
+        # step is measured against the widest vertical, because a five-stage
+        # queue strip is the one that will break a 320 px screen if anything does.
+        for step in range(5):
+            plan.append({"tenant": "-", "view": "__gate__", "gate": "onboard",
+                         "vertical": "ophthalmology", "step": step})
+        plan.append({"tenant": "-", "view": "__gate__", "gate": "onboard",
+                     "vertical": "dermatology", "step": 2})
     for tenant, mods in verticals.items():
         if tenants_filter and tenant not in tenants_filter:
             continue
@@ -233,8 +299,15 @@ def build_plan(tenants_filter):
             plan.append({"tenant": tenant, "view": m})
         plan.append({"tenant": tenant, "view": "reception", "open": "sheet"})
         plan.append({"tenant": tenant, "view": "reception", "open": "walkin"})
+        plan.append({"tenant": tenant, "view": "reception", "dense": True})
+        # A print preview is a millimetre-measured sheet inside a phone modal,
+        # which is the most likely thing in the app to burst its container.
+        plan.append({"tenant": tenant, "view": "reception", "open": "rx"})
+        plan.append({"tenant": tenant, "view": "reception", "open": "receipt"})
         if "nurse" in mods:
             plan.append({"tenant": tenant, "view": "nurse", "open": "keypad"})
+        if "consultant" in mods:
+            plan.append({"tenant": tenant, "view": "owner", "open": "dispute"})
     return plan
 
 

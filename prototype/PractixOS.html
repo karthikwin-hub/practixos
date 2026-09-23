@@ -310,6 +310,18 @@ textarea.inp{min-height:82px;resize:vertical;line-height:1.55}
   border:1.5px solid var(--vermilion);color:#7E2A20;font-weight:700;font-size:.81rem;
 }
 .alert-band .bang{width:25px;height:25px;border-radius:50%;background:var(--vermilion);color:#fff;display:grid;place-items:center;font-weight:900;flex:none}
+/* A dwell breach is urgent but it is not a clinical alert, and the two must
+   never read as the same severity to someone glancing across the room. */
+.alert-band.warn{
+  background:repeating-linear-gradient(135deg,var(--marigold-wash) 0 12px,#F6E6C8 12px 24px);
+  border-color:var(--marigold);color:#7A4E07;
+}
+.alert-band.warn .bang{background:var(--marigold)}
+
+/* Trigger names are shown verbatim because the claim is that they are the
+   literal contents of a column, not a friendly paraphrase of one. */
+.ic-code{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.74em;
+  background:var(--accent-wash);color:var(--accent-a);padding:1px 5px;border-radius:4px;white-space:nowrap}
 
 .statgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 [data-lay="desk"] .statgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -396,7 +408,9 @@ textarea.inp{min-height:82px;resize:vertical;line-height:1.55}
    ========================================================================== */
 .board{display:grid;gap:12px;grid-template-columns:minmax(0,1fr);align-items:start}
 [data-lay="tab"] .board{grid-template-columns:repeat(2,minmax(0,1fr))}
-[data-lay="desk"] .board{grid-template-columns:repeat(4,minmax(0,1fr))}
+/* Lane count is a tenant setting, so the desktop board reads it from a custom
+   property rather than assuming the four stages a dental clinic happens to run. */
+[data-lay="desk"] .board{grid-template-columns:repeat(var(--lanes,4),minmax(0,1fr))}
 .lane{background:var(--paper-2);border:1px solid var(--rule);border-radius:var(--r-m);padding:10px;min-width:0;transition:var(--dur)}
 .lane.drop{background:var(--accent-wash);border-color:var(--accent-2);border-style:dashed}
 [data-lay="tab"] .lane,[data-lay="desk"] .lane{min-height:180px}
@@ -649,9 +663,60 @@ textarea.inp{min-height:82px;resize:vertical;line-height:1.55}
 .ws:hover{border-color:var(--accent-2);box-shadow:var(--sh-2)}
 .ws .m{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:900;font-size:.9rem;flex:none;letter-spacing:-.03em}
 .ws .b{flex:1;min-width:0}
-.ws .nm{font-weight:800;font-size:.93rem;overflow-wrap:anywhere}
+/* Each line is its own block. As inline spans they concatenate the moment the
+   clinic name wraps, which is most of them on a 390 px phone. */
+.ws .b > span{display:block}
+.ws .nm{font-weight:800;font-size:.93rem;overflow-wrap:anywhere;line-height:1.3}
 .ws .sl{font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);overflow-wrap:anywhere}
 .ws .go{color:var(--ink-4);font-size:1.2rem;flex:none}
+.ws.new{border-style:dashed;background:transparent}
+.ws.new .nm{color:var(--accent-2)}
+
+/* -- onboarding wizard -- */
+.fl{display:block;font-size:.76rem;font-weight:700;color:var(--ink-2);margin-bottom:5px}
+.vert-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}
+[data-lay="tab"] .vert-grid,[data-lay="desk"] .vert-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.vert-btn{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px 13px;min-width:0;
+  border:1.5px solid var(--rule-strong);border-radius:var(--r-m);background:var(--surface);text-align:left;transition:var(--dur)}
+.vert-btn:hover{border-color:var(--accent-2)}
+.vert-btn.on{border-color:var(--accent);background:var(--accent-wash);box-shadow:var(--sh-2)}
+.vert-btn .d{width:26px;height:4px;border-radius:2px}
+.vert-btn b{font-size:.92rem}
+.vert-btn span:last-child{font-size:.74rem;color:var(--ink-3);line-height:1.45}
+
+/* The stage strip is the single most persuasive thing in the wizard: the
+   clinic sees its own day laid out before it has typed a patient in. */
+.stage-strip{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.stage-pip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;
+  background:color-mix(in srgb, var(--c) 12%, transparent);color:var(--c);
+  border:1.5px solid var(--c);font-size:.74rem;font-weight:800}
+.stage-pip i{font-style:normal;font-size:.62rem;font-weight:700;opacity:.8;
+  background:var(--surface);border-radius:8px;padding:1px 5px}
+.stage-arr{color:var(--ink-4);font-weight:700}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px}
+.chip.on{background:var(--accent-wash);border-color:var(--accent-2);color:var(--accent-a)}
+.map-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
+[data-lay="tab"] .map-grid,[data-lay="desk"] .map-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.map-row{display:flex;align-items:center;gap:9px;min-width:0}
+.map-l{flex:0 0 96px;font-size:.76rem;font-weight:700;color:var(--ink-2)}
+.map-row select.inp{flex:1;min-width:0}
+.ready-mark{width:62px;height:62px;margin:4px auto 0;border-radius:18px;color:#fff;
+  display:grid;place-items:center;font-weight:900;font-size:1.3rem;letter-spacing:-.04em}
+
+/* -- stock batches and proxy permissions -- */
+.lot{display:inline-block;font-family:var(--font-mono);font-size:.68rem;font-weight:700;
+  color:var(--c);border:1px solid var(--c);border-radius:5px;padding:1px 6px;margin:1px 0;white-space:nowrap}
+.perm{display:inline-block;min-height:32px;padding:5px 10px;border-radius:18px;margin:2px 3px 2px 0;
+  border:1.5px solid var(--rule-strong);background:var(--surface);font-size:.72rem;font-weight:700;
+  color:var(--ink-3);transition:var(--dur);white-space:nowrap}
+.perm.on{border-color:var(--accent);background:var(--accent-wash);color:var(--accent-a)}
+
+/* -- settlement dispute -- */
+.dispute-row{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:11px 0;border-bottom:1px solid var(--rule)}
+.dispute-row:last-of-type{border-bottom:none}
+.dispute-row > div{flex:1 1 200px}
+.dispute-row .btn{flex:0 0 auto}
+
 .role-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 .role-btn{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:74px;padding:12px;
   border:1.5px solid var(--rule-strong);border-radius:var(--r-m);background:var(--surface);text-align:left;transition:var(--dur)}
@@ -662,12 +727,59 @@ textarea.inp{min-height:82px;resize:vertical;line-height:1.55}
 /* ============================================================================
    Print / motion
    ========================================================================== */
+/* ============================================================================
+   FR-4.6 — PRINT ARTIFACTS
+   A prescription is the only thing most patients take home, and in this market
+   it is also the practice's advertising. The screen preview and the sheet that
+   comes out of the printer are the same markup at the same measurements, so
+   what the doctor approves is what the patient receives.
+   ========================================================================== */
+#printroot{display:none}
+.sheet{
+  background:#fff;color:#111;width:var(--sheet-w);min-height:var(--sheet-h);
+  padding:var(--sheet-p);margin:0 auto;box-sizing:border-box;
+  font-family:var(--font-body);font-size:10.5pt;line-height:1.5;
+}
+.sheet[data-size="a5"]{--sheet-w:148mm;--sheet-h:210mm;--sheet-p:12mm}
+.sheet[data-size="a4"]{--sheet-w:210mm;--sheet-h:297mm;--sheet-p:18mm;font-size:11pt}
+.sh-head{display:flex;align-items:flex-start;gap:12px;border-bottom:2.5px solid var(--accent);padding-bottom:9px}
+.sh-mark{width:42px;height:42px;border-radius:10px;background:var(--accent);color:#fff;
+  display:grid;place-items:center;font-weight:900;font-size:1rem;letter-spacing:-.04em;flex:none}
+.sh-name{font-weight:800;font-size:1.12em;letter-spacing:-.02em;line-height:1.25}
+.sh-sub{font-size:.76em;color:#555}
+.sh-doc{margin-left:auto;text-align:right;font-size:.76em;color:#333;flex:none}
+.sh-meta{display:flex;flex-wrap:wrap;gap:4px 22px;margin:11px 0;font-size:.82em}
+.sh-meta b{font-weight:700}
+.sh-meta span{color:#555}
+.sh-rx{font-size:1.9em;font-weight:800;color:var(--accent);line-height:1;margin:14px 0 6px}
+.sh-tbl{width:100%;border-collapse:collapse;margin:6px 0 10px}
+.sh-tbl th{text-align:left;font-size:.68em;letter-spacing:.09em;text-transform:uppercase;
+  color:#666;border-bottom:1px solid #bbb;padding:5px 6px 5px 0;font-weight:700}
+.sh-tbl td{padding:6px 6px 6px 0;border-bottom:1px solid #eee;vertical-align:top}
+.sh-tbl .r{text-align:right;padding-right:0}
+.sh-total{display:flex;justify-content:space-between;font-weight:800;font-size:1.05em;
+  border-top:2px solid #111;padding-top:7px;margin-top:2px}
+.sh-words{font-size:.78em;color:#555;font-style:italic;margin-top:3px}
+.sh-note{font-size:.82em;margin-top:9px}
+.sh-sign{margin-top:26px;text-align:right;font-size:.8em}
+.sh-sign .line{display:inline-block;border-top:1px solid #333;padding-top:4px;min-width:150px;font-weight:700}
+.sh-foot{margin-top:auto;padding-top:11px;border-top:1px solid #ddd;font-size:.66em;color:#777;line-height:1.5}
+.sheet{display:flex;flex-direction:column}
+.sh-body{flex:1}
+.sh-qr{width:52px;height:52px;flex:none}
+
+/* The preview shrinks a real millimetre-measured sheet to fit a phone rather
+   than re-laying it out, so nothing can differ between preview and paper. */
+.sheet-wrap{background:#E9E6DE;padding:14px;border-radius:var(--r-m);overflow:hidden}
+.sheet-scale{transform-origin:top left}
+
 @media print{
-  .rail,.tabbar,.topbar,#toasts,.no-print{display:none!important}
-  .app{grid-template-columns:1fr}
-  body{background:#fff}
-  .card{break-inside:avoid;box-shadow:none}
-  .canvas{padding:0}
+  @page{margin:0}
+  html,body{background:#fff!important;margin:0;padding:0}
+  body > *{display:none!important}
+  body > #printroot{display:block!important}
+  #printroot .sheet{box-shadow:none;margin:0;break-after:page}
+  #printroot .sheet:last-child{break-after:auto}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -689,6 +801,11 @@ textarea.inp{min-height:82px;resize:vertical;line-height:1.55}
 
 <div class="scrim" id="scrim" role="dialog" aria-modal="true"><div class="modal" id="modal"></div></div>
 <div id="toasts" aria-live="polite"></div>
+
+<!-- FR-4.6. Hidden on screen; when the browser prints, this is the only thing
+     that exists. Printing the app chrome is how every clinic software in this
+     market produces the ugly A4 that the patient throws away. -->
+<div id="printroot" aria-hidden="true"></div>
 
 <script>
 /* ==========================================================================
@@ -940,22 +1057,197 @@ const ALERT_TAGS = ["Penicillin allergy","Local anaesthetic reaction","Hypertens
 /* Modules are a function of the tenant's vertical. A dental workspace has no
    therapy module at all — verticalization made structural, not cosmetic. */
 const MODULES_BY_VERTICAL = {
-  dental:        ["reception","nurse","dental","consultant","owner","patient"],
-  mental_health: ["reception","therapy","owner","patient"],
-  polyclinic:    ["reception","nurse","dental","therapy","consultant","owner","patient"]
+  dental:        ["reception","nurse","dental","recalls","practice","consultant","owner","patient"],
+  mental_health: ["reception","therapy","recalls","practice","owner","patient"],
+  polyclinic:    ["reception","nurse","dental","therapy","recalls","practice","consultant","owner","patient"],
+  /* Ophthalmology, added in v2.2. Note what is NOT here: no bespoke eye module.
+     The vertical is expressed entirely in tenant rows — a Dilating queue stage,
+     an acuity-and-pressure triage set, recall rules for diabetic retinopathy,
+     and a cataract package. Adding it required no new view. */
+  ophthalmology: ["reception","nurse","recalls","practice","consultant","owner","patient"],
+  dermatology:   ["reception","nurse","recalls","practice","consultant","owner","patient"],
+  paediatrics:   ["reception","nurse","recalls","practice","owner","patient"]
 };
 const UTILITY_MODULES = ["whatsapp","roadmap","isolation","system","coverage"];
+
+/* FR-7.4. Every recovered rupee is attributable to an artefact the platform
+   can produce on demand, which is the whole point: a total that cannot be
+   audited is a total an owner stops believing. */
+const RECOVERY = {
+  no_show_prevented:{label:"No-shows prevented",  one:"no-show", ev:"WhatsApp delivery receipt + attendance",
+                     why:"Reminder delivered and confirmed, and the patient came."},
+  deposit_converted:{label:"Deposits converted",  one:"deposit", ev:"UPI payment reference",
+                     why:"A slot secured with a deposit, and honoured."},
+  plan_resumed:     {label:"Treatment plans resumed", one:"treatment plan", ev:"Recall ID + resulting booking",
+                     why:"A dormant plan restarted after a recall."},
+  remake_avoided:   {label:"Lab remakes avoided", one:"lab remake", ev:"Work-order ID",
+                     why:"Order carried complete tooth, type and shade."},
+  consumable_billed:{label:"Consumables billed",  one:"billed consumable", ev:"Invoice line ID",
+                     why:"Logged chairside, carried onto the invoice automatically."}
+};
+const ORDINALS = ["","first","second","third","fourth","fifth","sixth","seventh","eighth","ninth","tenth"];
+const ordinal = n => ORDINALS[n] || (n + (n%10===1&&n%100!==11 ? "st" : n%10===2&&n%100!==12 ? "nd"
+                                        : n%10===3&&n%100!==13 ? "rd" : "th"));
 
 /* The same mobile number, deliberately present in two workspaces as two
    entirely unrelated records. This is the isolation proof. */
 const SHARED_PHONE = "+91 98220-44910";
 const PROVISIONED  = 1000;
 
+/* Queue stages are per-tenant rows, not an enum. Spec §4.6.1.
+   `role` is the closed set the engine actually reasons about — arrival stamps
+   attach on the first `waiting`, chair occupancy counts `in_service`, and the
+   Recovered Revenue ledger treats reaching `settlement` as attendance. Labels,
+   order, colours and dwell alerts are free. Nothing in this file branches on
+   the tenant's vertical to decide what the board looks like. */
+function ST(id,label,role,heat,adv,dwell,short){
+  return {id,label,role,heat,adv,dwell:dwell||null,short:short||label};
+}
+
+const STAGES_DENTAL = [
+  ST("expected","Expected",   "pre_arrival","#159A8F","Mark arrived"),
+  ST("waiting", "Waiting",    "waiting",    "#C97A12","Send in", 15),
+  ST("consult", "In chair",   "in_service", "#0B4F4A","To billing"),
+  ST("billing", "Billing",    "settlement", "#3F6B46")
+];
+const STAGES_THERAPY = [
+  ST("expected","Expected",   "pre_arrival","#4B3F86","Mark arrived"),
+  ST("waiting", "Quiet wait", "waiting",    "#C97A12","Begin session", 10),
+  ST("consult", "In session", "in_service", "#2E2560","Close session"),
+  ST("billing", "Closing",    "settlement", "#3F6B46")
+];
+const STAGES_POLY = [
+  ST("expected","Expected",   "pre_arrival","#159A8F","Mark arrived"),
+  ST("waiting", "Waiting",    "waiting",    "#C97A12","Send in", 20),
+  ST("consult", "In consult", "in_service", "#0B4F4A","To billing"),
+  ST("billing", "Billing",    "settlement", "#3F6B46")
+];
+/* Ophthalmology, added in v2.2 purely as configuration. The dilation wait is
+   the single most-cited operational need in the vertical and it costs one row. */
+const STAGES_OPTHO = [
+  ST("expected","Expected",      "pre_arrival","#1D5B8F","Mark arrived",     null, "Due"),
+  ST("waiting", "Waiting",       "waiting",    "#C97A12","Start dilation",     15, "Wait"),
+  ST("dilating","Dilating",      "waiting",    "#8A5A00","Ready for doctor",   20, "Dilating"),
+  ST("consult", "With doctor",   "in_service", "#12406B","To optical",       null, "Doctor"),
+  ST("billing", "Optical & bill","settlement", "#3F6B46",null,               null, "Optical")
+];
+
+/* Triage measurements, also per-tenant rows. `req` gates the send-in button. */
+const MEASURES_GENERAL = [
+  {k:"bp",    l:"Blood pressure", u:"mmHg",    mode:"bp", req:true},
+  {k:"pulse", l:"Pulse",          u:"per min", req:true},
+  {k:"sugar", l:"Random sugar",   u:"mg/dL"},
+  {k:"weight",l:"Weight",         u:"kg"}
+];
+const MEASURES_OPTHO = [
+  {k:"vaR",   l:"Acuity — right", u:"6/x",     req:true},
+  {k:"vaL",   l:"Acuity — left",  u:"6/x",     req:true},
+  {k:"iop",   l:"Pressure (IOP)", u:"mmHg",    req:true},
+  {k:"bp",    l:"Blood pressure", u:"mmHg",    mode:"bp"},
+  {k:"sugar", l:"Random sugar",   u:"mg/dL"}
+];
+
+const STAGES_DERMA = [
+  ST("expected","Expected",  "pre_arrival","#7A3B62","Mark arrived"),
+  ST("waiting", "Waiting",   "waiting",    "#C97A12","Send in", 15, "Wait"),
+  ST("consult", "In consult","in_service", "#5E2C4C","To procedure"),
+  ST("proc",    "Procedure", "in_service", "#8E4A74","To billing", null, "Proc"),
+  ST("billing", "Billing",   "settlement", "#3F6B46")
+];
+const STAGES_PAEDS = [
+  ST("expected","Expected",   "pre_arrival","#166B4A","Mark arrived"),
+  ST("waiting", "Waiting",    "waiting",    "#C97A12","Send in", 10, "Wait"),
+  ST("consult", "With doctor","in_service", "#0F4F37","To billing", null, "Doctor"),
+  ST("billing", "Billing",    "settlement", "#3F6B46")
+];
+const MEASURES_PAEDS = [
+  {k:"weight",l:"Weight",      u:"kg",       req:true},
+  {k:"height",l:"Height",      u:"cm",       req:true},
+  {k:"temp",  l:"Temperature", u:"°C",       req:true},
+  {k:"pulse", l:"Pulse",       u:"per min"},
+  {k:"spo2",  l:"SpO₂",        u:"%"}
+];
+
+/* ==========================================================================
+   2b. THE VERTICAL CATALOG
+   This object is the whole of "verticalization". A vertical is a queue shape,
+   a triage set, a module list, a vocabulary and a handful of recall rules —
+   and it lives in one readable place so that adding the next one is a review
+   of data, not an audit of control flow. Spec §4.6.
+   ========================================================================== */
+const VERTICALS = {
+  dental:{
+    label:"Dentistry", chairWord:"chair", followupDays:7, accent:"#0B4F4A",
+    stages:STAGES_DENTAL, measures:MEASURES_GENERAL, ready:true,
+    note:"Highest willingness to pay, a genuine multi-visit treatment plan, and a lab loop nobody else has digitised.",
+    rules:[["Scaling & polishing","last_visit",6],["Dormant treatment plan","plan_dormant",1],["Crown review","procedure_completed",12]]
+  },
+  ophthalmology:{
+    label:"Eye care", chairWord:"lane", followupDays:14, accent:"#12406B",
+    stages:STAGES_OPTHO, measures:MEASURES_OPTHO, ready:true,
+    note:"A dilation wait that no generic queue can model, plus an optical lab loop that behaves exactly like the dental one.",
+    rules:[["Diabetic retinopathy screening","last_visit",12],["Glaucoma pressure check","procedure_completed",6],["Spectacle power review","last_visit",24]]
+  },
+  dermatology:{
+    label:"Dermatology", chairWord:"room", followupDays:14, accent:"#5E2C4C",
+    stages:STAGES_DERMA, measures:MEASURES_GENERAL, ready:true,
+    note:"Course-based aesthetic packages and a procedure room that has to be tracked separately from the consult.",
+    rules:[["Course session due","plan_dormant",1],["Annual mole check","last_visit",12]]
+  },
+  paediatrics:{
+    label:"Paediatrics", chairWord:"room", followupDays:5, accent:"#0F4F37",
+    stages:STAGES_PAEDS, measures:MEASURES_PAEDS, ready:true,
+    note:"Immunisation recall is the whole product, and growth charting needs height and weight on every single visit.",
+    rules:[["Immunisation due","age_months",2],["Growth review","last_visit",6]]
+  },
+  mental_health:{
+    label:"Counselling", chairWord:"room", followupDays:10, accent:"#3E3F7D",
+    stages:STAGES_THERAPY, measures:MEASURES_GENERAL, ready:true,
+    note:"A zero-knowledge note vault, prepayment by default, and a waiting room that must stay quiet.",
+    rules:[["Lapsed series","plan_dormant",1],["Three-month check-in","last_visit",3]]
+  },
+  polyclinic:{
+    label:"Multi-specialty", chairWord:"room", followupDays:5, accent:"#98570A",
+    stages:STAGES_POLY, measures:MEASURES_GENERAL, ready:true,
+    note:"Several verticals under one roof, each practitioner settling on their own terms.",
+    rules:[["Chronic care review","last_visit",3],["Scaling & polishing","last_visit",6]]
+  }
+};
+
 /* -- terse seed helpers ---------------------------------------------------- */
 function P(id,name,age,sex,lang,phone,since,alerts,vitals,abha){
   return {id,name,age,sex,lang,phone,abha:abha||null,
           lastVisit: since===null?null:daysAgo(since),
           alerts:alerts||[], vitals:vitals||null};
+}
+/* Recall rules and the recalls they generate. `trigger` is the only closed
+   set — spec §4.6.2 — so a clinic can invent a routine the platform has never
+   heard of without anybody shipping a release. */
+function RR(id,label,trigger,after,why,value){ return {id,label,trigger,after,why,value}; }
+function RK(id,pid,rule,overdueDays,value){
+  return {id,pid,rule,due:daysAgo(overdueDays),value,status:"due",sentAt:null,bookedAt:null};
+}
+
+/* Spec 4.6.4. Stock is batches, never a single number. A clinic that knows it
+   holds nine vials but not that six of them expire on Friday is going to use
+   them on a patient. `daysAhead` may be negative, which is the case that
+   matters most. */
+function BATCH(lot, daysAhead, qty){ return {lot, exp:daysAgo(-daysAhead), qty}; }
+function INV(item, buffer, batches){ return {item, buffer, batches}; }
+
+/* Spec 4.6.3. Packages are how dermatology, ophthalmology and physiotherapy
+   actually sell, and a per-visit biller cannot represent them at all. */
+function PKG(id,label,sessions,price,validMonths,note){ return {id,label,sessions,price,validMonths,note}; }
+function PP(id,pid,pkg,used,daysLeft){ return {id,pid,pkg,used,expires:daysAgo(-daysLeft)}; }
+
+/* Spec 4.6.5. The three permissions are independent on purpose: a grandmother
+   who brings the child may book and may not consent, and an estranged parent
+   may consent and must not read the notes. Collapsing them into one flag is
+   the bug. */
+function REL(id,guardian,dependant,relation,perms,monthsValid){
+  return {id, guardian, dependant, relation,
+          may_book:perms.includes("b"), may_consent:perms.includes("c"), may_view_clinical:perms.includes("v"),
+          validUntil: monthsValid ? daysAgo(-monthsValid*30) : null};
 }
 function A(id,pid,doc,room,h,m,mins,reason,lane,fee,paid,token,x){
   return Object.assign({id,pid,doc,chair:room,start:at(h,m),mins,reason,lane,fee,paid,token,mode:"clinic"}, x||{});
@@ -976,7 +1268,7 @@ const TENANTS = [
   vertical:"dental", verticalLabel:"Dental practice",
   accent:{a:"#0B4F4A", b:"#0E7C74", c:"#159A8F", wash:"#E2EFED", ink:"#F2FAF8"},
   langs:["en","mr","te"], followupDays:7, overhead:85000, vpa:"aaravdental@icici",
-  since:"2019", chairsLabel:"chair",
+  since:"2019", chairsLabel:"chair", plan:{tier:"Clinic Pro", price:1999},
   staff:{reception:"Priya Nair", nurse:"Sr. Kavita Pawar", dental:"Dr. Aarav Sharma",
          consultant:"Dr. Kunal Mehta", owner:"Dr. Aarav Sharma"},
   seed(){ return {
@@ -986,6 +1278,8 @@ const TENANTS = [
       {id:"mehta",  name:"Dr. Kunal Mehta", qual:"MDS", kind:"dental", exp:15, fee:1200, room:"Visiting",
        langs:["Hindi","Gujarati","English"], blurb:"Endodontics — visiting consultant", visiting:true, split:0.60}
     ],
+    stages:STAGES_DENTAL,
+    measures:MEASURES_GENERAL,
     chairs:[{id:"c1",label:"Chair 1",caps:["rct","crown","implant"]},
             {id:"c2",label:"Chair 2",caps:["rct","crown"]}],
     patients:[
@@ -1012,15 +1306,53 @@ const TENANTS = [
     labOrders:[{id:"LAB-904",lab:"Apex Dental Ceramics, Pune",pid:"shenoy",tooth:36,
                 type:"Monolithic zirconia",shade:"A2 (VITA classical)",due:"12 Sep, 2:00 PM",status:"fabricating",cost:1400}],
     labs:["Apex Dental Ceramics, Pune","Illusion Dental Craft, Mumbai","Meridian Prosthetics, Bengaluru"],
-    inventory:[{item:"Rotary endodontic file",stock:14,buffer:6},{item:"LA carpule (Lignocaine)",stock:52,buffer:20},
-               {item:"Rubber dam sheet",stock:31,buffer:15},{item:"Sterilisation pouch",stock:88,buffer:40},
-               {item:"Composite kit",stock:7,buffer:5},{item:"Luting cement",stock:9,buffer:4}],
+    inventory:[
+      INV("Rotary endodontic file",6,[BATCH("RF-2291",210,14)]),
+      INV("LA carpule (Lignocaine)",20,[BATCH("LG-8841",24,18),BATCH("LG-9002",190,34)]),
+      INV("Rubber dam sheet",15,[BATCH("RD-118",420,31)]),
+      INV("Sterilisation pouch",40,[BATCH("SP-770",330,88)]),
+      /* Below buffer AND the older lot has already expired, which is the pair
+         of facts a single stock number can never show. */
+      INV("Composite kit",5,[BATCH("CK-410",-6,3),BATCH("CK-533",95,4)]),
+      INV("Luting cement",4,[BATCH("LC-260",41,9)])],
+    packages:[
+      PKG("pk-ortho","Clear aligner course",18,84000,24,"Monthly review and a new tray each visit"),
+      PKG("pk-hyg","Annual hygiene plan",2,3200,12,"Two scalings and a polish, paid once")],
+    patientPackages:[
+      PP("pp1","reddy","pk-hyg",1,210),
+      PP("pp2","shenoy","pk-ortho",4,640)],
+    relationships:[
+      REL("rel1","patil","shalini","Father","bv",24)],
     ledger:[
-      {date:"10 Sep",clinic:"Aarav Dental",pid:"patil",desc:"RCT sitting 1",gross:2500,lab:0,consum:250,status:"approved"},
-      {date:"08 Sep",clinic:"Smile Care",pid:null,desc:"Molar retreatment (K. Rao)",gross:4500,lab:0,consum:500,status:"settled"},
-      {date:"07 Sep",clinic:"Aarav Dental",pid:"shenoy",desc:"Crown impression",gross:3000,lab:1400,consum:300,status:"settled"}],
+      {id:"L1",date:"10 Sep",clinic:"Aarav Dental",pid:"patil",desc:"RCT sitting 1",gross:2500,lab:0,consum:250,status:"approved"},
+      {id:"L2",date:"08 Sep",clinic:"Smile Care",pid:null,desc:"Molar retreatment (K. Rao)",gross:4500,lab:0,consum:500,status:"settled"},
+      {id:"L3",date:"07 Sep",clinic:"Aarav Dental",pid:"shenoy",desc:"Crown impression",gross:3000,lab:1400,consum:300,status:"settled"}],
     vault:null,
-    abdm:{bundles:184,ratePerBundle:20,monthlyTarget:450,m1Verified:212,m3Consents:37},
+    /* DHIS per NHA Corrigendum 7 (April 2026): outpatient records are Category 2
+       at ₹5, the first 100 eligible transactions earn nothing, and only
+       KYC-verified ABHA links count at all. See spec §3.4. */
+    abdm:{bundles:184,kycVerified:121,ratePerBundle:5,baselineExcluded:100,
+          monthlyTarget:450,m1Verified:212,m3Consents:37},
+    recovered:[
+      {k:"no_show_prevented",n:5, unit:800},
+      {k:"deposit_converted",n:2, unit:2500},
+      {k:"plan_resumed",     n:1, unit:6000},
+      {k:"remake_avoided",   n:1, unit:1400},
+      {k:"consumable_billed",n:15,unit:60}
+    ],
+    /* FR-3.x recall rules — rows, not code. The engine reads `trigger`,
+       which is a closed set; everything else the clinic decides. */
+    recallRules:[
+      RR("rr-scale","Scaling & polishing","last_visit",{months:6},"Routine hygiene, six-monthly",1800),
+      RR("rr-plan","Dormant treatment plan","plan_dormant",{days:30},"A plan was started and the next sitting was never booked",6000),
+      RR("rr-crown","Crown review","procedure_completed",{months:12},"One year after a crown was fitted",800)
+    ],
+    recalls:[
+      RK("rc1","reddy","rr-plan",19,6000),
+      RK("rc2","verma","rr-scale",7,1800),
+      RK("rc3","shenoy","rr-crown",3,800),
+      RK("rc4","shalini","rr-scale",-9,1800)
+    ],
     cash:{cash:7000,upi:20300,pending:2000},
     roomUse:{c1:372,c2:248}, roomMinutesPerDay:480,
     audit:[], feed:[], wa:{}
@@ -1033,7 +1365,7 @@ const TENANTS = [
   vertical:"mental_health", verticalLabel:"Counselling practice",
   accent:{a:"#3E3F7D", b:"#565899", c:"#7B7DC8", wash:"#ECECF7", ink:"#F5F5FC"},
   langs:["en","mr","kok"], followupDays:10, overhead:42000, vpa:"anandiwellness@hdfc",
-  since:"2022", chairsLabel:"room",
+  since:"2022", chairsLabel:"room", plan:{tier:"Solo Practice", price:999},
   staff:{reception:"Meghana Bhosale", therapy:"Dr. Ananya Iyer", owner:"Dr. Ananya Iyer"},
   seed(){ return {
     practitioners:[
@@ -1042,6 +1374,8 @@ const TENANTS = [
       {id:"naik", name:"Rohan Naik", qual:"MPhil", kind:"mental", exp:5, fee:1400, room:"Consulting Room 2",
        langs:["Konkani","Marathi","English"], blurb:"Adolescent & family counselling", prepay:true, minutes:45}
     ],
+    stages:STAGES_THERAPY,
+    measures:MEASURES_GENERAL,
     chairs:[{id:"s1",label:"Consulting Room 1",caps:["counselling"]},
             {id:"s2",label:"Consulting Room 2",caps:["counselling"]}],
     patients:[
@@ -1058,6 +1392,14 @@ const TENANTS = [
     ],
     external:[{doc:"iyer",start:at(15,0),mins:120,source:"google",masked:"Doctor Unavailable (External Sync)"}],
     teeth:{}, plans:{}, labOrders:[], labs:[], inventory:[],
+    packages:[
+      PKG("pk-cbt","CBT course",8,13000,6,"Eight weekly sessions, prepaid at a discount")],
+    patientPackages:[
+      PP("pp1","sunita","pk-cbt",4,120)],
+    /* A minor in therapy is the sharpest case for splitting the permissions:
+       the parent books and consents, and does not get to read the notes. */
+    relationships:[
+      REL("rel1","kamat","joshi","Father","bc",12)],
     ledger:[],
     vault:{
       pid:"sunita", locked:true, attempts:0, cipher:null, salt:null, iv:null, autoLockAt:null,
@@ -1070,7 +1412,22 @@ const TENANTS = [
         p:"1. Thought-record worksheet for cognitive restructuring.\n2. Progressive muscle relaxation, nightly.\n3. Next session Thursday 18 Sep, 11:30."
       }
     },
-    abdm:{bundles:46,ratePerBundle:20,monthlyTarget:120,m1Verified:58,m3Consents:9},
+    /* Below the 100-transaction floor, so this practice earns nothing yet. */
+    abdm:{bundles:46,kycVerified:31,ratePerBundle:5,baselineExcluded:100,
+          monthlyTarget:120,m1Verified:58,m3Consents:9},
+    recovered:[
+      {k:"no_show_prevented",n:3,unit:1200},
+      {k:"deposit_converted",n:4,unit:1500},
+      {k:"plan_resumed",     n:1,unit:4800}
+    ],
+    recallRules:[
+      RR("rr-lapse","Lapsed series","plan_dormant",{days:21},"A session series stopped part-way",4800),
+      RR("rr-checkin","Three-month check-in","last_visit",{months:3},"A gentle review after a completed course",1800)
+    ],
+    recalls:[
+      RK("rc1","kamat","rr-lapse",11,4800),
+      RK("rc2","fern","rr-checkin",-4,1800)
+    ],
     cash:{cash:1400,upi:16400,pending:0},
     roomUse:{s1:190,s2:135}, roomMinutesPerDay:360,
     audit:[], feed:[], wa:{}
@@ -1083,7 +1440,7 @@ const TENANTS = [
   vertical:"polyclinic", verticalLabel:"Multi-specialty polyclinic",
   accent:{a:"#98570A", b:"#C97A12", c:"#E8952A", wash:"#FCF1DF", ink:"#FFFBF3"},
   langs:["en","te","bn"], followupDays:5, overhead:128000, vpa:"sushrutclinic@sbi",
-  since:"2016", chairsLabel:"room",
+  since:"2016", chairsLabel:"room", plan:{tier:"AI Enterprise", price:3499},
   staff:{reception:"Fatima Begum", nurse:"Sr. Jyothi Reddy", dental:"Dr. Imran Qureshi",
          therapy:"Dr. Lakshmi Prasad", consultant:"Dr. Nadeem Shaikh", owner:"Dr. Sarita Rao"},
   seed(){ return {
@@ -1097,6 +1454,8 @@ const TENANTS = [
       {id:"nadeem", name:"Dr. Nadeem Shaikh", qual:"MDS", kind:"dental", exp:13, fee:1500, room:"Visiting",
        langs:["Urdu","Hindi","English"], blurb:"Oral surgery — visiting", visiting:true, split:0.55}
     ],
+    stages:STAGES_POLY,
+    measures:MEASURES_GENERAL,
     chairs:[{id:"r1",label:"Consulting Room 1",caps:["gp"]},
             {id:"dc",label:"Dental Chair",caps:["rct","crown"]},
             {id:"cr",label:"Counselling Room",caps:["counselling"]}],
@@ -1122,12 +1481,24 @@ const TENANTS = [
       {tooth:26,step:1,name:"Composite restoration",fee:1800,mins:30,status:"chair",consumables:["Composite kit","LA carpule"]}]},
     labOrders:[],
     labs:["Deccan Dental Lab, Hyderabad","Apex Dental Ceramics, Pune"],
-    inventory:[{item:"Composite kit",stock:11,buffer:5},{item:"LA carpule (Lignocaine)",stock:64,buffer:20},
-               {item:"Rotary endodontic file",stock:4,buffer:6},{item:"Sterilisation pouch",stock:120,buffer:40},
-               {item:"Nebuliser mask (paediatric)",stock:18,buffer:10},{item:"Luting cement",stock:6,buffer:4}],
+    inventory:[
+      INV("Composite kit",5,[BATCH("CK-602",130,11)]),
+      INV("LA carpule (Lignocaine)",20,[BATCH("LG-7710",52,64)]),
+      INV("Rotary endodontic file",6,[BATCH("RF-1180",240,4)]),
+      INV("Sterilisation pouch",40,[BATCH("SP-901",300,120)]),
+      INV("Nebuliser mask (paediatric)",10,[BATCH("NM-355",18,6),BATCH("NM-412",270,12)]),
+      INV("Luting cement",4,[BATCH("LC-188",-14,2),BATCH("LC-301",160,4)])],
+    packages:[
+      PKG("pk-diab","Diabetes care year",4,4800,12,"Quarterly review, HbA1c and a diet consult"),
+      PKG("pk-imm","Immunisation schedule",6,5400,24,"The full paediatric schedule, one price")],
+    patientPackages:[
+      PP("pp1","padma","pk-diab",2,240),
+      PP("pp2","arjun","pk-imm",3,560)],
+    relationships:[
+      REL("rel1","padma","arjun","Mother","bcv",null)],
     ledger:[
-      {date:"11 Sep",clinic:"Sushrut Polyclinic",pid:"tanmoy",desc:"Surgical extraction 48",gross:4200,lab:0,consum:400,status:"approved"},
-      {date:"09 Sep",clinic:"Sushrut Polyclinic",pid:null,desc:"Impaction removal (M. Reddy)",gross:6500,lab:0,consum:700,status:"settled"}],
+      {id:"L4",date:"11 Sep",clinic:"Sushrut Polyclinic",pid:"tanmoy",desc:"Surgical extraction 48",gross:4200,lab:0,consum:400,status:"approved"},
+      {id:"L5",date:"09 Sep",clinic:"Sushrut Polyclinic",pid:null,desc:"Impaction removal (M. Reddy)",gross:6500,lab:0,consum:700,status:"settled"}],
     vault:{
       pid:"padma", locked:true, attempts:0, cipher:null, salt:null, iv:null, autoLockAt:null,
       meta:{gad7:9,phq9:7,dsm:"F32.1",cadence:"Fortnightly, Fridays 16:30",slot:"2 of 6",fee:1500},
@@ -1139,9 +1510,130 @@ const TENANTS = [
         p:"1. Continue behavioural activation schedule.\n2. Coordinate with Dr. Rao on glycaemic review.\n3. Next session 25 Sep, 16:30."
       }
     },
-    abdm:{bundles:302,ratePerBundle:20,monthlyTarget:640,m1Verified:388,m3Consents:71},
+    abdm:{bundles:302,kycVerified:214,ratePerBundle:5,baselineExcluded:100,
+          monthlyTarget:640,m1Verified:388,m3Consents:71},
+    recovered:[
+      {k:"no_show_prevented",n:11,unit:650},
+      {k:"deposit_converted",n:5, unit:2200},
+      {k:"plan_resumed",     n:2, unit:5500},
+      {k:"remake_avoided",   n:1, unit:1400},
+      {k:"consumable_billed",n:34,unit:55}
+    ],
+    recallRules:[
+      RR("rr-imm","Immunisation due","age_months",{months:2},"Paediatric schedule, by the child's age",500),
+      RR("rr-diab","Diabetes quarterly review","last_visit",{months:3},"Chronic care follow-up",400),
+      RR("rr-scale","Scaling & polishing","last_visit",{months:6},"Routine hygiene, six-monthly",1800)
+    ],
+    recalls:[
+      RK("rc1","arjun","rr-imm",22,500),
+      RK("rc2","padma","rr-diab",6,400),
+      RK("rc3","tanmoy","rr-scale",14,1800)
+    ],
     cash:{cash:11200,upi:28900,pending:6400},
     roomUse:{r1:305,dc:210,cr:135}, roomMinutesPerDay:480,
+    audit:[], feed:[], wa:{}
+  };}
+},
+/* ---------------------------------------------------------------------------
+   The fourth workspace exists to test one claim, and only that claim: that a
+   new vertical costs configuration and not code. Everything that makes this
+   read as an eye clinic — the dilation lane, the acuity tiles, the diabetic
+   retinopathy recall, the cataract package — is a row below. There is no
+   ophthalmology branch anywhere in this file, and `check-vertical.sh` in CI
+   fails the build if anyone adds one.
+   ------------------------------------------------------------------------- */
+{
+  id:"drishti-eye", mark:"DE",
+  name:"Drishti Eye Care", legal:"Drishti Vision Centre Pvt Ltd",
+  host:"drishti.practix.in", city:"Alwarpet, Chennai",
+  vertical:"ophthalmology", verticalLabel:"Eye care practice",
+  accent:{a:"#12406B", b:"#1D5B8F", c:"#2E7CBF", wash:"#E4EEF7", ink:"#F4F9FD"},
+  langs:["en","te","bn"], followupDays:14, overhead:96000, vpa:"drishtieye@axis",
+  since:"2014", chairsLabel:"lane", plan:{tier:"Clinic Pro", price:1999},
+  staff:{reception:"Revathi Balan", nurse:"Sr. Meena Krishnan",
+         consultant:"Dr. Farhan Ali", owner:"Dr. Suresh Iyengar"},
+  seed(){ return {
+    practitioners:[
+      {id:"iyengar", name:"Dr. Suresh Iyengar", qual:"MS Ophth", kind:"gp", exp:22, fee:600, room:"Lane 1",
+       langs:["Tamil","Telugu","English"], blurb:"Cataract & general ophthalmology"},
+      {id:"farhan", name:"Dr. Farhan Ali", qual:"DNB", kind:"gp", exp:10, fee:900, room:"Visiting",
+       langs:["Tamil","Hindi","English"], blurb:"Retina — visiting consultant", visiting:true, split:0.58}
+    ],
+    stages:STAGES_OPTHO,
+    measures:MEASURES_OPTHO,
+    chairs:[{id:"l1",label:"Lane 1",caps:["gp"]},
+            {id:"l2",label:"Lane 2",caps:["gp"]},
+            {id:"rf",label:"Refraction Room",caps:["gp"]}],
+    patients:[
+      P("balan","Ganesh Balan",63,"M","en","+91 98400-22119",30,["Diabetes"],
+        {vaR:"6/18",vaL:"6/24",iop:19,bp:"142/88",sugar:168},"91-3321-7745-9980"),
+      P("mythili","Mythili Raghavan",57,"F","en","+91 90030-44521",12,["Hypertension"],null,"91-8890-2214-6673"),
+      P("devi","Kanaka Devi",71,"F","te","+91 94440-90012",null,[],null,null),
+      P("sanjay","Sanjay Menon",34,"M","en","+91 98841-73390",5,[],
+        {vaR:"6/6",vaL:"6/9",iop:14},"91-5540-9932-1178")
+    ],
+    appointments:[
+      A("d1","balan","iyengar","l1",10,0,20,"Diabetic retinopathy screening","dilating",600,600,2,
+        {arrived:at(9,58),pkg:"Cataract package · visit 1 of 3"}),
+      A("d2","mythili","iyengar","l1",10,30,20,"Glaucoma pressure check","waiting",600,0,3,{arrived:at(10,12)}),
+      A("d3","devi","farhan","l2",11,15,30,"Cataract assessment — first visit","expected",900,0,4),
+      A("d4","sanjay","iyengar","rf",12,0,15,"Spectacle power review","expected",0,0,5,
+        {feeNote:"Free follow-up (day 5)"})
+    ],
+    external:[{doc:"farhan",start:at(15,30),mins:120,source:"google",masked:"Doctor Unavailable (External Sync)"}],
+    teeth:{}, plans:{},
+    /* The optical lab is the same work-order table the dental lab uses. A
+       lens order and a crown order differ only in the fields the tenant
+       chose to require. */
+    labOrders:[{id:"OPT-211",lab:"Lumen Optical Works, Chennai",pid:"sanjay",
+                type:"Progressive, anti-glare",shade:"−1.25 / −0.75 × 90",
+                due:"13 Sep, 5:00 PM",status:"fabricating",cost:2600}],
+    labs:["Lumen Optical Works, Chennai","Southern Lens Craft, Coimbatore"],
+    inventory:[
+      /* Eye drops are the textbook expiry problem: a 28-day in-use life once
+         the bottle is opened, and nobody writes the date on the label. */
+      INV("Tropicamide 1% (dilating drops)",6,[BATCH("TR-4420",11,4),BATCH("TR-4533",150,5)]),
+      INV("Proparacaine drops",8,[BATCH("PP-220",60,14)]),
+      INV("Tonometer prism tip",4,[BATCH("TP-88",700,3)]),
+      INV("Trial lens wipe",60,[BATCH("TW-1200",500,140)])],
+    packages:[
+      PKG("pk-cat","Cataract surgery package",3,42000,6,"Assessment, the procedure and both reviews"),
+      PKG("pk-dr","Retinopathy watch",4,3600,12,"Quarterly screening for a diabetic patient")],
+    patientPackages:[
+      PP("pp1","balan","pk-cat",1,150),
+      PP("pp2","mythili","pk-dr",2,280)],
+    relationships:[
+      REL("rel1","sanjay","devi","Grandson","b",36)],
+    ledger:[
+      {id:"L6",date:"11 Sep",clinic:"Drishti Eye Care",pid:"devi",desc:"Retina review",gross:900,lab:0,consum:90,status:"approved"},
+      {id:"L7",date:"06 Sep",clinic:"Drishti Eye Care",pid:null,desc:"Laser session (V. Rao)",gross:5500,lab:0,consum:400,status:"settled"}],
+    vault:null,
+    abdm:{bundles:238,kycVerified:166,ratePerBundle:5,baselineExcluded:100,
+          monthlyTarget:520,m1Verified:281,m3Consents:44},
+    recovered:[
+      {k:"no_show_prevented",n:7,unit:700},
+      {k:"deposit_converted",n:3,unit:3000},
+      {k:"plan_resumed",     n:2,unit:7500},
+      {k:"remake_avoided",   n:1,unit:2600},
+      {k:"consumable_billed",n:22,unit:45}
+    ],
+    /* Four rules, four rows, no eye-care code. The diabetic retinopathy
+       recall is the single highest-value routine in the vertical and it is
+       expressed here exactly as a dental scaling recall is. */
+    recallRules:[
+      RR("rr-dr","Diabetic retinopathy screening","last_visit",{months:12},"Annual, for anyone flagged diabetic",600),
+      RR("rr-iop","Glaucoma pressure check","procedure_completed",{months:6},"Six-monthly once pressure has been raised",600),
+      RR("rr-cat","Cataract package — next visit","plan_dormant",{days:21},"A package was bought and the next visit lapsed",7500),
+      RR("rr-optical","Spectacle power review","last_visit",{months:24},"Two years since the last refraction",2600)
+    ],
+    recalls:[
+      RK("rc1","devi","rr-cat",16,7500),
+      RK("rc2","balan","rr-dr",9,600),
+      RK("rc3","mythili","rr-iop",4,600),
+      RK("rc4","sanjay","rr-optical",-12,2600)
+    ],
+    cash:{cash:4200,upi:19800,pending:1500},
+    roomUse:{l1:340,l2:205,rf:160}, roomMinutesPerDay:480,
     audit:[], feed:[], wa:{}
   };}
 }
@@ -1166,7 +1658,9 @@ const S = {
   booking:{step:0,pid:null,docId:null,slot:null,code:"",verified:false,q:"",spec:"all",mode:"all",token:null},
   kp:{key:null,label:"",unit:"",mode:"num",buf:""},
   nursePatient:null, dentalPatient:null, waPid:null,
-  selectedTooth:null, activeDiagnosis:"caries", quadrant:"q1", laneTab:"expected",
+  selectedTooth:null, activeDiagnosis:"caries", quadrant:"q1", laneTab:null, dense:false,
+  onboard:{step:0, name:"", city:"", docName:"", vertical:"dental", followupDays:7, csv:"", map:{}},
+  csvTimer:null, print:{kind:"rx", id:null, size:"a5"},
   isoResult:null
 };
 
@@ -1284,6 +1778,8 @@ const PATHS = {
   check:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.6L16 9.5"/>',
   map:'<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
   cog:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  bell:'<path d="M6 16V10a6 6 0 0112 0v6l2 3H4z"/><path d="M10 22h4"/>',
+  box:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
   more:'<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
   lock:'<rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 018 0v3"/>'
 };
@@ -1294,6 +1790,8 @@ const MODULES = {
   nurse:    {tab:"Slate",    title:"Nurse Slate",           sub:"Triage — vitals and clinical alerts",          icon:"clipboard"},
   dental:   {tab:"Chairside",title:"Chairside Console",     sub:"Operatory — odontogram and treatment plans",   icon:"tooth"},
   therapy:  {tab:"Quiet",    title:"Quiet Room",            sub:"Counselling — encrypted session notes",        icon:"leaf"},
+  recalls:  {tab:"Recalls",  title:"Recall Engine",         sub:"Who is overdue, and the revenue it recovers",  icon:"bell"},
+  practice: {tab:"Practice", title:"Practice",              sub:"Stock and expiry, packages, family consent",   icon:"box"},
   consultant:{tab:"Route",   title:"Route Card",            sub:"Visiting consultant — multi-clinic day",       icon:"route"},
   owner:    {tab:"Ledger",   title:"Owner Ledger",          sub:"Practice economics and utilisation",           icon:"chart"},
   patient:  {tab:"Doorway",  title:"Patient Doorway",       sub:"What your patients see — no app required",     icon:"door"},
@@ -1447,7 +1945,7 @@ function roleBlurb(mod, cfg){
     dental:"Odontogram and treatment plans",
     therapy:"Encrypted session notes",
     consultant:"Your multi-clinic day",
-    owner:"Revenue, "+cfg.chairsLabel+" use, ABDM",
+    owner:"Recovered revenue, "+cfg.chairsLabel+" use, ABDM",
     patient:"Book without an app"
   };
   return map[mod] || "";
@@ -1455,7 +1953,8 @@ function roleBlurb(mod, cfg){
 
 function renderGate(){
   const g = $("gate");
-  if(S.gate === "signin" && S.gatePick){ g.innerHTML = gateSignIn(tenantById(S.gatePick)); applyGateTheme(tenantById(S.gatePick)); }
+  if(S.gate === "onboard"){ g.innerHTML = gateOnboard(); applyGateTheme({accent:onboardAccent()}); }
+  else if(S.gate === "signin" && S.gatePick){ g.innerHTML = gateSignIn(tenantById(S.gatePick)); applyGateTheme(tenantById(S.gatePick)); }
   else { g.innerHTML = gateWorkspaces(); applyGateTheme(null); }
 }
 function applyGateTheme(cfg){
@@ -1485,16 +1984,256 @@ function gateWorkspaces(){
         + '<span class="go">›</span></button>').join("")
       : '<p class="muted" style="padding:14px 0">No workspace matches “'+esc(S.gateQuery)+'”.</p>')
     + '</div>'
+    + '<button class="ws new" data-act="onboard">'
+      + '<span class="m" style="background:var(--rule);color:var(--ink)">+</span>'
+      + '<span class="b"><span class="nm">Set up a new practice</span>'
+      + '<span class="muted" style="font-size:.72rem">Five steps, no sales call — FR-1.6 and FR-1.7</span></span>'
+      + '<span class="go">›</span></button>'
   + '</div></div>'
-  + '<div class="callout mt"><b>3 seeded of '+PROVISIONED.toLocaleString("en-IN")+' provisioned.</b> '
+  + '<div class="callout mt"><b>'+TENANTS.length+' seeded of '+PROVISIONED.toLocaleString("en-IN")+' provisioned.</b> '
     + 'A real clinic never sees this list. It reaches <span class="mono">aaravdental.practix.in</span> and the tenant is resolved from the host '
     + 'before a single row is read. This prototype resolves it from <span class="mono">?clinic=</span> instead — try '
     + '<span class="mono">?clinic=anandi-wellness</span> in the address bar.</div>'
   + '<div class="callout ok mt"><b>Data isolation.</b> Signing in materialises exactly one workspace. '
-    + 'The other two are never loaded into memory — the client-side mirror of Postgres row-level security refusing to return rows '
+    + 'The other '+(TENANTS.length-1)+' are never loaded into memory — the client-side mirror of Postgres row-level security refusing to return rows '
     + 'outside <span class="mono">current_setting(\'app.clinic_id\')</span>.</div>'
   + '</div>';
 }
+
+/* ==========================================================================
+   FR-1.6 / FR-1.7 — SELF-SERVICE ONBOARDING
+   A clinic that needs a sales call to get started has a customer acquisition
+   cost the price point cannot carry. Five steps, no human, and at the end a
+   working workspace that appears in the directory and can be signed into —
+   built from nothing but the answers, which is the configurable-vertical
+   claim tested rather than asserted.
+   ========================================================================== */
+
+/* Deliberately messy: the wrong header words, a blank name, a malformed date,
+   a duplicate number and an unparseable age. Real exports look like this, and
+   an import that only handles clean data is an import nobody can use. */
+const SAMPLE_CSV =
+"Patient Name,Mobile No,Age,Gender,Last Visit,Notes\n"
++ "Baburao Patil,9822013344,59,M,12/03/2026,Penicillin allergy\n"
++ "Shalini Rao,+91 99012 33455,31,F,2026-08-30,\n"
++ "Venkat S. Reddy,098480-11234,48,Male,15/06/2026,Hypertension\n"
++ ",9845066012,37,M,2026-07-11,No name on the old system\n"
++ "Premanand Shenoy,9823077112,fifty four,M,31/02/2026,\n"
++ "Meera Krishnan,9822013344,45,F,2026-05-02,Duplicate mobile\n"
++ "Kanaka Devi,94440 90012,71,F,,First visit not recorded\n";
+
+const IMPORT_FIELDS = [
+  {k:"name",  l:"Full name",  req:true,  hints:["name","patient"]},
+  {k:"phone", l:"Mobile",     req:true,  hints:["mobile","phone","contact","cell"]},
+  {k:"age",   l:"Age",        req:false, hints:["age","yrs","years"]},
+  {k:"sex",   l:"Sex",        req:false, hints:["gender","sex"]},
+  {k:"last",  l:"Last visit", req:false, hints:["last","visit","seen"]},
+  {k:"notes", l:"Notes",      req:false, hints:["note","remark","comment","alert"]}
+];
+
+function parseCSV(text){
+  const lines = String(text||"").trim().split(/\r?\n/).filter(l => l.trim() !== "");
+  if(!lines.length) return {headers:[], rows:[]};
+  const split = l => l.split(",").map(c => c.trim());
+  return {headers: split(lines[0]), rows: lines.slice(1).map(split)};
+}
+/* Guess the mapping, then show the guess. Never silently apply it — a wrong
+   column that nobody was asked about is how a patient list gets corrupted. */
+function guessMapping(headers){
+  const map = {};
+  IMPORT_FIELDS.forEach(f => {
+    const i = headers.findIndex(h => f.hints.some(x => h.toLowerCase().includes(x)));
+    map[f.k] = i < 0 ? -1 : i;
+  });
+  return map;
+}
+const digits = s => String(s||"").replace(/\D/g,"");
+function normalisePhone(raw){
+  const d = digits(raw).replace(/^0+/,"").replace(/^91(?=\d{10}$)/,"");
+  return d.length === 10 ? "+91 "+d.slice(0,5)+"-"+d.slice(5) : null;
+}
+function parseDate(raw){
+  const s = String(raw||"").trim();
+  if(!s) return {ok:true, value:null};
+  let y,m,d;
+  let g = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(g){ y=+g[1]; m=+g[2]; d=+g[3]; }
+  else {
+    g = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if(!g) return {ok:false, why:"date not understood"};
+    d=+g[1]; m=+g[2]; y=+g[3];
+  }
+  const dt = new Date(y, m-1, d);
+  if(dt.getFullYear()!==y || dt.getMonth()!==m-1 || dt.getDate()!==d)
+    return {ok:false, why:"no such date"};
+  return {ok:true, value:dt};
+}
+
+/* The dry run is the product. It says exactly what will happen to every row
+   before anything happens to any of them. */
+function dryRun(text, map){
+  const {rows} = parseCSV(text);
+  const seen = {}, out = [];
+  rows.forEach((cells, i) => {
+    const get = k => map[k] >= 0 ? (cells[map[k]] || "") : "";
+    const name = get("name").trim();
+    const phone = normalisePhone(get("phone"));
+    const dt = parseDate(get("last"));
+    const ageRaw = get("age").trim();
+    const age = /^\d{1,3}$/.test(ageRaw) ? +ageRaw : null;
+
+    const problems = [];
+    if(!name) problems.push("no name");
+    if(!phone) problems.push("mobile is not a 10-digit Indian number");
+    if(!dt.ok) problems.push("last visit — "+dt.why);
+    if(ageRaw && age === null) problems.push("age is not a number");
+
+    let verdict = problems.length && (!name || !phone) ? "skip"
+                : problems.length ? "partial" : "import";
+    if(verdict !== "skip" && phone){
+      if(seen[phone]) { verdict = "merge"; problems.push("shares a mobile with row "+seen[phone]); }
+      else seen[phone] = i+1;
+    }
+    out.push({row:i+1, name, phone, age, sex:get("sex"), last:dt.value,
+              notes:get("notes"), verdict, problems});
+  });
+  return out;
+}
+
+const ONBOARD_STEPS = ["Practice","Specialty","Your day","Patients","Go live"];
+
+function gateOnboard(){
+  const o = S.onboard, v = VERTICALS[o.vertical];
+  const dots = '<div class="step-dots mb">'+ONBOARD_STEPS.map((_,i)=>'<i class="'+(i<=o.step?"on":"")+'"></i>').join("")+'</div>';
+  const crumb = '<div class="between mb"><div class="eyebrow">Step '+(o.step+1)+' of 5 · '+esc(ONBOARD_STEPS[o.step])+'</div>'
+    + '<button class="btn btn-g btn-s" data-act="back-ws">Cancel</button></div>';
+
+  let body = "", nextLabel = "Continue", canNext = true;
+
+  if(o.step === 0){
+    body = '<label class="fl">What is the practice called?</label>'
+      + '<input class="inp mb" id="ob-name" value="'+esc(o.name)+'" placeholder="Aarav Dental Arts" oninput="obSet(\'name\',this.value)">'
+      + '<label class="fl">Where is it?</label>'
+      + '<input class="inp mb" id="ob-city" value="'+esc(o.city)+'" placeholder="Indiranagar, Bengaluru" oninput="obSet(\'city\',this.value)">'
+      + '<label class="fl">Your own name</label>'
+      + '<input class="inp" id="ob-doc" value="'+esc(o.docName)+'" placeholder="Dr. Aarav Sharma" oninput="obSet(\'docName\',this.value)">'
+      + '<p class="hint" style="margin-top:10px">Your address will be '
+      + '<span class="mono">'+esc(obSlug()||"yourclinic")+'.practix.in</span>, reserved the moment you finish.</p>';
+    canNext = o.name.trim().length > 2 && o.docName.trim().length > 2;
+  }
+
+  if(o.step === 1){
+    body = '<div class="vert-grid">'
+      + Object.keys(VERTICALS).map(k => '<button class="vert-btn'+(o.vertical===k?" on":"")+'" data-act="ob-vert" data-arg="'+k+'">'
+          + '<span class="d" style="background:'+VERTICALS[k].accent+'"></span>'
+          + '<b>'+esc(VERTICALS[k].label)+'</b>'
+          + '<span>'+esc(VERTICALS[k].note)+'</span></button>').join("")
+      + '</div>'
+      + '<div class="callout mt"><b>This is the only question that changes the product.</b> '
+      + 'Everything below is what '+esc(VERTICALS[o.vertical].label.toLowerCase())+' gets, and all of it is rows we are about to write '
+      + 'for you — no build, no deployment, no call with us.</div>';
+  }
+
+  if(o.step === 2){
+    body = '<div class="eyebrow mb">Your queue</div>'
+      + '<div class="stage-strip mb">'+v.stages.map((st,i) =>
+          '<span class="stage-pip" style="--c:'+st.heat+'">'+esc(st.label)
+          + (st.dwell?'<i>'+st.dwell+'m</i>':'')+'</span>'
+          + (i<v.stages.length-1?'<span class="stage-arr">›</span>':'')).join("")
+      + '</div>'
+      + '<div class="eyebrow mb">Recorded at triage</div>'
+      + '<div class="chip-row mb">'+v.measures.map(m =>
+          '<span class="chip'+(m.req?" on":"")+'">'+esc(m.l)+(m.req?" *":"")+'</span>').join("")+'</div>'
+      + '<div class="eyebrow mb">Recalls we will run for you</div>'
+      + '<div class="chip-row mb">'+v.rules.map(r =>
+          '<span class="chip">'+esc(r[0])+' · '
+          + (r[1]==="plan_dormant" ? "after "+(r[2]*30)+" dormant days"
+             : r[1]==="age_months" ? "at every "+r[2]+"-month milestone"
+             : "every "+r[2]+" months")+'</span>').join("")+'</div>'
+      + '<label class="fl">Free follow-up window — BR-01</label>'
+      + '<div class="seg mb">'+[0,5,7,10,14].map(d =>
+          '<button class="'+(o.followupDays===d?"on":"")+'" data-act="ob-follow" data-arg="'+d+'">'
+          + (d===0?"None":d+" days")+'</button>').join("")+'</div>'
+      + '<p class="hint">A revisit inside this window is billed at zero, automatically, by the same rule everywhere in the app. '
+      + 'It is the one number your front desk will otherwise get wrong every week.</p>';
+  }
+
+  if(o.step === 3){
+    const map = o.map, {headers} = parseCSV(o.csv);
+    const results = dryRun(o.csv, map);
+    const count = k => results.filter(r => r.verdict === k).length;
+    const missingReq = IMPORT_FIELDS.filter(f => f.req && map[f.k] < 0);
+
+    body = '<p class="muted mb" style="font-size:.82rem">Paste an export from whatever you use now. '
+      + 'Nothing is written until you have seen this table and pressed the button.</p>'
+      + '<textarea class="inp mono" id="ob-csv" rows="5" style="font-size:.72rem" '
+      + 'oninput="obCSV(this.value)">'+esc(o.csv)+'</textarea>'
+      + '<div class="eyebrow" style="margin:14px 0 8px">Column mapping — our guess, your decision</div>'
+      + '<div class="map-grid mb">'+IMPORT_FIELDS.map(f =>
+          '<div class="map-row"><span class="map-l">'+esc(f.l)+(f.req?' <b style="color:var(--vermilion)">*</b>':'')+'</span>'
+          + '<select class="inp" onchange="obMap(\''+f.k+'\',this.value)">'
+          + '<option value="-1"'+(map[f.k]<0?" selected":"")+'>— not in this file —</option>'
+          + headers.map((h,i)=>'<option value="'+i+'"'+(map[f.k]===i?" selected":"")+'>'+esc(h)+'</option>').join("")
+          + '</select></div>').join("")+'</div>'
+      + (missingReq.length
+          ? '<div class="alert-band mb"><span class="bang">!</span><span>Map '
+            + esc(listOut(missingReq.map(f=>f.l.toLowerCase())))+' before importing.</span></div>' : '')
+      + '<div class="statgrid mb">'
+        + stat("Will import", count("import"))
+        + stat("With warnings", count("partial"))
+        + stat("Look like duplicates", count("merge"))
+        + stat("Skipped", count("skip"))
+      + '</div>'
+      + dataTable([{k:"r",h:"Row"},{k:"who",h:"Patient"},{k:"ph",h:"Mobile"},{k:"out",h:"Outcome"}],
+          results.map(r => ({
+            r:'<span class="muted">'+r.row+'</span>',
+            who: r.name ? '<b>'+esc(r.name)+'</b>' : '<span class="muted">(blank)</span>',
+            ph: r.phone ? esc(r.phone) : '<span class="muted">'+esc(digits(r.phone)||"—")+'</span>',
+            out:'<span class="stamp flat '+({import:"s-ok",partial:"s-warn",merge:"s-info",skip:"s-risk"}[r.verdict])
+                +'" style="font-size:.55rem">'+({import:"Import",partial:"Import + flag",merge:"Review as duplicate",skip:"Skip"}[r.verdict])+'</span>'
+                + (r.problems.length?'<br><span class="muted" style="font-size:.72rem">'+esc(r.problems.join("; "))+'</span>':'')
+          })), {title:"who", empty:"Paste some rows above."})
+      + '<div class="callout mt"><b>Nothing is silently dropped.</b> Every skipped row is named, with the reason, '
+      + 'and lands in a file you can fix and re-import. A migration that quietly loses four patients is worse than one that refuses to run.</div>';
+    nextLabel = "Import "+(count("import")+count("partial"))+" patients";
+    canNext = missingReq.length === 0;
+  }
+
+  if(o.step === 4){
+    const imported = dryRun(o.csv, o.map).filter(r => r.verdict === "import" || r.verdict === "partial").length;
+    body = '<div class="ready-mark" style="background:'+v.accent+'">'+esc(obMark())+'</div>'
+      + '<h2 style="text-align:center;margin:12px 0 2px">'+esc(o.name)+'</h2>'
+      + '<p class="muted" style="text-align:center;font-size:.82rem">'
+      + '<span class="mono">'+esc(obSlug())+'.practix.in</span></p>'
+      + '<div class="card mt"><div class="card-b">'
+      + dataTable([{k:"k",h:"Setting"},{k:"v",h:"Value"}], [
+          {k:"Specialty",        v:esc(v.label)},
+          {k:"Queue stages",     v:v.stages.length+" — "+esc(v.stages.map(s=>s.label).join(", "))},
+          {k:"Triage measures",  v:v.measures.length+" — "+esc(v.measures.map(m=>m.l).join(", "))},
+          {k:"Recall rules",     v:v.rules.length+" configured"},
+          {k:"Free follow-up",   v:o.followupDays ? o.followupDays+" days" : "None"},
+          {k:"Patients imported",v:String(imported)},
+          {k:"Modules enabled",  v:esc((MODULES_BY_VERTICAL[o.vertical]||[]).map(m=>MODULES[m].tab).join(", "))}
+        ], {title:"k"})
+      + '</div></div>'
+      + '<div class="callout ok mt"><b>Nobody wrote code for this.</b> The workspace you are about to open was assembled '
+      + 'from the seven answers above. That is the whole thesis behind the vertical engine, and you have just run it.</div>';
+    nextLabel = "Open "+esc(o.name);
+  }
+
+  return '<div class="gate-in">'
+  + '<div class="gate-brand"><div class="m">Px</div><div>'
+    + '<div style="font-weight:800;font-size:1.05rem;letter-spacing:-.02em">Set up your practice</div>'
+    + '<div class="muted" style="font-size:.74rem">Five steps · no sales call · about four minutes</div></div></div>'
+  + '<div class="card"><div class="card-b">'+crumb+dots+body+'</div></div>'
+  + '<div class="row mt">'
+    + (o.step ? '<button class="btn btn-g btn-xl" style="flex:0 0 96px" data-act="ob-back">Back</button>' : '')
+    + '<button class="btn btn-p btn-xl" style="flex:1" data-act="ob-next"'+(canNext?"":" disabled")+'>'+nextLabel+'</button>'
+  + '</div></div>';
+}
+
+const obSlug = () => S.onboard.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,24);
+const obMark = () => (initials(S.onboard.name) || "NC");
 
 function gateSignIn(cfg){
   const mods = MODULES_BY_VERTICAL[cfg.vertical];
@@ -1535,7 +2274,7 @@ function signIn(mod){
   S.lang = cfg.langs[0];
   S.view = mod;
   S.nursePatient = null; S.dentalPatient = null; S.selectedTooth = null;
-  S.waPid = null; S.laneTab = "expected"; S.quadrant = "q1"; S.isoResult = null;
+  S.waPid = null; S.laneTab = null; S.quadrant = "q1"; S.isoResult = null; S.dense = false;
   S.syncQueue = []; S.scenarioStep = 0;
   S.booking = {step:0,pid:null,docId:null,slot:null,code:"",verified:false,q:"",spec:"all",mode:"all",token:null};
   audit("session.start","Signed in as "+MODULES[mod].title, cfg.name+" · "+cfg.host);
@@ -1568,20 +2307,51 @@ function resolveTenant(){
    ========================================================================== */
 const VIEWS = {};
 
-const LANES = [
-  {id:"expected", label:"Expected",   heat:"#159A8F"},
-  {id:"waiting",  label:"Waiting",    heat:"#C97A12"},
-  {id:"consult",  label:"In consult", heat:"#0B4F4A"},
-  {id:"billing",  label:"Billing",    heat:"#3F6B46"}
-];
-const laneOf = id => LANES.find(l=>l.id===id) || LANES[0];
+/* Stages come from the tenant, so every helper below reads configuration
+   rather than a constant. The only closed set is `role`. */
+const stages   = () => (T() ? T().stages : STAGES_DENTAL);
+const laneOf   = id => stages().find(l=>l.id===id) || stages()[0];
+const roleOf   = id => laneOf(id).role;
+const byRole   = r  => stages().filter(l=>l.role===r);
+const roleStage= r  => byRole(r)[0] || stages()[0];
+const laneTab  = () => (stages().some(l=>l.id===S.laneTab) ? S.laneTab : stages()[0].id);
+function nextLane(id){
+  const all = stages(), i = all.findIndex(l=>l.id===id);
+  return (i < 0 || i === all.length-1) ? "done" : all[i+1].id;
+}
 function waited(a){ return a.arrived ? Math.max(0, Math.floor((S.clock - a.arrived)/60000)) : null; }
-function heatOf(a){
-  if(a.lane !== "waiting") return laneOf(a.lane).heat;
+/* A dwell alert is a per-stage number, which is how an eye clinic gets to flag
+   a patient who has been dilating too long without anyone writing code for it. */
+function overdue(a){
+  const st = laneOf(a.lane);
+  if(!st.dwell) return 0;
   const m = waited(a) || 0;
-  return m > 30 ? "#B33F33" : m > 15 ? "#C97A12" : "#3F6B46";
+  return m > st.dwell*2 ? 2 : m > st.dwell ? 1 : 0;
+}
+function heatOf(a){
+  const st = laneOf(a.lane);
+  if(!st.dwell) return st.heat;
+  return ["#3F6B46","#C97A12","#B33F33"][overdue(a)];
 }
 function inLane(id){ return T().appointments.filter(a => a.lane === id); }
+function inRole(){
+  const want = [].concat.apply([], Array.from(arguments));
+  const ids = stages().filter(l=>want.includes(l.role)).map(l=>l.id);
+  return T().appointments.filter(a => ids.includes(a.lane));
+}
+/* FR-2.2: the token is the patient's place in *this practitioner's* queue.
+   A clinic-wide number is meaningless when one doctor is running late. */
+function tokenOf(a){
+  const mine = T().appointments
+    .filter(x => x.doc === a.doc && x.lane !== "cancelled")
+    .sort((x,y) => x.start - y.start);
+  const i = mine.findIndex(x => x.id === a.id);
+  return i < 0 ? a.token : i + 1;
+}
+const measures = () => (T() && T().measures) || MEASURES_GENERAL;
+const listOut = xs => xs.length < 2 ? (xs[0]||"") : xs.slice(0,-1).join(", ")+" and "+xs[xs.length-1];
+const initials = n => String(n||"").replace(/^(Dr\.?|Sr\.?)\s+/i,"")
+  .split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
 
 /* -- one queue card, identical on every screen size ------------------------ */
 function qcard(a){
@@ -1591,8 +2361,11 @@ function qcard(a){
   + '<div class="qc-top"><div style="min-width:0">'
     + '<div class="qc-name">'+esc(p?p.name:"Walk-in")+'</div>'
     + '<div class="row tight" style="margin-top:4px">'
-      + '<span class="token">T'+a.token+'</span>'
+      + '<span class="token" title="Position in '+esc(d?d.name:"the")+'&#39;s queue">'
+        + (d?esc(initials(d.name))+'·':'')+'T'+tokenOf(a)+'</span>'
       + (a.mode==="video"?'<span class="chip mini">Video</span>':'')
+      + (p && guardianOf(p.id)
+          ? '<span class="chip mini" title="Consent by proxy">With '+esc(guardianOf(p.id).relation.toLowerCase())+'</span>' : '')
       + (alerts.length?'<span class="stamp s-risk" style="font-size:.55rem;padding:2px 5px">'+esc(alerts[0])+'</span>':'')
     + '</div></div>'
     + '<button class="grip" data-drag="'+a.id+'" aria-label="Move '+esc(p?p.name:"card")+'">⠿</button>'
@@ -1600,72 +2373,126 @@ function qcard(a){
   + '<div class="qc-meta">'
     + '<span>'+hhmm(a.start)+' · '+esc(a.reason)+'</span>'
     + '<span class="muted">'+esc(d?d.name:"—")+' · '+esc(room(a.chair))+'</span>'
-    + (w!=null && a.lane==="waiting" ? '<span style="color:'+heatOf(a)+';font-weight:700">Waiting '+w+' min</span>' : '')
+    + (w!=null && laneOf(a.lane).dwell
+        ? '<span style="color:'+heatOf(a)+';font-weight:700">'+esc(laneOf(a.lane).label)+' '+w+' min'
+          + (overdue(a)?' — over '+laneOf(a.lane).dwell:'')+'</span>' : '')
     + (a.feeNote ? '<span style="color:var(--sage);font-weight:700">'+esc(a.feeNote)+'</span>' : '')
+    + (a.pkg ? '<span style="color:var(--accent-2);font-weight:700">'+esc(a.pkg)+'</span>' : '')
   + '</div>'
   + '<div class="qc-act">' + laneActions(a) + '</div>'
   + '</article>';
 }
+/* The primary button is the stage's own `adv` label. A settlement stage ends in
+   money instead, and a fully prepaid appointment has nothing left to collect. */
 function laneActions(a){
+  const st = laneOf(a.lane);
   const more = '<button class="btn btn-g btn-s" data-act="card-menu" data-arg="'+a.id+'" style="flex:0 0 44px">⋯</button>';
-  if(a.lane === "expected") return '<button class="btn btn-p btn-s" data-act="advance" data-arg="'+a.id+'">Mark arrived</button>'+more;
-  if(a.lane === "waiting")  return '<button class="btn btn-p btn-s" data-act="advance" data-arg="'+a.id+'">Send in</button>'+more;
-  if(a.lane === "consult")  return '<button class="btn btn-p btn-s" data-act="advance" data-arg="'+a.id+'">To billing</button>'+more;
-  return '<button class="btn btn-w btn-s" data-act="collect" data-arg="'+a.id+'">Collect '+inr(a.fee-(a.paid||0))+'</button>'+more;
+  if(st.role === "settlement"){
+    const due = a.fee - (a.paid||0);
+    return due > 0
+      ? '<button class="btn btn-w btn-s" data-act="collect" data-arg="'+a.id+'">Collect '+inr(due)+'</button>'+more
+      : '<button class="btn btn-p btn-s" data-act="paid" data-arg="'+a.id+'|upi">Close — nothing due</button>'+more;
+  }
+  return '<button class="btn btn-p btn-s" data-act="advance" data-arg="'+a.id+'">'+esc(st.adv||"Advance")+'</button>'+more;
 }
 
 /* -- RECEPTION BOARD ------------------------------------------------------- */
 VIEWS.reception = function(){
-  const s = T();
-  const risky = s.appointments.filter(a => ["waiting","consult"].includes(a.lane) && pat(a.pid) && pat(a.pid).alerts.length);
+  const s = T(), cfg = TENANT();
+  const risky = inRole("waiting","in_service").filter(a => pat(a.pid) && pat(a.pid).alerts.length);
   const collected = s.cash.cash + s.cash.upi;
-  const waits = inLane("waiting").map(waited).filter(x=>x!=null);
+  const waiting = inRole("waiting");
+  const waits = waiting.map(waited).filter(x=>x!=null);
   const avg = waits.length ? Math.round(waits.reduce((x,y)=>x+y,0)/waits.length) : 0;
+  const late = waiting.filter(a => overdue(a));
 
   const head = sectionHead("Today at the front desk", s.appointments.length+" appointments · "+hhmm(S.clock),
-    '<button class="btn btn-p" data-act="walkin">+ Walk-in</button>');
+    '<button class="btn btn-g" data-act="dense">'+(S.dense?"Cards":"Compact")+'</button>'
+    + '<button class="btn btn-p" data-act="walkin">+ Walk-in</button>');
 
   const band = risky.length
     ? '<div class="alert-band mb"><span class="bang">!</span><span>'
       + risky.map(a=>esc(pat(a.pid).name)+" — "+esc(pat(a.pid).alerts.join(", "))).join(" · ")
       + '</span></div>' : '';
 
+  /* A dwell alert only earns its place if it is visible without hunting. */
+  const dwellBand = late.length
+    ? '<div class="alert-band warn mb"><span class="bang">⏱</span><span>'
+      + late.map(a => esc(patName(a.pid))+" — "+esc(laneOf(a.lane).label.toLowerCase())
+          +" "+waited(a)+" min, over the "+laneOf(a.lane).dwell+"-minute mark").join(" · ")
+      + '</span></div>' : '';
+
   const stats = '<div class="statgrid mb">'
-    + stat("Waiting now", inLane("waiting").length)
+    + stat("Waiting now", waiting.length)
     + stat("Average wait", avg+" min")
     + stat("Collected", inr(collected))
     + stat("Pending", inr(s.cash.pending))
     + '</div>';
 
-  /* On a phone one lane fills the screen and the segmented control switches
-     between them. On a tablet and above every lane is visible at once. */
-  let board;
+  const board = S.dense ? denseBoard() : laneBoard();
+
+  return head + band + dwellBand + stats + board
+  + '<div class="callout mt"><b>BR-01 runs before money is named.</b> The fee shown on each card already accounts for the '
+    + cfg.followupDays+'-day free follow-up window configured for '+esc(cfg.name)
+    + '. Staff never calculate it, so staff can never get it wrong.</div>'
+  + '<div class="callout mt"><b>These lanes are configuration, not code.</b> '+esc(cfg.name)+' runs '
+    + stages().length+' stages — '+stages().map(l=>esc(l.label)).join(", ")
+    + '. Adding a stage is a row, which is how the eye clinic in this directory gets a '
+    + '<i>Dilating</i> lane with a 20-minute dwell alert without a single line of ophthalmology-specific code.</div>'
+  + activityCard();
+};
+
+/* The default: one lane per stage, or one at a time with a segmented control
+   on a phone, where there is nowhere to drag to anyway. */
+function laneBoard(){
   if(S.lay === "phone"){
-    const seg = '<div class="seg mb">' + LANES.map(l =>
-      '<button class="'+(S.laneTab===l.id?"on":"")+'" data-act="lane" data-arg="'+l.id+'">'
-      + esc(l.label)+'<span class="n">'+inLane(l.id).length+'</span></button>').join("") + '</div>';
-    const l = laneOf(S.laneTab);
+    const seg = '<div class="seg mb">' + stages().map(l =>
+      '<button class="'+(laneTab()===l.id?"on":"")+'" data-act="lane" data-arg="'+l.id+'">'
+      + esc(l.short)+'<span class="n">'+inLane(l.id).length+'</span></button>').join("") + '</div>';
+    const l = laneOf(laneTab());
     const cards = inLane(l.id);
-    board = seg + '<div class="lane" data-lane="'+l.id+'">'
+    return seg + '<div class="lane" data-lane="'+l.id+'">'
       + (cards.length ? cards.map(qcard).join("")
          : '<p class="muted" style="padding:22px 4px;text-align:center">No one in '+esc(l.label.toLowerCase())+'.</p>')
       + '</div>';
-  } else {
-    board = '<div class="board">' + LANES.map(l => {
+  }
+  return '<div class="board" style="--lanes:'+stages().length+'">'
+    + stages().map(l => {
       const cards = inLane(l.id);
       return '<section class="lane" data-lane="'+l.id+'">'
         + '<div class="lane-h"><span class="lane-t">'+esc(l.label)+'</span><span class="lane-n">'+cards.length+'</span></div>'
         + (cards.length ? cards.map(qcard).join("") : '<p class="faint" style="font-size:.76rem;padding:8px 2px">Empty</p>')
         + '</section>';
     }).join("") + '</div>';
-  }
+}
 
-  return head + band + stats + board
-  + '<div class="callout mt"><b>BR-01 runs before money is named.</b> The fee shown on each card already accounts for the '
-    + TENANT().followupDays+'-day free follow-up window configured for '+esc(TENANT().name)
-    + '. Staff never calculate it, so staff can never get it wrong.</div>'
-  + activityCard();
-};
+/* FR-2.1, high-velocity mode. A paediatric evening runs sixty to eighty
+   patients; a card grid stops being legible long before that, so the same data
+   collapses to one scannable row each. */
+function denseBoard(){
+  const rows = T().appointments
+    .filter(a => a.lane !== "cancelled" && a.lane !== "done")
+    .sort((a,b) => stages().findIndex(l=>l.id===a.lane) - stages().findIndex(l=>l.id===b.lane) || a.start - b.start)
+    .map(a => {
+      const p = pat(a.pid), d = doc(a.doc), st = laneOf(a.lane), w = waited(a);
+      return {
+        who:'<b>'+esc(p?p.name:"Walk-in")+'</b>'
+            + (p && p.alerts.length ? ' <span class="stamp s-risk" style="font-size:.52rem;padding:1px 4px">!</span>' : ''),
+        tok:'<span class="token">'+(d?esc(initials(d.name))+'·':'')+'T'+tokenOf(a)+'</span>',
+        stage:'<span class="stamp flat" style="background:'+st.heat+'22;color:'+st.heat+'">'+esc(st.label)+'</span>',
+        wait:(w!=null && st.dwell) ? '<span style="color:'+heatOf(a)+';font-weight:700">'+w+'m</span>' : '—',
+        why:'<span class="muted">'+esc(a.reason)+'</span>',
+        act:'<button class="btn btn-g btn-s" data-act="card-menu" data-arg="'+a.id+'">⋯</button>'
+      };
+    });
+  return '<div class="card mb"><div class="card-h"><div><h3>Compact list</h3>'
+    + '<p class="muted" style="font-size:.76rem">Every open patient on one screen, ordered by stage</p></div>'
+    + '<span class="stamp s-mute flat">'+rows.length+' open</span></div><div class="card-b">'
+    + dataTable([{k:"who",h:"Patient"},{k:"tok",h:"Token"},{k:"stage",h:"Stage"},
+                 {k:"wait",h:"Waited",r:true},{k:"why",h:"Reason"},{k:"act",h:"",r:true}],
+                rows, {title:"who"})
+    + '</div></div>';
+}
 function stat(label, value){
   return '<div class="stat"><div class="eyebrow">'+esc(label)+'</div><div class="sv">'+esc(String(value))+'</div></div>';
 }
@@ -1687,24 +2514,22 @@ function activityCard(){
 /* -- NURSE SLATE ----------------------------------------------------------- */
 VIEWS.nurse = function(){
   const s = T();
-  const queue = s.appointments.filter(a => ["waiting","consult"].includes(a.lane));
+  const queue = inRole("waiting","in_service");
   if(!S.nursePatient && queue.length) S.nursePatient = queue[0].pid;
   const p = pat(S.nursePatient);
 
   const picker = '<div class="seg mb">' + (queue.length ? queue.map(a =>
       '<button class="'+(S.nursePatient===a.pid?"on":"")+'" data-act="nurse-pick" data-arg="'+a.pid+'">'
-      + esc(patName(a.pid).split(" ")[0])+'<span class="n">T'+a.token+'</span></button>').join("")
+      + esc(patName(a.pid).split(" ")[0])+'<span class="n">T'+tokenOf(a)+'</span></button>').join("")
     : '<button class="on">Nobody waiting</button>') + '</div>';
 
   if(!p) return sectionHead("Triage slate","Nobody is waiting for vitals right now.") + picker;
 
   const v = p.vitals || {};
-  const tiles = [
-    {k:"bp",    l:"Blood pressure", u:"mmHg", mode:"bp"},
-    {k:"pulse", l:"Pulse",          u:"per min"},
-    {k:"sugar", l:"Random sugar",   u:"mg/dL"},
-    {k:"weight",l:"Weight",         u:"kg"}
-  ].map(x => '<button class="vital-tile'+(v[x.k]!=null?" set":"")+'" data-act="vital" data-arg="'+x.k+'" data-label="'+esc(x.l)+'" data-unit="'+esc(x.u)+'" data-mode="'+(x.mode||"num")+'">'
+  /* What gets measured at triage is a tenant setting. An eye clinic records
+     visual acuity and intraocular pressure and has no use at all for a
+     random blood sugar; the tile grid is the same code either way. */
+  const tiles = measures().map(x => '<button class="vital-tile'+(v[x.k]!=null?" set":"")+'" data-act="vital" data-arg="'+x.k+'" data-label="'+esc(x.l)+'" data-unit="'+esc(x.u)+'" data-mode="'+(x.mode||"num")+'">'
     + '<span class="vl">'+esc(x.l)+'</span>'
     + '<span class="vv'+(v[x.k]==null?" empty":"")+'">'+(v[x.k]!=null?esc(String(v[x.k])):"Tap to record")+'</span>'
     + '<span class="vu">'+esc(x.u)+'</span></button>').join("");
@@ -1713,7 +2538,9 @@ VIEWS.nurse = function(){
     '<button class="alert-opt'+(p.alerts.includes(tag)?" on":"")+'" data-act="alert" data-arg="'+esc(tag)+'">'
     + '<span class="tick">'+(p.alerts.includes(tag)?"✓":"")+'</span>'+esc(tag)+'</button>').join("");
 
-  const ready = v.bp && v.pulse;
+  const need = measures().filter(x => x.req);
+  const missing = need.filter(x => v[x.k] == null);
+  const ready = missing.length === 0;
 
   return sectionHead("Triage slate", p.name+" · "+p.age+"/"+p.sex+" · "+phone(p.phone))
   + picker
@@ -1728,8 +2555,256 @@ VIEWS.nurse = function(){
     + '<span class="muted" style="font-size:.76rem">Shown to every clinician who opens this record</span></div>'
     + '<div class="card-b"><div class="alert-pick">'+chips+'</div></div></div>'
   + '<button class="btn btn-p btn-xl btn-full" data-act="to-doctor"'+(ready?"":" disabled")+'>'
-    + (ready ? "Send "+esc(p.name.split(" ")[0])+" in to the doctor" : "Record blood pressure and pulse first")+'</button>';
+    + (ready ? "Send "+esc(p.name.split(" ")[0])+" in to the doctor"
+             : "Record "+esc(listOut(missing.map(x=>x.l.toLowerCase())))+" first")+'</button>';
 };
+
+/* -- RECALL ENGINE --------------------------------------------------------- */
+/* This screen is the front end of the leakage argument. A dormant treatment
+   plan is not a clinical problem, it is money the practice already earned the
+   right to and never collected, and nobody at the front desk has time to go
+   looking for it. Everything recovered here lands in the FR-7.4 ledger with
+   the recall id attached, so the owner can audit the claim. */
+const ruleOf = id => (T().recallRules || []).find(r => r.id === id) || {label:"Recall", value:0};
+const overdueDays = r => Math.round((S.clock - r.due) / 86400000);
+function recallWindow(r){
+  const a = ruleOf(r.rule).after || {};
+  return a.months ? a.months + (a.months===1?" month":" months") : a.days + " days";
+}
+
+VIEWS.recalls = function(){
+  const s = T(), cfg = TENANT();
+  const all = s.recalls || [];
+  const due     = all.filter(r => r.status === "due"     && overdueDays(r) >= 0);
+  const upcoming= all.filter(r => r.status === "due"     && overdueDays(r) <  0);
+  const sent    = all.filter(r => r.status === "sent");
+  const booked  = all.filter(r => r.status === "booked");
+  const atStake = due.reduce((n,r) => n + r.value, 0);
+
+  const head = sectionHead("Recall engine",
+    due.length+" overdue · "+inr(atStake)+" of work already indicated",
+    due.length ? '<button class="btn btn-p" data-act="recall-all">Send all '+due.length+'</button>' : "");
+
+  const stats = '<div class="statgrid mb">'
+    + stat("Overdue now", due.length)
+    + stat("At stake", inr(atStake))
+    + stat("Awaiting reply", sent.length)
+    + stat("Rebooked", booked.length)
+    + '</div>';
+
+  const row = (r, act) => {
+    const d = overdueDays(r), rule = ruleOf(r.rule);
+    return {
+      who:'<b>'+esc(patName(r.pid))+'</b><br><span class="muted" style="font-size:.74rem">'+esc(rule.label)+'</span>',
+      when: d >= 0
+        ? '<span style="color:'+(d>14?"var(--vermilion)":"var(--marigold)")+';font-weight:700">'+d+' days over</span>'
+        : '<span class="muted">in '+Math.abs(d)+' days</span>',
+      basis:'<span class="muted" style="font-size:.74rem">'+esc(rule.trigger.replace(/_/g," "))
+            +' · every '+esc(recallWindow(r))+'</span>',
+      worth:'<b>'+inr(r.value)+'</b>',
+      act:act(r)
+    };
+  };
+
+  const dueCard = '<div class="card mb"><div class="card-h"><div><h3>Overdue</h3>'
+    + '<p class="muted" style="font-size:.76rem">Ranked by what the visit is worth, not by how old it is</p></div></div>'
+    + '<div class="card-b">'
+    + dataTable([{k:"who",h:"Patient"},{k:"when",h:"Due"},{k:"basis",h:"Rule"},
+                 {k:"worth",h:"Worth",r:true},{k:"act",h:"",r:true}],
+        due.slice().sort((a,b)=>b.value-a.value).map(r => row(r, x =>
+          '<button class="btn btn-p btn-s" data-act="recall-send" data-arg="'+x.id+'">Send</button>')),
+        {title:"who", empty:"Nothing is overdue. That is the point."})
+    + '</div></div>';
+
+  const waitCard = (sent.length || booked.length)
+    ? '<div class="card mb"><div class="card-h"><div><h3>Sent</h3>'
+      + '<p class="muted" style="font-size:.76rem">A recall only becomes recovered revenue once it produces a booking</p></div></div>'
+      + '<div class="card-b">'
+      + dataTable([{k:"who",h:"Patient"},{k:"when",h:"Due"},{k:"basis",h:"Rule"},
+                   {k:"worth",h:"Worth",r:true},{k:"act",h:"",r:true}],
+          sent.concat(booked).map(r => row(r, x => x.status === "booked"
+            ? '<span class="stamp s-ok flat" style="font-size:.55rem">Rebooked · ledger</span>'
+            : '<button class="btn btn-g btn-s" data-act="recall-book" data-arg="'+x.id+'">Mark rebooked</button>')),
+          {title:"who"})
+      + '</div></div>'
+    : "";
+
+  const soonCard = upcoming.length
+    ? '<div class="card mb"><div class="card-h"><div><h3>Coming up</h3>'
+      + '<p class="muted" style="font-size:.76rem">Nothing to do yet — shown so the desk is never surprised</p></div></div>'
+      + '<div class="card-b">'
+      + dataTable([{k:"who",h:"Patient"},{k:"when",h:"Due"},{k:"basis",h:"Rule"},{k:"worth",h:"Worth",r:true}],
+          upcoming.map(r => row(r, ()=>"")).map(x => (delete x.act, x)), {title:"who"})
+      + '</div></div>'
+    : "";
+
+  const rulesCard = '<div class="card mb"><div class="card-h"><div><h3>Rules for '+esc(cfg.name)+'</h3>'
+    + '<p class="muted" style="font-size:.76rem">'+(s.recallRules||[]).length+' rules, all of them rows in a table</p></div>'
+    + '<span class="stamp s-mute flat">'+esc(cfg.verticalLabel)+'</span></div>'
+    + '<div class="card-b">'
+    + dataTable([{k:"name",h:"Rule"},{k:"trig",h:"Fires on"},{k:"win",h:"After"},{k:"why",h:"Because"}],
+        (s.recallRules||[]).map(r => ({
+          name:'<b>'+esc(r.label)+'</b>',
+          trig:'<code class="ic-code">'+esc(r.trigger)+'</code>',
+          win: esc(r.after.months ? r.after.months+" months" : r.after.days+" days"),
+          why:'<span class="muted">'+esc(r.why)+'</span>'
+        })), {title:"name"})
+    + '</div></div>';
+
+  return head + stats + dueCard + waitCard + soonCard + rulesCard
+  + '<div class="callout mt"><b>Four triggers, every vertical.</b> '
+    + '<code class="ic-code">last_visit</code>, <code class="ic-code">plan_dormant</code>, '
+    + '<code class="ic-code">procedure_completed</code> and <code class="ic-code">age_months</code> '
+    + 'are the whole engine. A dental scaling reminder and a diabetic retinopathy screening are the same '
+    + 'row with different numbers in it, which is why the eye clinic in this directory needed no new code.</div>'
+  + activityCard();
+};
+
+/* Recovered revenue is written once, at the moment a recall produces a booking
+   — never when the message is merely sent. FR-7.4's anti-double-counting rule
+   made concrete. */
+function creditRecovery(kind, amount, evidence){
+  const s = T();
+  const line = s.recovered.find(r => r.k === kind);
+  if(line){ line.n += 1; line.unit = Math.round((line.unit*(line.n-1) + amount)/line.n); }
+  else s.recovered.push({k:kind, n:1, unit:amount});
+  audit("recovery.credit", RECOVERY[kind].label+" +1 · "+inr(amount), evidence);
+}
+
+/* ==========================================================================
+   FR-4.6 — PRINTABLE ARTIFACTS
+   ========================================================================== */
+
+/* Indian receipts carry the amount in words, and getting it wrong in front of
+   a patient is the kind of small humiliation that loses a clinic. */
+const ONES = ["","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve",
+  "thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+const TENS = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+function under100(n){ return n < 20 ? ONES[n] : TENS[Math.floor(n/10)] + (n%10 ? "-"+ONES[n%10] : ""); }
+function under1000(n){
+  return (n >= 100 ? ONES[Math.floor(n/100)]+" hundred" + (n%100 ? " and " : "") : "") + under100(n%100);
+}
+function inWords(n){
+  n = Math.round(Math.abs(Number(n)||0));
+  if(!n) return "Zero rupees only";
+  /* Indian grouping: crore, lakh, thousand, then the last three digits. */
+  const parts = [];
+  const units = [[10000000,"crore"],[100000,"lakh"],[1000,"thousand"]];
+  units.forEach(([div,word]) => {
+    const q = Math.floor(n/div);
+    if(q){ parts.push(under1000(q)+" "+word); n -= q*div; }
+  });
+  if(n) parts.push(under1000(n));
+  const s = parts.join(" ");
+  return s.charAt(0).toUpperCase()+s.slice(1)+" rupees only";
+}
+
+const ddmmyyyy = d => d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
+
+function sheetHead(cfg, d){
+  return '<div class="sh-head">'
+    + '<div class="sh-mark">'+esc(cfg.mark)+'</div>'
+    + '<div style="min-width:0"><div class="sh-name">'+esc(cfg.name)+'</div>'
+      + '<div class="sh-sub">'+esc(cfg.legal)+' · '+esc(cfg.city)+'</div>'
+      + '<div class="sh-sub">'+esc(cfg.host)+'</div></div>'
+    + (d ? '<div class="sh-doc"><b>'+esc(d.name)+'</b><br>'+esc(d.qual||"")
+           + (d.qual?'<br>':'')+'Reg. '+esc(regNo(cfg,d))+'</div>' : '')
+    + '</div>';
+}
+/* A prescription without a registration number is not a prescription. The
+   number is derived here only because this is a prototype; in production it
+   is a required field on the practitioner record. */
+const regNo = (cfg,d) => (cfg.mark+"-"+String(d.id).toUpperCase()).slice(0,9)+"/"+cfg.since;
+
+function sheetFoot(cfg, extra){
+  return '<div class="sh-foot">'+(extra?esc(extra)+"<br>":"")
+    + 'Generated by PractixOS for '+esc(cfg.name)+'. Records are held in India under the DPDP Act, 2023. '
+    + 'This document is a true copy of the clinic&rsquo;s record and carries an entry in its audit trail.</div>';
+}
+
+/* -- the prescription ------------------------------------------------------ */
+function rxSheet(pid, size){
+  const s = T(), cfg = TENANT(), p = pat(pid);
+  const a = s.appointments.find(x => x.pid === pid) || s.appointments[0];
+  const d = (a && doc(a.doc)) || s.practitioners[0];
+  const plan = (s.plans[pid] || []);
+  const v = p.vitals || {};
+  const vitalLine = measures().filter(m => v[m.k] != null)
+    .map(m => m.l+" "+v[m.k]+(m.u && m.u !== "6/x" ? " "+m.u : "")).join(" · ");
+
+  /* Rx lines come from the treatment plan where one exists, because retyping
+     what the chart already knows is how a wrong tooth number reaches a lab. */
+  const lines = plan.length
+    ? plan.map(x => ({item:x.name + (x.tooth ? " — tooth "+x.tooth : ""),
+                      dose:"Sitting "+x.step, dur:x.mins+" min", note:x.status==="chair"?"Today":"Planned"}))
+    : [{item:"Amoxicillin 500 mg", dose:"1 capsule, three times daily", dur:"5 days", note:"After food"},
+       {item:"Ibuprofen 400 mg",   dose:"1 tablet as needed",          dur:"3 days", note:"Maximum 3 a day"},
+       {item:"Chlorhexidine rinse",dose:"10 ml, twice daily",          dur:"7 days", note:"Do not swallow"}];
+
+  return '<div class="sheet" data-size="'+size+'" style="--accent:'+cfg.accent.a+'">'
+    + sheetHead(cfg, d)
+    + '<div class="sh-body">'
+    + '<div class="sh-meta">'
+      + '<div><span>Patient</span> <b>'+esc(p.name)+'</b></div>'
+      + '<div><span>Age / Sex</span> <b>'+esc(String(p.age))+' / '+esc(p.sex)+'</b></div>'
+      + '<div><span>Date</span> <b>'+esc(ddmmyyyy(S.clock))+'</b></div>'
+      + (p.abha ? '<div><span>ABHA</span> <b>'+esc(p.abha)+'</b></div>' : '')
+    + '</div>'
+    + (p.alerts.length
+        ? '<div style="border:1.5px solid #B33F33;color:#7E2A20;border-radius:5px;padding:6px 9px;font-size:.82em;font-weight:700">'
+          + 'Allergies and alerts: '+esc(p.alerts.join(", "))+'</div>' : '')
+    + (vitalLine ? '<div class="sh-note"><b>Recorded today.</b> '+esc(vitalLine)+'</div>' : '')
+    + '<div class="sh-rx">&#8478;</div>'
+    + '<table class="sh-tbl"><thead><tr><th>Medication or procedure</th><th>How</th><th>How long</th><th>Note</th></tr></thead><tbody>'
+    + lines.map(l => '<tr><td><b>'+esc(l.item)+'</b></td><td>'+esc(l.dose)+'</td>'
+        + '<td>'+esc(l.dur)+'</td><td>'+esc(l.note)+'</td></tr>').join("")
+    + '</tbody></table>'
+    + '<div class="sh-note"><b>Advice.</b> '+esc(t("waCare").replace(/\{\w+\}/g,"").trim())+'</div>'
+    + '<div class="sh-note"><b>Review.</b> A revisit within '+cfg.followupDays
+      + ' days for the same complaint carries no consultation fee.</div>'
+    + '<div class="sh-sign"><span class="line">'+esc(d.name)+'</span></div>'
+    + '</div>'
+    + sheetFoot(cfg, "Prescription · "+esc(p.name)+" · "+ddmmyyyy(S.clock))
+    + '</div>';
+}
+
+/* -- the receipt ----------------------------------------------------------- */
+function receiptSheet(apptId, size){
+  const s = T(), cfg = TENANT();
+  const a = s.appointments.find(x => x.id === apptId) || s.appointments[0];
+  const p = pat(a.pid), d = doc(a.doc) || s.practitioners[0];
+  const paid = a.paid || 0, due = Math.max(0, a.fee - paid);
+  const lines = [{n:a.reason, q:1, rate:a.fee}];
+  const no = "INV/"+cfg.since+"/"+String(a.id).toUpperCase().replace(/[^A-Z0-9]/g,"")+"/"+S.clock.getFullYear();
+
+  return '<div class="sheet" data-size="'+size+'" style="--accent:'+cfg.accent.a+'">'
+    + sheetHead(cfg, d)
+    + '<div class="sh-body">'
+    + '<div class="sh-meta">'
+      + '<div><span>Receipt no.</span> <b>'+esc(no)+'</b></div>'
+      + '<div><span>Date</span> <b>'+esc(ddmmyyyy(S.clock))+' '+esc(hhmm(S.clock))+'</b></div>'
+      + '<div><span>Patient</span> <b>'+esc(p.name)+'</b></div>'
+    + '</div>'
+    + '<table class="sh-tbl"><thead><tr><th>Description</th><th class="r">Qty</th>'
+      + '<th class="r">Rate</th><th class="r">Amount</th></tr></thead><tbody>'
+    + lines.map(l => '<tr><td>'+esc(l.n)+'</td><td class="r">'+l.q+'</td>'
+        + '<td class="r">'+inr(l.rate)+'</td><td class="r">'+inr(l.q*l.rate)+'</td></tr>').join("")
+    + (a.feeNote ? '<tr><td colspan="3">'+esc(a.feeNote)+' — BR-01</td><td class="r">'+inr(0)+'</td></tr>' : '')
+    + '</tbody></table>'
+    + '<div class="sh-total"><span>'+(due?"Paid":"Total")+'</span><span>'+inr(paid||a.fee)+'</span></div>'
+    + '<div class="sh-words">'+esc(inWords(paid||a.fee))+'</div>'
+    + (due ? '<div class="sh-total" style="border-top:none;font-size:.95em;color:#7E2A20">'
+             + '<span>Still outstanding</span><span>'+inr(due)+'</span></div>' : '')
+    + '<div class="sh-note"><b>Paid to</b> '+esc(cfg.vpa)+' · UPI, cash or card accepted.</div>'
+    + '<div class="sh-note">Healthcare services by a registered practitioner are exempt from GST '
+      + 'under Notification 12/2017 &mdash; Central Tax (Rate).</div>'
+    + '<div class="sh-sign"><span class="line">For '+esc(cfg.legal)+'</span></div>'
+    + '</div>'
+    + sheetFoot(cfg, "Receipt "+no)
+    + '</div>';
+}
+
+const SHEETS = {rx:{build:rxSheet, title:"Prescription"}, receipt:{build:receiptSheet, title:"Receipt"}};
 
 /* -- CHAIRSIDE CONSOLE ----------------------------------------------------- */
 function toothSVG(state){
@@ -1826,10 +2901,15 @@ VIEWS.dental = function(){
     + '<div class="card"><div class="card-h"><h3>Consumables this sitting</h3></div><div class="card-b">'
       + (consum.length ? consum.map(c => {
           const it = stock.find(i=>i.item===c);
-          const low = it && it.stock <= it.buffer;
+          if(!it) return '<div class="between" style="padding:6px 0;border-bottom:1px solid #22352F">'
+            + '<span>'+esc(c)+'</span><span class="muted">not tracked</span></div>';
+          const live = liveQty(it), b = fefo(it), low = live <= it.buffer;
+          const d = b ? daysTo(b.exp) : null;
+          const tone = !b ? "#D2574A" : d <= 30 ? "#E8952A" : low ? "#E8952A" : null;
           return '<div class="between" style="padding:6px 0;border-bottom:1px solid #22352F">'
-            + '<span>'+esc(c)+'</span><span class="'+(low?"":"muted")+'" style="'+(low?"color:#E8952A;font-weight:700":"")+'">'
-            + (it ? it.stock+" left"+(low?" · reorder":"") : "not tracked")+'</span></div>';
+            + '<span>'+esc(c)+(b?'<br><span style="font-size:.7rem;color:#7D948F">lot '+esc(b.lot)+' · '+d+' days left</span>':'')+'</span>'
+            + '<span class="'+(tone?"":"muted")+'" style="'+(tone?"color:"+tone+";font-weight:700":"")+'">'
+            + (b ? live+" usable"+(low?" · reorder":"") : "no usable stock")+'</span></div>';
         }).join("") : '<p class="muted">Nothing consumed yet.</p>')
       + '<button class="btn btn-g btn-full mt" data-act="deduct">Deduct from inventory</button></div></div>'
     + '<div class="card"><div class="card-h"><h3>Lab orders</h3></div><div class="card-b">'
@@ -1843,6 +2923,146 @@ VIEWS.dental = function(){
   + '</div>'
   + '</div>';
 };
+/* ==========================================================================
+   PRACTICE — stock, packages and families
+   The three remaining tables of the configurable vertical engine, in the one
+   place a practice manager thinks about them. Spec 4.6.3, 4.6.4, 4.6.5.
+   ========================================================================== */
+const DAY = 86400000;
+const daysTo = d => Math.round((d - S.clock) / DAY);
+const liveQty = it => it.batches.filter(b => daysTo(b.exp) >= 0).reduce((n,b)=>n+b.qty, 0);
+const deadQty = it => it.batches.filter(b => daysTo(b.exp) <  0).reduce((n,b)=>n+b.qty, 0);
+/* First-expiry-first-out. Ordering by receipt date is how a clinic ends up
+   holding the short-dated lot at the back of the drawer. */
+const fefo = it => it.batches.filter(b => daysTo(b.exp) >= 0 && b.qty > 0)
+                             .sort((a,b) => a.exp - b.exp)[0] || null;
+const pkgDef = id => (T().packages || []).find(p => p.id === id) || {label:"Package", sessions:0, price:0};
+const relFor = pid => (T().relationships || []).filter(r =>
+  (r.dependant === pid || r.guardian === pid) && (!r.validUntil || daysTo(r.validUntil) >= 0));
+const guardianOf = pid => relFor(pid).find(r => r.dependant === pid) || null;
+
+VIEWS.practice = function(){
+  const s = T(), cfg = TENANT();
+
+  /* -- stock ------------------------------------------------------------- */
+  const expired = s.inventory.filter(it => deadQty(it) > 0);
+  const soon = s.inventory.filter(it => it.batches.some(b => { const d = daysTo(b.exp); return d >= 0 && d <= 30; }));
+  const low = s.inventory.filter(it => liveQty(it) <= it.buffer);
+
+  const stockRows = s.inventory.map(it => {
+    const live = liveQty(it), dead = deadQty(it), next = fefo(it);
+    const d = next ? daysTo(next.exp) : null;
+    return {
+      item:'<b>'+esc(it.item)+'</b>'
+           + (dead ? '<br><span class="stamp s-risk flat" style="font-size:.52rem">'+dead+' expired</span>' : ''),
+      usable:'<b '+(live<=it.buffer?'style="color:var(--vermilion)"':'')+'>'+live+'</b>'
+             + '<span class="muted" style="font-size:.72rem"> / buffer '+it.buffer+'</span>',
+      lots: it.batches.map(b => {
+          const dd = daysTo(b.exp);
+          const tone = dd < 0 ? "var(--vermilion)" : dd <= 30 ? "var(--marigold)" : "var(--ink-3)";
+          return '<span class="lot" style="--c:'+tone+'">'+esc(b.lot)+' · '+b.qty
+               + ' · '+(dd < 0 ? Math.abs(dd)+"d ago" : dd+"d")+'</span>';
+        }).join(" "),
+      next: next ? '<span class="muted">'+esc(next.lot)+'</span>' : '<span class="muted">—</span>',
+      act:'<button class="btn btn-g btn-s" data-act="stock-receive" data-arg="'+esc(it.item)+'">Receive</button>'
+    };
+  });
+
+  const stockCard = '<div class="card mb"><div class="card-h"><div><h3>Stock &amp; expiry</h3>'
+    + '<p class="muted" style="font-size:.76rem">Batches, not a single number — issue is first-expiry-first-out</p></div>'
+    + '<span class="stamp '+(expired.length?"s-risk":soon.length?"s-warn":"s-ok")+'">'
+    + (expired.length ? expired.length+" item"+(expired.length===1?"":"s")+" expired"
+       : soon.length ? soon.length+" expiring soon" : "All clear")+'</span></div>'
+    + '<div class="card-b">'
+    + (expired.length
+        ? '<div class="alert-band mb"><span class="bang">!</span><span>'
+          + esc(listOut(expired.map(it => it.item.toLowerCase())))
+          + ' — expired stock is still on the shelf. Discard it before it reaches a patient.</span>'
+          + '</div>'
+          + '<button class="btn btn-w btn-full mb" data-act="stock-discard">Discard every expired batch</button>'
+        : '')
+    + (low.length
+        ? '<div class="alert-band warn mb"><span class="bang">↓</span><span>At or below buffer: '
+          + esc(listOut(low.map(it => it.item.toLowerCase())))+'.</span></div>' : '')
+    + dataTable([{k:"item",h:"Item"},{k:"usable",h:"Usable",r:true},{k:"lots",h:"Batches"},
+                 {k:"next",h:"Issue next"},{k:"act",h:"",r:true}],
+        stockRows, {title:"item", empty:"This workspace does not track stock."})
+    + '</div></div>';
+
+  /* -- packages ---------------------------------------------------------- */
+  const pkgRows = (s.patientPackages || []).map(pp => {
+    const def = pkgDef(pp.pkg), left = def.sessions - pp.used, d = daysTo(pp.expires);
+    const perSession = Math.round(def.price / def.sessions);
+    return {
+      who:'<b>'+esc(patName(pp.pid))+'</b><br><span class="muted" style="font-size:.72rem">'+esc(def.label)+'</span>',
+      used:'<div class="meter" style="min-width:80px"><i style="width:'
+           + Math.round(pp.used/def.sessions*100)+'%;background:var(--accent-2)"></i></div>'
+           + '<span class="muted" style="font-size:.72rem">'+pp.used+' of '+def.sessions+'</span>',
+      worth:'<b>'+inr(left*perSession)+'</b><br><span class="muted" style="font-size:.72rem">unearned</span>',
+      exp: d < 0 ? '<span style="color:var(--vermilion);font-weight:700">lapsed</span>'
+         : d < 60 ? '<span style="color:var(--marigold);font-weight:700">'+d+' days</span>'
+         : '<span class="muted">'+d+' days</span>',
+      act: left > 0 && d >= 0
+        ? '<button class="btn btn-p btn-s" data-act="pkg-redeem" data-arg="'+pp.id+'">Redeem one</button>'
+        : '<span class="muted" style="font-size:.72rem">'+(left ? "Expired" : "Complete")+'</span>'
+    };
+  });
+  const unearned = (s.patientPackages || []).reduce((n,pp) => {
+    const def = pkgDef(pp.pkg);
+    return n + (def.sessions - pp.used) * Math.round(def.price/def.sessions);
+  }, 0);
+
+  const pkgCard = '<div class="card mb"><div class="card-h"><div><h3>Packages &amp; series</h3>'
+    + '<p class="muted" style="font-size:.76rem">Money taken for work not yet done</p></div>'
+    + '<span class="stamp s-warn">'+inr(unearned)+' unearned</span></div>'
+    + '<div class="card-b">'
+    + dataTable([{k:"who",h:"Patient"},{k:"used",h:"Progress"},{k:"worth",h:"Liability",r:true},
+                 {k:"exp",h:"Expires"},{k:"act",h:"",r:true}],
+        pkgRows, {title:"who", empty:"No packages sold yet."})
+    + '<div class="eyebrow" style="margin:15px 0 7px">What '+esc(cfg.name)+' sells</div>'
+    + dataTable([{k:"name",h:"Package"},{k:"n",h:"Visits",r:true},{k:"price",h:"Price",r:true},
+                 {k:"valid",h:"Valid for"},{k:"note",h:"What it covers"}],
+        (s.packages||[]).map(d => ({
+          name:'<b>'+esc(d.label)+'</b>', n:String(d.sessions), price:inr(d.price),
+          valid:d.validMonths+" months",
+          note:'<span class="muted">'+esc(d.note)+'</span>'
+        })), {title:"name", empty:"No packages configured."})
+    + '<div class="callout mt"><b>An unredeemed package is a liability, not revenue.</b> '
+      + 'It is also the single easiest thing in a clinic to lose track of, which is why a lapsed one '
+      + 'triggers a recall rather than quietly becoming profit.</div>'
+    + '</div></div>';
+
+  /* -- families ---------------------------------------------------------- */
+  const PERMS = [["may_book","Can book"],["may_consent","Can consent"],["may_view_clinical","Can read notes"]];
+  const relRows = (s.relationships || []).map(r => {
+    const d = r.validUntil ? daysTo(r.validUntil) : null;
+    return {
+      who:'<b>'+esc(patName(r.guardian))+'</b><br><span class="muted" style="font-size:.72rem">'
+          + esc(r.relation)+' of '+esc(patName(r.dependant))+'</span>',
+      perms: PERMS.map(([k,label]) =>
+        '<button class="perm'+(r[k]?" on":"")+'" data-act="perm" data-arg="'+r.id+'|'+k+'" '
+        + 'aria-pressed="'+!!r[k]+'">'+(r[k]?"✓ ":"")+esc(label)+'</button>').join(" "),
+      until: d == null ? '<span class="muted">No end date</span>'
+           : d < 0 ? '<span style="color:var(--vermilion);font-weight:700">lapsed</span>'
+           : '<span class="muted">'+Math.round(d/30)+' months</span>'
+    };
+  });
+
+  const relCard = '<div class="card mb"><div class="card-h"><div><h3>Families &amp; proxy consent</h3>'
+    + '<p class="muted" style="font-size:.76rem">Who may act for whom, and exactly how far that goes</p></div></div>'
+    + '<div class="card-b">'
+    + dataTable([{k:"who",h:"Guardian"},{k:"perms",h:"Permitted"},{k:"until",h:"Until"}],
+        relRows, {title:"who", empty:"No proxy relationships recorded."})
+    + '<div class="callout mt"><b>Three switches, not one.</b> A grandparent who brings the child to every '
+      + 'appointment may need to book and nothing else. A parent of a teenager in therapy may need to consent '
+      + 'and must not read the notes. Collapsing these into a single &ldquo;family member&rdquo; flag is how '
+      + 'clinical records leak to the wrong relative.</div>'
+    + '</div></div>';
+
+  return sectionHead("Practice", cfg.name+" · stock, packages and families")
+    + stockCard + pkgCard + relCard + activityCard();
+};
+
 /* -- QUIET ROOM ------------------------------------------------------------ */
 VIEWS.therapy = function(){
   const s = T(), vault = s.vault;
@@ -1924,18 +3144,39 @@ VIEWS.consultant = function(){
     .sort((x,y)=>x.t-y.t);
 
   const rows = s.ledger.map(l=>{
-    const net = Math.round((l.gross - l.lab - l.consum) * visiting.split);
+    const net = netOf(l, visiting.split), st = SETTLE_STATUS[l.status] || SETTLE_STATUS.draft;
     return {
       when:'<b>'+esc(l.date)+'</b><br><span class="muted" style="font-size:.72rem">'+esc(l.clinic)+'</span>',
-      what:esc(l.desc),
+      what:esc(l.desc) + (l.repriced ? '<br><span class="muted" style="font-size:.72rem">Repriced — '+esc(l.repriced.from)+'</span>' : ''),
       gross:inr(l.gross),
       ded:'<span class="muted">−'+inr(l.lab+l.consum)+'</span>',
       net:'<b>'+inr(net)+'</b>',
-      status:'<span class="stamp '+(l.status==="settled"?"s-ok":"s-warn")+'">'+esc(l.status)+'</span>'
+      status:'<span class="stamp '+st.stamp+' flat" style="font-size:.55rem">'+esc(st.label)+'</span>'
     };
   });
-  const owed = s.ledger.filter(l=>l.status!=="settled")
-    .reduce((n,l)=>n+Math.round((l.gross-l.lab-l.consum)*visiting.split),0);
+  const disputed = s.ledger.filter(l => l.status === "disputed");
+  const owed = s.ledger.filter(l => l.status !== "settled" && l.status !== "disputed")
+    .reduce((n,l) => n + netOf(l, visiting.split), 0);
+
+  /* The consultant's half of FR-6.5. A disputed line is not a dead end: it
+     arrives with a reason and a number, and one tap closes it. */
+  const disputeCard = disputed.length
+    ? '<div class="card"><div class="card-h"><div><h3>Needs your answer</h3>'
+      + '<p class="muted" style="font-size:.76rem">The practice has queried '+disputed.length
+      + ' line'+(disputed.length===1?"":"s")+'</p></div>'
+      + '<span class="stamp s-risk">'+disputed.length+'</span></div><div class="card-b">'
+      + disputed.map(l => '<div class="dispute-row">'
+          + '<div style="min-width:0"><b>'+esc(l.desc)+'</b>'
+          + '<div class="muted" style="font-size:.76rem">'+esc(l.dispute.reason)+' — raised by '
+          + esc(l.dispute.by || "the practice")+' at '+hhmm(l.dispute.at)+'</div>'
+          + '<div style="font-size:.8rem;margin-top:3px">You claimed <b>'+inr(netOf(l, visiting.split))
+          + '</b>, they offer <b>'+inr(l.dispute.proposed)+'</b></div></div>'
+          + '<button class="btn btn-p btn-s" data-act="settle-accept" data-arg="'+l.id+'">Accept '
+          + inr(l.dispute.proposed)+'</button></div>').join("")
+      + '<div class="callout warn mt">Holding out is also an answer. Nothing moves until one of you agrees, '
+      + 'and the whole exchange is on a record neither of you can quietly edit.</div>'
+      + '</div></div>'
+    : "";
 
   const route = '<div class="timeline">' + (stops.length ? stops.map(st => {
       if(st.kind === "block"){
@@ -1944,9 +3185,9 @@ VIEWS.consultant = function(){
           + '<div class="muted" style="font-size:.75rem">Synced from '+esc(st.b.source)+'. '
           + 'PractixOS reads free/busy only — it never sees what this is.</div></div>';
       }
-      const a = st.a, p = pat(a.pid), live = a.lane==="waiting"||a.lane==="consult";
+      const a = st.a, p = pat(a.pid), live = ["waiting","in_service"].includes(roleOf(a.lane));
       return '<div class="tl-item'+(live?" now":"")+'"><div class="tl-time">'+hhmm(a.start)+' · '+a.mins+' min</div>'
-        + '<div style="font-weight:700">'+esc(p.name)+' <span class="token">T'+a.token+'</span></div>'
+        + '<div style="font-weight:700">'+esc(p.name)+' <span class="token">T'+tokenOf(a)+'</span></div>'
         + '<div class="muted" style="font-size:.78rem">'+esc(a.reason)+' · '+esc(room(a.chair))+'</div>'
         + (p.alerts.length?'<div class="stamp s-risk mt-s">'+esc(p.alerts.join(", "))+'</div>':'')
         + '</div>';
@@ -1971,13 +3212,85 @@ VIEWS.consultant = function(){
                      {k:"ded",h:"Deductions",r:true},{k:"net",h:"Your share",r:true},{k:"status",h:"Status"}],
                     rows, {title:"what", empty:"No procedures billed yet."})
       + '</div></div>'
+      + disputeCard
       + '<div class="callout"><b>The split is arithmetic, not a conversation.</b> '
         + Math.round(visiting.split*100)+'% of gross after lab work and consumables, agreed once and applied every time. '
         + 'This single screen replaces the WhatsApp thread most visiting consultants currently use to chase payment.</div>'
-      + '<button class="btn btn-p btn-full" data-act="request-settle">Request settlement of '+inr(owed)+'</button>'
+      + '<button class="btn btn-p btn-full" data-act="request-settle"'+(owed?"":" disabled")+'>'
+        + (owed ? 'Request settlement of '+inr(owed) : 'Nothing to request')+'</button>'
     + '</div>'
   + '</div>';
 };
+
+/* ==========================================================================
+   FR-6.5 — TWO-SIDED SETTLEMENT
+   The visiting consultant's WhatsApp thread exists because there is no shared
+   artifact both parties trust. A one-sided statement does not fix that; it
+   just moves whose word it is. So every line has two signatures on it, a
+   dispute names a reason rather than going quiet, and both parties read the
+   same trail.
+   ========================================================================== */
+const SETTLE_STATUS = {
+  draft:    {label:"Not submitted", stamp:"s-mute"},
+  requested:{label:"Awaiting owner", stamp:"s-warn"},
+  approved: {label:"Approved",       stamp:"s-info"},
+  disputed: {label:"Disputed",       stamp:"s-risk"},
+  settled:  {label:"Settled",        stamp:"s-ok"}
+};
+/* The reasons a practice actually disputes a line. A free-text box produces
+   "as discussed", which is how the WhatsApp thread started. */
+const DISPUTE_REASONS = [
+  ["lab","Lab cost was not deducted"],
+  ["consum","Consumables are understated"],
+  ["notdone","This procedure was not performed here"],
+  ["split","The agreed split is different"],
+  ["dupe","This line duplicates another"]
+];
+function netOf(l, split){ return Math.round((l.gross - l.lab - l.consum) * split); }
+const consultantOf = () => T().practitioners.find(d=>d.visiting) || T().practitioners[0];
+
+function settlementCard(){
+  const s = T(), cons = consultantOf();
+  const open = s.ledger.filter(l => ["requested","approved","disputed"].includes(l.status));
+  const approved = s.ledger.filter(l => l.status === "approved");
+  const payable = approved.reduce((n,l) => n + netOf(l, cons.split), 0);
+
+  const rows = open.map(l => {
+    const st = SETTLE_STATUS[l.status];
+    return {
+      what:'<b>'+esc(l.desc)+'</b><br><span class="muted" style="font-size:.72rem">'+esc(l.date)+' · '+esc(l.clinic)+'</span>',
+      gross:inr(l.gross),
+      ded:'<span class="muted">−'+inr(l.lab+l.consum)+'</span>',
+      net:'<b>'+inr(netOf(l, cons.split))+'</b>',
+      state:'<span class="stamp '+st.stamp+' flat" style="font-size:.55rem">'+esc(st.label)+'</span>'
+            + (l.dispute ? '<br><span class="muted" style="font-size:.72rem">'+esc(l.dispute.reason)
+               + (l.dispute.proposed!=null ? ' — offers '+inr(l.dispute.proposed) : '')+'</span>' : ''),
+      act: l.status === "requested"
+        ? '<div class="row" style="gap:5px;justify-content:flex-end">'
+          + '<button class="btn btn-p btn-s" data-act="settle-approve" data-arg="'+l.id+'">Approve</button>'
+          + '<button class="btn btn-g btn-s" data-act="settle-dispute" data-arg="'+l.id+'">Dispute</button></div>'
+        : l.status === "disputed"
+        ? '<button class="btn btn-g btn-s" data-act="settle-withdraw" data-arg="'+l.id+'">Withdraw dispute</button>'
+        : '<span class="muted" style="font-size:.72rem">Ready to pay</span>'
+    };
+  });
+
+  return '<div class="card mb"><div class="card-h"><div><h3>Consultant settlement</h3>'
+    + '<p class="muted" style="font-size:.76rem">'+esc(cons.name)+' · '+Math.round(cons.split*100)
+    + '% of gross after lab work and consumables</p></div>'
+    + '<span class="stamp '+(payable?"s-warn":"s-ok")+'">'+inr(payable)+' payable</span></div>'
+    + '<div class="card-b">'
+    + dataTable([{k:"what",h:"Procedure"},{k:"gross",h:"Gross",r:true},{k:"ded",h:"Deductions",r:true},
+                 {k:"net",h:"Their share",r:true},{k:"state",h:"State"},{k:"act",h:"",r:true}],
+        rows, {title:"what", empty:"Nothing is awaiting your approval."})
+    + (approved.length
+        ? '<button class="btn btn-p btn-full mt" data-act="settle-pay">Settle '+approved.length
+          + ' line'+(approved.length===1?"":"s")+' · '+inr(payable)+'</button>' : '')
+    + '<div class="callout mt"><b>A dispute has to name a reason.</b> '
+      + 'Both of you see the same line, the same reason and the same timestamp, which is the entire '
+      + 'point — the argument happens against a shared record instead of two different memories.</div>'
+    + '</div></div>';
+}
 
 /* -- OWNER LEDGER ---------------------------------------------------------- */
 VIEWS.owner = function(){
@@ -1988,15 +3301,40 @@ VIEWS.owner = function(){
   const usedMins = roomIds.reduce((n,k)=>n+s.roomUse[k],0);
   const util = Math.round(usedMins/totalMins*100);
   const perDay = Math.round(cfg.overhead/26);
-  const abdmEarned = s.abdm.bundles * s.abdm.ratePerBundle;
-  const abdmPct = Math.round(s.abdm.bundles/s.abdm.monthlyTarget*100);
+
+  /* DHIS, Corrigendum 7: only KYC-verified links count, and the first 100 of
+     those earn nothing. Both clamps matter — one seeded tenant sits below the
+     floor and correctly earns zero. */
+  const abdmEligible = Math.max(0, s.abdm.kycVerified - s.abdm.baselineExcluded);
+  const abdmEarned   = abdmEligible * s.abdm.ratePerBundle;
+  const toFloor      = Math.max(0, s.abdm.baselineExcluded - s.abdm.kycVerified);
+
+  const recovered = s.recovered.reduce((n,r)=>n + r.n*r.unit, 0);
+  const price     = cfg.plan.price;
+  const multiple  = (recovered/price).toFixed(1);
+  /* The number that actually persuades: how few events pay for the month. */
+  const topUnit   = s.recovered.length ? s.recovered[0].unit : price;
+  const breakEven = Math.ceil(price/topUnit);
+  const started   = s.recovered.length > 0;
 
   const kpis = '<div class="grid g4 mb">'
+    + kpi("Recovered this month", inr(recovered),
+          started ? multiple+"× the "+esc(cfg.plan.tier)+" fee" : "Nothing recovered yet", started?"s-ok":"s-mute")
     + kpi("Collected today", inr(collected), (collected>=perDay?"Break-even cleared":"Break-even is "+inr(perDay)), collected>=perDay?"s-ok":"s-warn")
-    + kpi("Outstanding", inr(s.cash.pending), s.cash.pending?"Across "+inLane("billing").length+" open bills":"Nothing owed", s.cash.pending?"s-warn":"s-ok")
+    + kpi("Outstanding", inr(s.cash.pending), s.cash.pending?"Across "+inRole("settlement").length+" open bills":"Nothing owed", s.cash.pending?"s-warn":"s-ok")
     + kpi(cfg.chairsLabel==="chair"?"Chair utilisation":"Room utilisation", util+"%", usedMins+" of "+totalMins+" minutes", util>=70?"s-ok":"s-warn")
-    + kpi("ABDM incentive", inr(abdmEarned), s.abdm.bundles+" bundles this month", abdmPct>=70?"s-ok":"s-warn")
     + '</div>';
+
+  const recRows = s.recovered.map(r => {
+    const m = RECOVERY[r.k];
+    return {
+      what:'<b>'+esc(m.label)+'</b><br><span class="muted" style="font-size:.72rem">'+esc(m.why)+'</span>',
+      count:String(r.n),
+      unit:inr(r.unit),
+      value:'<b>'+inr(r.n*r.unit)+'</b>',
+      ev:'<span class="muted" style="font-size:.72rem">'+esc(m.ev)+'</span>'
+    };
+  });
 
   const roomRows = roomIds.map(k => {
     const pct = Math.round(s.roomUse[k]/s.roomMinutesPerDay*100);
@@ -2040,18 +3378,49 @@ VIEWS.owner = function(){
   return sectionHead("Practice ledger", cfg.name+" · "+cfg.city,
       '<button class="btn btn-g" data-act="export">Export month</button>')
   + kpis
-  + '<div class="card mb"><div class="card-h"><div><h3>ABDM incentive tracker</h3>'
-    + '<p class="muted" style="font-size:.76rem">'+inr(s.abdm.ratePerBundle)+' per health record bundle linked to an ABHA</p></div>'
-    + '<span class="stamp '+(abdmPct>=70?"s-ok":"s-warn")+'">'+abdmPct+'% of target</span></div>'
+  + '<div class="card mb"><div class="card-h"><div><h3>Recovered revenue</h3>'
+    + '<p class="muted" style="font-size:.76rem">Money this practice would have lost, and the evidence for each rupee</p></div>'
+    + '<span class="stamp '+(started?"s-ok":"s-mute")+'">'
+      + (started ? multiple+'× subscription' : 'Not started')+'</span></div>'
     + '<div class="card-b">'
-    + '<div class="meter" style="height:11px"><i style="width:'+Math.min(100,abdmPct)+'%;background:var(--accent-2)"></i></div>'
-    + '<div class="between mt-s" style="font-size:.78rem"><span class="muted">'+s.abdm.bundles+' of '+s.abdm.monthlyTarget+' bundles</span>'
-      + '<span><b>'+inr(abdmEarned)+'</b> earned</span></div>'
-    + '<div class="statgrid mt">'+stat("M1 ABHA verified", s.abdm.m1Verified)+stat("M3 consents", s.abdm.m3Consents)
-      + stat("Rate per bundle", inr(s.abdm.ratePerBundle))+stat("Monthly ceiling", inr(s.abdm.monthlyTarget*s.abdm.ratePerBundle))+'</div>'
-    + '<div class="callout mt">This is revenue the clinic is entitled to and almost never claims, because claiming it means '
-      + 'pushing structured FHIR bundles that paper records cannot produce. It typically covers the software’s own cost several times over.</div>'
+    + dataTable([{k:"what",h:"What was recovered"},{k:"count",h:"Times",r:true},
+                 {k:"unit",h:"Each",r:true},{k:"value",h:"Value",r:true},{k:"ev",h:"Evidence"}],
+                recRows, {title:"what",
+                empty:"Nothing recovered yet. The first entry appears the moment a recall produces a booking."})
+    + '<div class="between mt" style="font-size:.86rem"><span class="muted">'+esc(cfg.plan.tier)+' · '+inr(price)+'/month</span>'
+      + '<span><b>'+inr(recovered)+'</b> recovered</span></div>'
+    + (started
+      ? '<div class="callout mt"><b>The subscription is paid for by the '
+        + ordinal(breakEven) + ' recovered ' + esc(RECOVERY[s.recovered[0].k].one)
+        + ' of the month.</b> Everything after that the practice keeps. Unlike a government subsidy this '
+        + 'does not continue if you cancel — which is exactly why it is the number on this dashboard.</div>'
+      : '<div class="callout mt"><b>This table is empty, and we are not going to fill it with an estimate.</b> '
+        + 'Every row here has to point at a delivery receipt, a payment reference or a work order. '
+        + 'Run the recall engine for a fortnight and it will start writing itself.</div>')
     + '</div></div>'
+  + '<div class="card mb"><div class="card-h"><div><h3>ABDM compliance &amp; incentive</h3>'
+    + '<p class="muted" style="font-size:.76rem">Corrigendum 7 · '+inr(s.abdm.ratePerBundle)
+      + ' per KYC-linked outpatient record, first '+s.abdm.baselineExcluded+' excluded</p></div>'
+    + '<span class="stamp '+(abdmEarned>0?"s-ok":"s-warn")+'">'+(abdmEarned>0?"Accruing":"Below floor")+'</span></div>'
+    + '<div class="card-b">'
+    + '<div class="meter" style="height:11px"><i style="width:'
+      + Math.min(100, Math.round(s.abdm.kycVerified/s.abdm.baselineExcluded*100))+'%;background:var(--accent-2)"></i></div>'
+    + '<div class="between mt-s" style="font-size:.78rem"><span class="muted">'
+      + s.abdm.kycVerified+' KYC-verified of '+s.abdm.bundles+' bundles pushed</span>'
+      + '<span><b>'+inr(abdmEarned)+'</b> accrued</span></div>'
+    + '<div class="statgrid mt">'+stat("M1 ABHA verified", s.abdm.m1Verified)+stat("M3 consents", s.abdm.m3Consents)
+      + stat("Earning records", abdmEligible)+stat("Rate (Category 2)", inr(s.abdm.ratePerBundle))+'</div>'
+    + '<div class="callout '+(toFloor?"warn ":"")+'mt">'
+      + (toFloor
+          ? '<b>'+toFloor+' more KYC-verified records until the first incentive rupee.</b> '
+            + 'The first '+s.abdm.baselineExcluded+' eligible transactions each month earn nothing. '
+          : '')
+      + 'Outpatient consultations and prescriptions are Category 2, paid at '+inr(s.abdm.ratePerBundle)
+      + ' — not the ₹20 quoted before April 2026. Treat this as a contribution, never as the reason to subscribe. '
+      + 'The durable case for ABDM is interoperability: insurers and NHCX consume the same FHIR records, '
+      + 'and v3 conformance is mandatory from July 2026 regardless of any incentive.</div>'
+    + '</div></div>'
+  + (s.ledger.length ? settlementCard() : "")
   + '<div class="grid g2 mb">'
     + '<div class="card"><div class="card-h"><h3>'+(cfg.chairsLabel==="chair"?"Chair":"Room")+' utilisation</h3></div><div class="card-b">'
       + dataTable([{k:"room",h:"Where"},{k:"mins",h:"Booked"},{k:"bar",h:""},{k:"pct",h:"",r:true}], roomRows, {title:"room"})
@@ -2090,10 +3459,13 @@ VIEWS.patient = function(){
   let body = "";
 
   if(b.step === 0){
+    /* The filter is built from the practitioners this clinic actually has, so
+       a single-specialty practice never offers a filter that matches nobody
+       and a new vertical needs no entry here. */
+    const KINDS = {gp:"gpSpec", dental:"dentalSpec", mental:"mentalSpec"};
+    const present = s.practitioners.map(d => d.kind).filter((k,i,xs) => xs.indexOf(k)===i);
     const specs = [["all",t("allSpec")]].concat(
-      cfg.vertical==="dental" ? [["dental",t("dentalSpec")]]
-      : cfg.vertical==="mental_health" ? [["mental",t("mentalSpec")]]
-      : [["gp",t("gpSpec")],["dental",t("dentalSpec")],["mental",t("mentalSpec")]]);
+      present.length > 1 ? present.filter(k=>KINDS[k]).map(k => [k, t(KINDS[k])]) : []);
     const list = s.practitioners.filter(d => (b.spec==="all"||d.kind===b.spec) &&
         (!b.q || (d.name+" "+d.blurb).toLowerCase().includes(b.q.toLowerCase())));
     body = '<div class="field"><span class="lbl" lang="'+S.lang+'">'+esc(t("findCare"))+'</span>'
@@ -2221,13 +3593,21 @@ function qrSVG(vpa){
 /* -- WHATSAPP JOURNEY ------------------------------------------------------ */
 VIEWS.whatsapp = function(){
   const s = T(), cfg = TENANT();
-  if(!S.waPid) S.waPid = (s.appointments[0] && s.appointments[0].pid) || s.patients[0].id;
+  /* A workspace provisioned five minutes ago has no appointments, and this
+     screen has to say so rather than fall over. */
+  if(!s.appointments.length || !s.patients.length){
+    return sectionHead("WhatsApp journey", "Nothing has been booked yet")
+      + '<div class="callout"><b>This fills in on the first booking.</b> Every message a patient receives — '
+      + 'confirmation, the token radar, aftercare and the receipt — is composed here in their own language '
+      + 'and shown to you before it ever goes out.</div>';
+  }
+  if(!S.waPid || !pat(S.waPid)) S.waPid = s.appointments[0].pid;
   const p = pat(S.waPid);
   const a = s.appointments.find(x => x.pid === p.id) || s.appointments[0];
-  const d = doc(a.doc);
+  const d = doc(a.doc) || s.practitioners[0];
   const prev = S.lang; S.lang = p.lang;               // messages go out in the patient's language
 
-  const mind = cfg.vertical === "mental_health" || d.kind === "mental";
+  const mind = d.kind === "mental" || modules().includes("therapy");
   const msgs = [];
   msgs.push({dir:"in", text:t("waConfirm",{name:p.name.split(" ")[0], doctor:d.name, time:hhmm(a.start), token:"T"+a.token, clinic:cfg.name}),
              ts:"9:02 AM", buttons:[t("waBtnConfirm"), t("waBtnReschedule")], audio:true});
@@ -2368,16 +3748,21 @@ const COVERAGE = [
   ["FR-1.1","Multi-tenant clinic workspaces, branding and module set","Gate + Isolation"],
   ["FR-1.2","Practitioner profiles, qualifications, languages, fees","Doorway"],
   ["FR-1.3","Room and chair registry with capability tags","Owner, Doorway"],
+  ["FR-1.6","Self-service onboarding, no sales call","Directory → Set up a new practice"],
+  ["FR-1.7","Patient import with column mapping and a dry run","Onboarding step 4"],
   ["FR-2.1","Patient-facing discovery and booking without an app","Doorway"],
   ["FR-2.2","WhatsApp OTP identity verification","Doorway step 3"],
   ["FR-2.3","Multilingual interface across five Indic languages","Doorway, WhatsApp"],
   ["FR-2.4","UPI prepayment with deep link and QR","Doorway step 4"],
-  ["FR-3.1","Live queue with lanes and token numbers","Board"],
+  ["§4.6.2","Recall rules and the overdue list they generate","Recalls"],
+  ["§4.6.1","Queue stages configured per tenant, with dwell alerts","Board"],
+  ["FR-3.1","Live queue, token numbers, compact list at volume","Board, Board → Compact"],
   ["FR-3.2","Walk-in registration in under thirty seconds","Board"],
   ["FR-3.3","Front-desk phone masking","Board, header toggle"],
   ["FR-3.4","Payment capture, cash and UPI reconciliation","Board, Ledger"],
-  ["FR-4.1","Nurse triage: vitals capture on large targets","Slate"],
+  ["FR-4.1","Nurse triage on large targets, measures set per tenant","Slate"],
   ["FR-4.2","Clinical alerts visible to every clinician","Slate, Chairside"],
+  ["FR-4.6","Printable prescription and receipt, A5 or A4","Board → ⋯ → Print"],
   ["FR-5.1","Encrypted psychotherapy notes with PIN unlock","Quiet Room"],
   ["FR-5.2","Structured SOAP notes and DSM-5 formulation","Quiet Room"],
   ["FR-5.3","Standardised instrument tracking (GAD-7, PHQ-9)","Quiet Room"],
@@ -2385,9 +3770,15 @@ const COVERAGE = [
   ["FR-6.2","Protocol-driven multi-sitting treatment plans","Chairside"],
   ["FR-6.3","Lab order lifecycle with shade and due date","Chairside"],
   ["FR-6.4","Consumable deduction against inventory buffers","Chairside"],
+  ["FR-6.5","Two-sided settlement with per-line disputes","Ledger, Route Card"],
+  ["§4.6.3","Packages and series, tracked as a liability","Practice"],
+  ["§4.6.4","Batch and expiry stock, issued first-expiry-first-out","Practice, Chairside"],
+  ["§4.6.5","Guardian accounts and consent by proxy","Practice"],
   ["FR-7.1","Visiting consultant route across clinics","Route Card"],
   ["FR-7.2","Automatic revenue split after lab and consumables","Route Card"],
   ["FR-7.3","External calendar sync as masked busy blocks","Route Card, Doorway"],
+  ["FR-7.4","Recovered revenue ledger, evidenced per rupee","Ledger"],
+  ["FR-7.5","ABDM accrual under the Corrigendum 7 rates and floor","Ledger"],
   ["BR-01","Free follow-up inside the configured window","Doorway, Board"],
   ["BR-02","No double booking of practitioner or room","Doorway slot grid"],
   ["BR-03","Counselling sessions are prepaid","Doorway step 4"],
@@ -2395,7 +3786,8 @@ const COVERAGE = [
   ["BR-05","Audit trail is append-only","Board activity, System"]
 ];
 VIEWS.coverage = function(){
-  return sectionHead("Requirement coverage", COVERAGE.length+" requirements, and the screen each one lives on")
+  return sectionHead("Requirement coverage",
+      COVERAGE.length+" requirements from the specification, and the screen each one lives on")
   + '<div class="card"><div class="card-b">'
   + COVERAGE.map(([id,txt,where]) =>
       '<div class="cov-row"><span class="cov-ok">✓</span><span class="cov-id">'+esc(id)+'</span>'
@@ -2403,7 +3795,16 @@ VIEWS.coverage = function(){
   + '</div></div>'
   + '<div class="callout warn mt"><b>Honest scope.</b> This is a prototype: state lives in memory, the workspace directory is a '
     + 'constant rather than a table, and payments are simulated. Every business rule, the encryption, the conflict checks and the '
-    + 'tenant scoping are real code you can read in this file.</div>';
+    + 'tenant scoping are real code you can read in this file.</div>'
+  + '<div class="callout ok mt"><b>The vertical engine is the claim worth checking.</b> '
+    + 'Four workspaces run four different boards, four triage sets and four sets of recall rules, and '
+    + '<span class="mono">prototype/harness.js</span> fails the build if the word <span class="mono">vertical</span> ever appears '
+    + 'in a conditional. Drishti Eye Care was added as rows only: a <i>Dilating</i> stage with a 20-minute dwell alert, '
+    + 'acuity and intraocular pressure at triage, a diabetic retinopathy recall and a cataract package. No new view was written '
+    + 'for it, and you can add a fifth from the directory in about four minutes.</div>'
+  + '<div class="callout mt"><b>Still missing, and deliberately listed.</b> Voice notes, NHCX claims and no-show scoring are '
+    + 'Phase 2. ABDM here is an accrual model, not a live M1/M2/M3 integration. Nothing in this file talks to a real '
+    + 'WhatsApp Business API, a real UPI collect flow or a real lab.</div>';
 };
 
 /* -- ROADMAP --------------------------------------------------------------- */
@@ -2547,25 +3948,150 @@ ACT.pick    = (id) => { S.gatePick = id; S.gate = "signin"; render(); };
 ACT["back-ws"] = () => { S.gate = "workspace"; S.gatePick = null; render(); };
 ACT.signin  = (m) => signIn(m);
 
+/* -- onboarding ------------------------------------------------------------ */
+ACT.onboard = () => {
+  S.onboard = {step:0, name:"", city:"", docName:"", vertical:"dental",
+               followupDays:7, csv:SAMPLE_CSV, map:guessMapping(parseCSV(SAMPLE_CSV).headers)};
+  S.gate = "onboard"; render();
+};
+ACT["ob-back"] = () => { S.onboard.step = Math.max(0, S.onboard.step-1); render(); };
+ACT["ob-vert"] = (k) => {
+  const o = S.onboard;
+  o.vertical = k;
+  o.followupDays = VERTICALS[k].followupDays;   // the vertical's default, still editable next step
+  render();
+};
+ACT["ob-follow"] = (d) => { S.onboard.followupDays = +d; render(); };
+ACT["ob-next"] = () => {
+  const o = S.onboard;
+  if(o.step < 4){ o.step += 1; return render(); }
+  provisionTenant();
+};
+function obSet(k, v){ S.onboard[k] = v; }                 // no re-render: never steal the caret
+function obMap(k, i){ S.onboard.map[k] = +i; render(); }
+function obCSV(text){
+  const o = S.onboard, before = parseCSV(o.csv).headers.join("|");
+  o.csv = text;
+  const now = parseCSV(text).headers;
+  if(now.join("|") !== before) o.map = guessMapping(now);  // headers changed, so the guess must be redone
+  clearTimeout(S.csvTimer);
+  S.csvTimer = setTimeout(() => {                          // debounce: re-rendering per keystroke would fight the textarea
+    const el = $("ob-csv"), pos = el && el.selectionStart;
+    render();
+    const el2 = $("ob-csv");
+    if(el2 && pos != null){ el2.focus(); el2.setSelectionRange(pos, pos); }
+  }, 350);
+}
+function onboardAccent(){
+  const a = VERTICALS[S.onboard.vertical].accent;
+  return {a:a, b:a, c:a, wash:"#EFEFEC", ink:"#FBFAF7"};
+}
+
+/* Build a real tenant from the answers and put it in the directory. The seed
+   below reads the same catalog every other tenant reads; there is no special
+   "created by the wizard" code path, because a workspace that behaves
+   differently from the seeded ones would prove nothing. */
+function provisionTenant(){
+  const o = S.onboard, v = VERTICALS[o.vertical];
+  const rows = dryRun(o.csv, o.map).filter(r => r.verdict === "import" || r.verdict === "partial");
+  const slug = obSlug() || "new-practice";
+  const docId = "own";
+  const cfg = {
+    id: slug, mark: obMark(),
+    name: o.name, legal: o.name,
+    host: slug+".practix.in", city: o.city || "India",
+    vertical: o.vertical, verticalLabel: v.label+" practice",
+    accent:{a:v.accent, b:v.accent, c:v.accent, wash:"#EEF2F2", ink:"#F8FAFA"},
+    langs:["en"], followupDays:o.followupDays, overhead:60000,
+    vpa: slug.replace(/-/g,"")+"@upi", since:String(new Date().getFullYear()),
+    chairsLabel:v.chairWord, plan:{tier:"Solo Practice", price:999},
+    staff:{}, provisioned:true,
+    seed(){ return {
+      practitioners:[{id:docId, name:o.docName, qual:"", kind:"gp", exp:1, fee:500,
+                      room:v.chairWord.charAt(0).toUpperCase()+v.chairWord.slice(1)+" 1",
+                      langs:["English"], blurb:v.label}],
+      stages:v.stages, measures:v.measures,
+      chairs:[{id:"c1", label:v.chairWord.charAt(0).toUpperCase()+v.chairWord.slice(1)+" 1", caps:["gp"]}],
+      patients: rows.map((r,i) => P("i"+i, r.name, r.age || "—",
+                  /^f/i.test(r.sex)?"F":/^m/i.test(r.sex)?"M":"—", "en", r.phone,
+                  r.last ? Math.max(0, Math.round((new Date(2026,8,11) - r.last)/86400000)) : null,
+                  r.notes && ALERT_TAGS.includes(r.notes) ? [r.notes] : [], null, null)),
+      appointments:[], external:[], teeth:{}, plans:{}, labOrders:[], labs:[],
+      inventory:[], packages:[], patientPackages:[], relationships:[], ledger:[], vault:null,
+      recallRules: v.rules.map((r,i) => RR("rr"+i, r[0], r[1],
+                     r[1]==="plan_dormant" ? {days:r[2]*30} : {months:r[2]}, "Set up during onboarding", 0)),
+      recalls:[],
+      /* A brand-new practice has earned nothing yet, and the screens say so
+         rather than inventing an encouraging number. */
+      abdm:{bundles:0, kycVerified:0, ratePerBundle:5, baselineExcluded:100,
+            monthlyTarget:0, m1Verified:0, m3Consents:0},
+      recovered:[],
+      cash:{cash:0, upi:0, pending:0},
+      roomUse:{c1:0}, roomMinutesPerDay:480,
+      audit:[], feed:[], wa:{}
+    };}
+  };
+  MODULES_BY_VERTICAL[cfg.vertical].forEach(m => { if(m !== "patient") cfg.staff[m] = o.docName; });
+
+  const existing = TENANTS.findIndex(t => t.id === cfg.id);
+  if(existing >= 0) TENANTS.splice(existing, 1, cfg); else TENANTS.push(cfg);
+
+  S.gate = "signin"; S.gatePick = cfg.id;
+  render();
+  toast(cfg.name+" is live", rows.length+" patients imported · "+cfg.host);
+}
+
 /* -- board ----------------------------------------------------------------- */
 ACT.lane = (id) => { S.laneTab = id; render(); };
-const NEXT_LANE = {expected:"waiting", waiting:"consult", consult:"billing", billing:"done"};
+const labelOf = id => (stages().find(l=>l.id===id) || {label:"Done"}).label;
 function moveCard(id, lane, silent){
   const a = T().appointments.find(x=>x.id===id); if(!a) return;
-  const from = a.lane;
+  const from = a.lane, prevArrived = a.arrived;
   a.lane = lane;
-  if(lane === "waiting" && !a.arrived) a.arrived = new Date(S.clock);
-  if(lane === "consult") a.startedAt = new Date(S.clock);
-  audit("queue.move", patName(a.pid)+" → "+(laneOf(lane).label||lane), "from "+laneOf(from).label);
-  if(!S.online) S.syncQueue.push({what:"Move "+patName(a.pid)+" to "+lane});
-  if(!silent) toast(patName(a.pid)+" moved to "+(LANES.find(l=>l.id===lane)||{label:"Done"}).label,
-                    S.online?null:"Queued — you are offline", null, ()=>{ a.lane = from; });
+  const role = (stages().find(l=>l.id===lane)||{}).role;
+  if(role === "waiting" && !a.arrived) a.arrived = new Date(S.clock);
+  if(role === "in_service") a.startedAt = new Date(S.clock);
+  audit("queue.move", patName(a.pid)+" → "+labelOf(lane), "from "+labelOf(from));
+  if(!S.online) S.syncQueue.push({what:"Move "+patName(a.pid)+" to "+labelOf(lane)});
+  if(!silent) toast(patName(a.pid)+" moved to "+labelOf(lane),
+                    S.online?null:"Queued — you are offline", null,
+                    ()=>{ a.lane = from; a.arrived = prevArrived; });
   render();
 }
+ACT.dense = () => { S.dense = !S.dense; render(); };
+ACT["recall-send"] = (id) => {
+  const r = (T().recalls||[]).find(x=>x.id===id); if(!r || r.status !== "due") return;
+  r.status = "sent"; r.sentAt = new Date(S.clock);
+  audit("recall.send", "Recall sent to "+patName(r.pid), ruleOf(r.rule).label+" · "+r.id);
+  if(!S.online) S.syncQueue.push({what:"Recall to "+patName(r.pid)});
+  render();
+  toast("Recall sent to "+patName(r.pid).split(" ")[0],
+        S.online ? "Nothing is credited until they book" : "Queued — you are offline",
+        null, ()=>{ r.status = "due"; r.sentAt = null; });
+};
+ACT["recall-all"] = () => {
+  const dueList = (T().recalls||[]).filter(r => r.status==="due" && overdueDays(r) >= 0);
+  dueList.forEach(r => { r.status = "sent"; r.sentAt = new Date(S.clock); });
+  audit("recall.send", dueList.length+" recalls sent", "Bulk send from the recall engine");
+  render();
+  toast(dueList.length+" recalls sent", "Worth "+inr(dueList.reduce((n,r)=>n+r.value,0))+" if they all book",
+        null, ()=>{ dueList.forEach(r => { r.status="due"; r.sentAt=null; }); });
+};
+ACT["recall-book"] = (id) => {
+  const s = T(), r = (s.recalls||[]).find(x=>x.id===id); if(!r || r.status !== "sent") return;
+  const prev = JSON.parse(JSON.stringify(s.recovered));
+  r.status = "booked"; r.bookedAt = new Date(S.clock);
+  creditRecovery("plan_resumed", r.value, "Recall "+r.id+" → booking for "+patName(r.pid));
+  render();
+  toast(patName(r.pid).split(" ")[0]+" rebooked", inr(r.value)+" credited to recovered revenue",
+        null, ()=>{ r.status="sent"; r.bookedAt=null; s.recovered = prev; });
+};
+
 ACT.advance = (id) => {
   const a = T().appointments.find(x=>x.id===id); if(!a) return;
   const p = pat(a.pid);
-  if(NEXT_LANE[a.lane]==="consult" && p && p.alerts.length){
+  const nxt = nextLane(a.lane);
+  if((stages().find(l=>l.id===nxt)||{}).role === "in_service" && p && p.alerts.length){
     modal({title:"Confirm before sending in", body:
       '<div class="alert-band mb"><span class="bang">!</span><span>'+esc(p.alerts.join(" · "))+'</span></div>'
       + '<p class="reg-patient">'+esc(p.name)+' has an active clinical alert. BR-04 means it cannot be dismissed here — '
@@ -2574,9 +4100,14 @@ ACT.advance = (id) => {
         + '<button class="btn btn-p" style="flex:1" data-act="force-in" data-arg="'+id+'">Acknowledge and send in</button>'});
     return;
   }
-  moveCard(id, NEXT_LANE[a.lane]);
+  moveCard(id, nxt);
 };
-ACT["force-in"] = (id) => { closeModal(); audit("alert.ack","Clinical alert acknowledged", patName(T().appointments.find(x=>x.id===id).pid)); moveCard(id,"consult"); };
+ACT["force-in"] = (id) => {
+  closeModal();
+  const a = T().appointments.find(x=>x.id===id);
+  audit("alert.ack","Clinical alert acknowledged", patName(a.pid));
+  moveCard(id, nextLane(a.lane));
+};
 ACT.collect = (id) => {
   const a = T().appointments.find(x=>x.id===id); if(!a) return;
   const due = a.fee - (a.paid||0);
@@ -2584,24 +4115,36 @@ ACT.collect = (id) => {
     '<p class="reg-patient mb">'+esc(patName(a.pid))+' · '+esc(a.reason)+'</p>'
     + '<div class="row"><button class="btn btn-p btn-xl" style="flex:1" data-act="paid" data-arg="'+id+'|upi">UPI '+inr(due)+'</button>'
     + '<button class="btn btn-g btn-xl" style="flex:1" data-act="paid" data-arg="'+id+'|cash">Cash '+inr(due)+'</button></div>'
-    + '<p class="hint" style="margin-top:10px">A receipt goes out on WhatsApp in '+esc(langName(pat(a.pid)?pat(a.pid).lang:"en"))+' the moment this is recorded.</p>'});
+    + '<p class="hint" style="margin-top:10px">A receipt goes out on WhatsApp in '+esc(langName(pat(a.pid)?pat(a.pid).lang:"en"))+' the moment this is recorded.</p>'
+    + '<button class="btn btn-g btn-full mt" data-act="print" data-arg="receipt|'+id+'">Print a paper receipt instead</button>'});
 };
 ACT.paid = (arg) => {
   const [id, method] = arg.split("|");
   const s = T(), a = s.appointments.find(x=>x.id===id);
   const due = a.fee - (a.paid||0);
+  const prevPaid = a.paid || 0, back = a.lane;
   a.paid = a.fee; a.lane = "done";
   s.cash[method] += due; s.cash.pending = Math.max(0, s.cash.pending - due);
+  if(due <= 0){
+    audit("visit.close", "Closed with nothing due", patName(a.pid)+" · prepaid");
+    closeModal(); render();
+    return toast(patName(a.pid)+" closed", "Nothing was outstanding", null,
+                 ()=>{ a.paid = prevPaid; a.lane = back; });
+  }
   audit("payment.capture", inr(due)+" by "+method.toUpperCase(), patName(a.pid));
   closeModal(); render();
-  toast(inr(due)+" received", "Receipt sent on WhatsApp", null, ()=>{ a.paid=0; a.lane="billing"; s.cash[method]-=due; s.cash.pending+=due; });
+  toast(inr(due)+" received", "Receipt sent on WhatsApp", null,
+        ()=>{ a.paid = prevPaid; a.lane = back; s.cash[method] -= due; s.cash.pending += due; });
 };
 ACT["card-menu"] = (id) => {
   const a = T().appointments.find(x=>x.id===id); if(!a) return;
   sheet(patName(a.pid), [
     '<div class="eyebrow" style="padding:6px 13px">Move to</div>',
-    ...LANES.filter(l=>l.id!==a.lane).map(l => sheetRow("→", l.label, "move-to", null, id+"|"+l.id)),
+    ...stages().filter(l=>l.id!==a.lane).map(l => sheetRow("→", l.label, "move-to", null, id+"|"+l.id)),
     sheetRow("✓","Done and paid","move-to", null, id+"|done"),
+    '<div class="eyebrow" style="padding:12px 13px 6px">Print</div>',
+    sheetRow("℞","Prescription","print", null, "rx|"+a.pid),
+    sheetRow("🧾","Receipt","print", null, "receipt|"+id),
     '<div class="eyebrow" style="padding:12px 13px 6px">Other</div>',
     sheetRow("💬","Open the WhatsApp thread","open-wa", null, a.pid),
     sheetRow("✕","Cancel this appointment","cancel-appt", null, id)
@@ -2636,11 +4179,14 @@ ACT["walkin-save"] = () => {
   const pid  = "w"+Date.now().toString(36);
   s.patients.push(P(pid, name, "—", "—", TENANT().langs[0], ph, null, [], null));
   const token = Math.max(0, ...s.appointments.map(a=>a.token)) + 1;
-  s.appointments.push(A("x"+pid, pid, dId, s.chairs[0].id, S.clock.getHours(), S.clock.getMinutes(), 20, why, "waiting", doc(dId).fee, 0, token, {arrived:new Date(S.clock)}));
+  const arrive = roleStage("waiting").id;
+  const na = A("x"+pid, pid, dId, s.chairs[0].id, S.clock.getHours(), S.clock.getMinutes(), 20, why, arrive, doc(dId).fee, 0, token, {arrived:new Date(S.clock)});
+  s.appointments.push(na);
   s.cash.pending += doc(dId).fee;
-  audit("patient.create", name+" registered as a walk-in", "Token T"+token+" · "+why);
-  closeModal(); S.laneTab = "waiting"; render();
-  toast(name+" added as T"+token, "Full fee applies — no previous visit on record");
+  const t = tokenOf(na);
+  audit("patient.create", name+" registered as a walk-in", "Token T"+t+" · "+why);
+  closeModal(); S.laneTab = arrive; render();
+  toast(name+" added as "+initials(doc(dId).name)+"·T"+t, "Full fee applies — no previous visit on record");
 };
 
 /* -- pointer drag. HTML5 drag-and-drop never fires from a finger, so the
@@ -2750,8 +4296,8 @@ ACT["alert-resolve"] = (tag) => {
   closeModal(); render(); toast(tag+" resolved", "Recorded against "+S.session.staff);
 };
 ACT["to-doctor"] = () => {
-  const a = T().appointments.find(x=>x.pid===S.nursePatient && x.lane==="waiting");
-  if(a) return moveCard(a.id, "consult");
+  const a = T().appointments.find(x=>x.pid===S.nursePatient && roleOf(x.lane)==="waiting");
+  if(a) return moveCard(a.id, nextLane(a.lane));
   toast("Already with the doctor", null, "warn");
 };
 
@@ -2798,11 +4344,87 @@ ACT.deduct = () => {
   const s = T(), plan = s.plans[S.dentalPatient] || [];
   const used = plan.filter(x=>x.status==="chair").flatMap(x=>x.consumables||[]);
   if(!used.length) return toast("Nothing to deduct", null, "warn");
-  const low = [];
-  used.forEach(c => { const it = s.inventory.find(i=>i.item===c); if(it){ it.stock--; if(it.stock<=it.buffer) low.push(it.item); } });
-  audit("inventory.deduct", used.length+" consumables deducted", used.join(", "));
+  const low = [], none = [], taken = [];
+  used.forEach(c => {
+    const it = s.inventory.find(i=>i.item===c); if(!it) return;
+    const b = fefo(it);
+    if(!b){ none.push(it.item); return; }     // usable stock is zero, and saying so is the point
+    b.qty -= 1; taken.push(it.item+" ("+b.lot+")");
+    if(liveQty(it) <= it.buffer) low.push(it.item);
+  });
+  audit("inventory.deduct", taken.length+" consumables deducted", taken.join(", ") || "nothing issued");
   render();
-  toast(used.length+" items deducted", low.length?low.join(", ")+" now at or below buffer":"All items above buffer", low.length?"warn":null);
+  if(none.length) return toast("No usable stock", listOut(none)+" — every batch is expired or empty", "risk");
+  toast(taken.length+" items deducted",
+        low.length ? listOut(low)+" now at or below buffer" : "Issued from the nearest-expiry batch",
+        low.length ? "warn" : null);
+};
+
+/* -- practice: stock, packages, families ----------------------------------- */
+ACT["stock-receive"] = (item) => {
+  const it = T().inventory.find(i=>i.item===item); if(!it) return;
+  modal({title:"Receive "+item, body:
+    '<div class="field"><span class="lbl">Batch or lot number</span>'
+      + '<input class="inp" id="rb-lot" value="'+esc(item.slice(0,2).toUpperCase()+"-"+(1000+Math.floor(Math.random()*8999)))+'"></div>'
+    + '<div class="field"><span class="lbl">Quantity</span>'
+      + '<input class="inp" id="rb-qty" inputmode="numeric" value="20"></div>'
+    + '<div class="field"><span class="lbl">Expires in (days)</span>'
+      + '<input class="inp" id="rb-exp" inputmode="numeric" value="180"></div>'
+    + '<p class="hint">The expiry date is required. A batch without one cannot be issued first-expiry-first-out, '
+    + 'which makes every other batch in the drawer less safe.</p>',
+    footer:'<button class="btn btn-g" data-act="close">Cancel</button>'
+      + '<button class="btn btn-p" style="flex:1" data-act="stock-receive-go" data-arg="'+esc(item)+'">Add batch</button>'});
+};
+ACT["stock-receive-go"] = (item) => {
+  const it = T().inventory.find(i=>i.item===item); if(!it) return;
+  const lot = ($("rb-lot").value||"").trim() || "LOT";
+  const qty = Math.max(1, Number($("rb-qty").value) || 1);
+  const days = Number($("rb-exp").value);
+  if(!Number.isFinite(days)) return toast("An expiry date is required", null, "risk");
+  it.batches.push(BATCH(lot, days, qty));
+  audit("inventory.receive", qty+" × "+item+" received", "Batch "+lot+" · expires in "+days+" days");
+  closeModal(); render();
+  toast(qty+" received", "Batch "+lot+" joins the queue in expiry order");
+};
+ACT["stock-discard"] = () => {
+  const s = T();
+  const removed = [];
+  s.inventory.forEach(it => {
+    const keep = it.batches.filter(b => daysTo(b.exp) >= 0);
+    it.batches.filter(b => daysTo(b.exp) < 0).forEach(b => removed.push(it.item+" "+b.lot+" ×"+b.qty));
+    it.batches = keep;
+  });
+  if(!removed.length) return toast("Nothing has expired", null, null);
+  audit("inventory.discard", removed.length+" expired batches discarded", removed.join(", "));
+  render();
+  toast(removed.length+" expired batch"+(removed.length===1?"":"es")+" discarded",
+        "Written to the audit trail — this is a disposal record");
+};
+ACT["pkg-redeem"] = (id) => {
+  const s = T(), pp = s.patientPackages.find(x=>x.id===id); if(!pp) return;
+  const def = pkgDef(pp.pkg);
+  if(pp.used >= def.sessions) return;
+  pp.used += 1;
+  const left = def.sessions - pp.used;
+  audit("package.redeem", "Visit "+pp.used+" of "+def.sessions+" — "+def.label, patName(pp.pid));
+  render();
+  toast("Visit "+pp.used+" of "+def.sessions+" redeemed",
+        left ? left+" remaining on "+patName(pp.pid).split(" ")[0]+"'s package" : "Package complete — nothing more owed",
+        null, ()=>{ pp.used -= 1; });
+};
+ACT.perm = (arg) => {
+  const [id, key] = arg.split("|");
+  const r = T().relationships.find(x=>x.id===id); if(!r) return;
+  r[key] = !r[key];
+  const label = {may_book:"booking", may_consent:"consent", may_view_clinical:"clinical notes"}[key];
+  /* Granting someone sight of a clinical record is exactly the kind of change
+     that has to be attributable later. */
+  audit("consent.proxy", (r[key]?"Granted":"Revoked")+" "+label+" to "+patName(r.guardian),
+        "for "+patName(r.dependant)+" · "+r.relation);
+  render();
+  toast((r[key]?"Granted":"Revoked")+" — "+label,
+        patName(r.guardian)+" acting for "+patName(r.dependant), r[key]&&key==="may_view_clinical"?"warn":null,
+        ()=>{ r[key] = !r[key]; });
 };
 ACT["lab-order"] = () => {
   const s = T();
@@ -2882,13 +4504,142 @@ ACT["save-note"] = () => {
 ACT.dsm = () => {};
 
 /* -- consultant / owner ---------------------------------------------------- */
+/* -- settlement, FR-6.5 ---------------------------------------------------- */
 ACT["request-settle"] = () => {
   const s = T();
-  const n = s.ledger.filter(l=>l.status!=="settled").length;
-  s.ledger.forEach(l => { if(l.status!=="settled") l.status = "requested"; });
-  audit("settlement.request", n+" procedures submitted for settlement", TENANT().name);
-  render(); toast("Settlement requested", n+" procedure"+(n===1?"":"s")+" sent to the practice owner");
+  const open = s.ledger.filter(l => l.status === "draft" || l.status === "approved");
+  if(!open.length) return toast("Nothing to submit", "Every line is already with the owner or settled");
+  open.forEach(l => { l.status = "requested"; });
+  audit("settlement.request", open.length+" procedures submitted for settlement", TENANT().name);
+  render();
+  toast("Settlement requested", open.length+" procedure"+(open.length===1?"":"s")+" sent to the practice owner",
+        null, ()=>{ open.forEach(l => { l.status = "draft"; }); });
 };
+ACT["settle-approve"] = (id) => {
+  const l = T().ledger.find(x=>x.id===id); if(!l) return;
+  const was = l.status, hadDispute = l.dispute;
+  l.status = "approved"; l.dispute = null;
+  audit("settlement.approve", "Approved "+l.desc, inr(netOf(l, consultantOf().split))+" · line "+id);
+  render();
+  toast("Line approved", inr(netOf(l, consultantOf().split))+" moves into the payable total",
+        null, ()=>{ l.status = was; l.dispute = hadDispute; });
+};
+ACT["settle-dispute"] = (id) => {
+  const l = T().ledger.find(x=>x.id===id); if(!l) return;
+  const cons = consultantOf();
+  modal({title:"Dispute this line", body:
+    '<p class="reg-patient mb">'+esc(l.desc)+' · '+esc(l.date)+'</p>'
+    + '<div class="eyebrow mb">Why</div>'
+    + '<div class="col" style="gap:7px">'
+    + DISPUTE_REASONS.map(([k,label]) =>
+        '<button class="btn btn-g btn-full" style="justify-content:flex-start;text-align:left" '
+        + 'data-act="settle-dispute-go" data-arg="'+id+'|'+k+'">'+esc(label)+'</button>').join("")
+    + '</div>'
+    + '<p class="hint" style="margin-top:11px">'+esc(cons.name)+' sees the reason you pick, not a bare rejection, '
+    + 'and can accept the correction from their own route card.</p>'});
+};
+ACT["settle-dispute-go"] = (arg) => {
+  const [id, code] = arg.split("|");
+  const s = T(), l = s.ledger.find(x=>x.id===id); if(!l) return;
+  const reason = (DISPUTE_REASONS.find(r=>r[0]===code) || [,"Disputed"])[1];
+  const was = l.status;
+  /* A dispute that only says "no" is what the WhatsApp thread already does.
+     A dispute that carries a number is something the other side can accept. */
+  const proposed = code === "lab"    ? netOf({gross:l.gross, lab:Math.round(l.gross*0.2), consum:l.consum}, consultantOf().split)
+                 : code === "consum" ? netOf({gross:l.gross, lab:l.lab, consum:Math.round(l.consum*1.6)}, consultantOf().split)
+                 : code === "notdone" || code === "dupe" ? 0
+                 : netOf(l, Math.max(0.4, consultantOf().split - 0.05));
+  l.status = "disputed";
+  l.dispute = {reason, code, proposed, by:S.session.staff, at:new Date(S.clock)};
+  audit("settlement.dispute", "Disputed "+l.desc, reason+" · offers "+inr(proposed)+" · line "+id);
+  closeModal(); render();
+  toast("Line disputed", esc(consultantOf().name.split(" ")[1] || "The consultant")+" has been told why",
+        "warn", ()=>{ l.status = was; l.dispute = null; });
+};
+ACT["settle-withdraw"] = (id) => {
+  const l = T().ledger.find(x=>x.id===id); if(!l) return;
+  const had = l.dispute;
+  l.status = "requested"; l.dispute = null;
+  audit("settlement.withdraw", "Dispute withdrawn on "+l.desc, "line "+id);
+  render(); toast("Dispute withdrawn", "The line is back in your queue to approve",
+                  null, ()=>{ l.status = "disputed"; l.dispute = had; });
+};
+/* The consultant's half: accepting the owner's number closes the line without
+   anyone having to concede in a message thread. */
+ACT["settle-accept"] = (id) => {
+  const l = T().ledger.find(x=>x.id===id); if(!l || !l.dispute) return;
+  const had = l.dispute, was = l.status, cons = consultantOf();
+  const target = had.proposed;
+  /* Reprice by adjusting the deduction, so the arithmetic on the line still
+     reconciles rather than carrying a mystery override. */
+  l.consum = Math.max(0, l.gross - l.lab - Math.round(target / cons.split));
+  l.status = "approved"; l.dispute = null; l.repriced = {from:had.reason, at:new Date(S.clock)};
+  audit("settlement.accept", "Correction accepted on "+l.desc, had.reason+" · now "+inr(netOf(l, cons.split)));
+  render();
+  toast("Correction accepted", inr(netOf(l, cons.split))+" agreed on this line",
+        null, ()=>{ Object.assign(l, {status:was, dispute:had, repriced:null}); });
+};
+ACT["settle-pay"] = () => {
+  const s = T(), cons = consultantOf();
+  const lines = s.ledger.filter(l => l.status === "approved");
+  if(!lines.length) return;
+  const total = lines.reduce((n,l)=>n+netOf(l, cons.split), 0);
+  lines.forEach(l => { l.status = "settled"; l.settledAt = new Date(S.clock); });
+  audit("settlement.pay", inr(total)+" settled to "+cons.name, lines.length+" lines · UPI "+TENANT().vpa);
+  render();
+  toast(inr(total)+" settled", lines.length+" line"+(lines.length===1?"":"s")+" paid to "+cons.name,
+        null, ()=>{ lines.forEach(l => { l.status = "approved"; l.settledAt = null; }); });
+};
+/* -- print ----------------------------------------------------------------- */
+/* The preview is the sheet itself, scaled down. Anything else is a promise the
+   printer is free to break. */
+ACT.print = (arg) => {
+  const [kind, id] = arg.split("|");
+  S.print = {kind, id, size:S.print ? S.print.size : "a5"};
+  printModal();
+};
+ACT["print-size"] = (size) => { S.print.size = size; printModal(); };
+ACT["print-go"] = () => {
+  const {kind, id, size} = S.print;
+  $("printroot").innerHTML = SHEETS[kind].build(id, size);
+  const who = kind === "rx" ? patName(id)
+            : patName((T().appointments.find(x=>x.id===id)||{}).pid);
+  audit("document.print", SHEETS[kind].title+" printed for "+who, size.toUpperCase()+" · FR-4.6");
+  closeModal();
+  render();
+  /* Give the browser a frame to paint the sheet before it snapshots it. */
+  requestAnimationFrame(() => { window.print(); });
+  toast(SHEETS[kind].title+" sent to the printer", "A copy is in the patient's record");
+};
+function printModal(){
+  const {kind, id, size} = S.print;
+  const w = size === "a5" ? 148 : 210, h = size === "a5" ? 210 : 297;
+  modal({
+    title: SHEETS[kind].title,
+    body: '<div class="seg mb">'
+        + ['a5','a4'].map(x => '<button class="'+(size===x?"on":"")+'" data-act="print-size" data-arg="'+x+'">'
+            + x.toUpperCase()+(x==="a5"?" — half sheet":" — full page")+'</button>').join("")
+        + '</div>'
+        + '<div class="sheet-wrap"><div class="sheet-scale" style="width:'+w+'mm;height:'+h+'mm">'
+        + SHEETS[kind].build(id, size) + '</div></div>'
+        + '<p class="hint" style="margin-top:9px">This is the sheet, at its real size, scaled to fit. '
+        + 'A5 is the half sheet most clinics already stock; A4 is for anything a patient will carry to a hospital.</p>',
+    footer: '<button class="btn btn-p btn-xl btn-full" data-act="print-go">Print</button>'
+  });
+  /* Scale from the container's measured width rather than a guess, because the
+     modal is narrower on a 320 px phone than any constant would assume.
+     A transform does not affect layout, so the wrapper's height has to be set
+     to what the sheet visually occupies or it leaves a hole beneath it. */
+  const wrap = $("modal").querySelector(".sheet-wrap");
+  const box  = $("modal").querySelector(".sheet-scale");
+  if(!wrap || !box) return;
+  const px = mm => mm * 96 / 25.4;
+  const avail = wrap.clientWidth - 28;                 // the wrapper's own padding
+  const scale = Math.min(1, avail / px(w));
+  box.style.transform = "scale(" + scale.toFixed(4) + ")";
+  wrap.style.height = Math.round(px(h) * scale) + 28 + "px";
+}
+
 ACT.export = () => {
   audit("report.export","Month-to-date ledger exported","CSV · owner");
   toast("Export queued","A CSV lands in your inbox in a moment");
@@ -2920,7 +4671,8 @@ ACT.confirm = () => {
   const token = Math.max(0, ...s.appointments.map(a=>a.token)) + 1;
   b.token = token;
   s.appointments.push(A("bk"+token, b.pid, d.id, d.visiting?null:s.chairs[0].id,
-    b.slot.getHours(), b.slot.getMinutes(), d.minutes||30, "Booked online", "expected", f.fee, d.prepay?f.fee:0, token));
+    b.slot.getHours(), b.slot.getMinutes(), d.minutes||30, "Booked online",
+    roleStage("pre_arrival").id, f.fee, d.prepay?f.fee:0, token));
   if(d.prepay && f.fee) s.cash.upi += f.fee;
   audit("appointment.create","Booked "+patName(b.pid)+" with "+d.name, hhmm(b.slot)+" · "+(f.free?"free follow-up":inr(f.fee))+" · token T"+token);
   S.waPid = b.pid; S.scenarioStep = 0;
@@ -3015,7 +4767,11 @@ window.addEventListener("hashchange", () => {
 /* Top-level `const` in a classic script is script-scoped, not a window property,
    so automation gets one deliberate handle rather than a hundred globals. */
 window.PractixOS = {S, T, TENANT, TENANTS, VIEWS, ACT, MODULES, MODULES_BY_VERTICAL, UTILITY_MODULES,
-                    render, go, signIn, signOut, closeModal, modules, allModules, feeFor, slotFree, audit};
+                    VERTICALS, SAMPLE_CSV, IMPORT_FIELDS,
+                    render, go, signIn, signOut, closeModal, modules, allModules, feeFor, slotFree, audit,
+                    stages, laneOf, nextLane, roleStage, inRole, tokenOf,
+                    parseCSV, guessMapping, dryRun, parseDate, normalisePhone,
+                    SHEETS, rxSheet, receiptSheet, inWords};
 
 (function init(){
   try{ const m = localStorage.getItem("practix.lay"); if(m) S.layMode = m; }catch(err){}
@@ -3024,7 +4780,22 @@ window.PractixOS = {S, T, TENANT, TENANTS, VIEWS, ACT, MODULES, MODULES_BY_VERTI
   /* ?clinic=<slug>&as=<module> deep-links straight into a role. Real sign-in
      replaces this; it exists so a link can open the board on the reception
      tablet, and so the layout checker can reach every screen without clicking. */
-  const as = new URLSearchParams(location.search).get("as");
+  const qs = new URLSearchParams(location.search);
+  /* ?onboard=<vertical>:<step> opens the setup wizard mid-flow, for the same
+     reason ?as= exists: so the layout checker and the screenshot pass can
+     reach a screen that otherwise takes four taps. */
+  const ob = qs.get("onboard");
+  if(ob){
+    const [vert, step] = ob.split(":");
+    ACT.onboard();
+    Object.assign(S.onboard, {
+      name:"Sanjeevani Skin & Hair", city:"Jayanagar, Bengaluru", docName:"Dr. Rhea Kulkarni",
+      vertical:VERTICALS[vert] ? vert : "dental", step:Math.min(4, Math.max(0, Number(step)||0))
+    });
+    S.onboard.followupDays = VERTICALS[S.onboard.vertical].followupDays;
+    return render();
+  }
+  const as = qs.get("as");
   if(S.gatePick && as && MODULES_BY_VERTICAL[tenantById(S.gatePick).vertical].concat(UTILITY_MODULES).includes(as)){
     signIn(as);
     const h = location.hash.slice(1);
