@@ -679,11 +679,170 @@ function Nurse() {
   );
 }
 
+const DSM5 = [
+  ["F41.1", "Generalised Anxiety Disorder"],
+  ["F32.1", "Major Depressive Disorder, moderate"],
+  ["F43.1", "Post-Traumatic Stress Disorder"],
+  ["F40.1", "Social Anxiety Disorder"],
+  ["F42.2", "Obsessive-Compulsive Disorder"],
+];
+
 function QuietRoom() {
+  const pinRef = useRef("");
+  const notesRef = useRef<{ s: string; o: string; a: string; p: string; dsm: string; gad7: number; phq9: number }[]>([]);
+  const idleRef = useRef(0);
+  const [patientId, setPatientId] = useState("");
+  const [name, setName] = useState("");
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [digits, setDigits] = useState(["", "", "", ""]);
+  const [sealed, setSealed] = useState(true);
+  const [bad, setBad] = useState(false);
+  const [draft, setDraft] = useState({ s: "", o: "", a: "", p: "", dsm: "F41.1", gad7: 0, phq9: 0 });
+  const [, redraw] = useState(0);
+
+  function seal(): void {
+    notesRef.current = [];
+    pinRef.current = "";
+    setSealed(true);
+    setDigits(["", "", "", ""]);
+  }
+
+  useEffect(() => {
+    void api("/api/queue").then((body) => {
+      const board = body as { cards?: { patientId?: string; patient_id?: string; name?: string; full_name?: string }[] };
+      const card = board.cards?.[0];
+      const id = card?.patientId ?? card?.patient_id ?? "";
+      if (!id) {
+        setEnabled(false);
+        return;
+      }
+      setPatientId(id);
+      setName(card?.name ?? card?.full_name ?? "");
+      void api(`/api/vault/notes?patientId=${id}`).then((view) => {
+        const desk = view as { enabled: boolean; fullName: string | null };
+        setEnabled(desk.enabled);
+        if (desk.fullName) setName(desk.fullName);
+      }).catch(() => setEnabled(false));
+    }).catch(() => setEnabled(false));
+  }, []);
+
+  useEffect(() => {
+    idleRef.current = window.setTimeout(seal, 600000);
+    return () => window.clearTimeout(idleRef.current);
+  }, [sealed, draft]);
+
+  async function unlock(): Promise<void> {
+    const pin = digits.join("");
+    pinRef.current = pin;
+    try {
+      const body = await api("/api/vault/unlock", "POST", { patientId, pin }) as {
+        notes: { s: string; o: string; a: string; p: string; dsm: string; gad7: number; phq9: number }[];
+      };
+      notesRef.current = body.notes;
+      const latest = body.notes[body.notes.length - 1];
+      if (latest) setDraft(latest);
+      setSealed(false);
+      setBad(false);
+      redraw((n) => n + 1);
+    } catch {
+      pinRef.current = "";
+      setBad(true);
+    }
+  }
+
+  async function save(): Promise<void> {
+    await api("/api/vault/notes", "POST", { patientId, pin: pinRef.current, ...draft });
+    notesRef.current = [...notesRef.current, draft];
+    redraw((n) => n + 1);
+  }
+
+  if (enabled === false) {
+    return (
+      <section className="quiet">
+        <h1>Quiet room</h1>
+        <div className="callout">This workspace does not run a counselling service.</div>
+      </section>
+    );
+  }
+
+  const history = notesRef.current;
   return (
-    <section className="grid quiet">
+    <section className="quiet">
       <h1>Quiet room</h1>
-      <p className="measure">A counselling record is written slowly and read carefully. This register is warm paper and a serif face, with no badges and no counters. The vault and the notes themselves stay a later milestone.</p>
+      {sealed ? (
+        <div className="vault-seal">
+          <h2>Session notes are sealed</h2>
+          <p className="lede">{name ? `${name}’s notes are encrypted with a key derived from your PIN.` : "Notes stay sealed until the PIN is entered."} They are unreadable to the front desk and to anyone holding a copy of the database.</p>
+          <div className="pin-row">
+            {digits.map((digit, index) => (
+              <input
+                key={index}
+                className={bad ? "pin-box bad" : "pin-box"}
+                inputMode="numeric"
+                maxLength={1}
+                aria-label={`PIN digit ${index + 1}`}
+                value={digit}
+                onChange={(event) => {
+                  const next = digits.slice();
+                  next[index] = event.target.value.replace(/\D/g, "").slice(-1);
+                  setDigits(next);
+                }}
+              />
+            ))}
+          </div>
+          <button className="btn btn-p" type="button" onClick={() => void unlock()}>Open the vault</button>
+          <p className="hint">Auto-seals after 10 minutes without input.</p>
+        </div>
+      ) : (
+        <>
+          <div className="between mb">
+            <div>
+              <h2>{name}</h2>
+              <p className="muted">Weekly · {history.length} sealed sessions</p>
+            </div>
+            <button className="btn btn-g btn-s" type="button" onClick={seal}>Seal notes</button>
+          </div>
+          <div className="grid g2 mb">
+            <div className="card"><div className="card-b">
+              <div className="eyebrow mb">Symptom trajectory</div>
+              <svg viewBox="0 0 100 92" style={{ width: "100%", height: 120 }} role="img" aria-label="GAD-7 and PHQ-9 over sessions">
+                <path d={history.map((item, i) => `${i ? "L" : "M"}${6 + i * 20},${6 + (100 - (item.gad7 / 21) * 100) * 0.78}`).join(" ")} fill="none" stroke="var(--indigo)" strokeWidth="2" />
+                <path d={history.map((item, i) => `${i ? "L" : "M"}${6 + i * 20},${6 + (100 - (item.phq9 / 27) * 100) * 0.78}`).join(" ")} fill="none" stroke="var(--marigold)" strokeWidth="2" strokeDasharray="3 2.5" />
+              </svg>
+              <div className="row tight">
+                <span>GAD-7 now {draft.gad7}</span>
+                <span>PHQ-9 now {draft.phq9}</span>
+              </div>
+            </div></div>
+            <div className="card"><div className="card-b">
+              <div className="eyebrow mb">Working formulation</div>
+              <select className="inp" value={draft.dsm} onChange={(event) => setDraft({ ...draft, dsm: event.target.value })}>
+                {DSM5.map(([code, label]) => <option key={code} value={code}>{code} — {label}</option>)}
+              </select>
+            </div></div>
+          </div>
+          <div className="card"><div className="card-b">
+            {([
+              ["s", "Subjective — what the client reports"],
+              ["o", "Objective — what you observed"],
+              ["a", "Assessment — your formulation"],
+              ["p", "Plan — what happens next"],
+            ] as const).map(([key, label]) => (
+              <div className="note-field" key={key}>
+                <div className="note-label">{label}</div>
+                <textarea className="note-area" value={draft[key]} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} />
+              </div>
+            ))}
+            <label className="field">GAD-7
+              <input className="inp" inputMode="numeric" value={draft.gad7} onChange={(event) => setDraft({ ...draft, gad7: Number(event.target.value) })} />
+            </label>
+            <label className="field">PHQ-9
+              <input className="inp" inputMode="numeric" value={draft.phq9} onChange={(event) => setDraft({ ...draft, phq9: Number(event.target.value) })} />
+            </label>
+            <button className="btn btn-m btn-xl btn-full" type="button" onClick={() => void save()}>Encrypt and save this session</button>
+          </div></div>
+        </>
+      )}
     </section>
   );
 }

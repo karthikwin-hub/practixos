@@ -979,7 +979,7 @@ export async function queueBoard(clinicId: string): Promise<unknown> {
     );
     const cards = await tx.query(
       `SELECT a.id, a.token_no, a.stage_id, a.arrived_at, a.practitioner_id,
-              p.full_name, p.phone_masked, p.alerts, pr.full_name AS practitioner
+              p.id AS patient_id, p.full_name, p.phone_masked, p.alerts, pr.full_name AS practitioner
        FROM appointments a
        JOIN patients p ON p.id = a.patient_id
        JOIN practitioners pr ON pr.id = a.practitioner_id

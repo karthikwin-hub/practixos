@@ -1,4 +1,10 @@
 import {
+  openSeries,
+  saveNote,
+  unlockNotes,
+  vaultDesk,
+} from "./modules/vault/index.js";
+import {
   dayBalance,
   ownerLedger,
   quoteToken,
@@ -125,7 +131,7 @@ async function staffFrom(req: FastifyRequest): Promise<{ clinicId: string; userI
   return session;
 }
 
-/** Health, the portal, the floor, and the dental chart. No M5 routes. */
+/** Health, the floor, the ledger, and the vault. */
 export function buildApp(): FastifyInstance {
   const app = Fastify({ logger: false });
   const ports = adapters();
@@ -448,6 +454,32 @@ export function buildApp(): FastifyInstance {
   });
 
   app.get("/api/practice", async (req) => practiceSnapshot((await staffFrom(req)).clinicId));
+
+  app.get("/api/vault/notes", async (req) => {
+    const staff = await staffFrom(req);
+    const patientId = (req.query as { patientId?: string }).patientId ?? "";
+    return vaultDesk(staff.clinicId, patientId);
+  });
+
+  app.post("/api/vault/notes", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as {
+      patientId: string; pin: string; s: string; o: string; a: string; p: string; dsm: string; gad7: number; phq9: number;
+    };
+    return saveNote(staff.clinicId, staff, body.patientId, body.pin, body);
+  });
+
+  app.post("/api/vault/unlock", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { patientId: string; pin: string };
+    return unlockNotes(staff.clinicId, staff, body.patientId, body.pin);
+  });
+
+  app.post("/api/vault/series", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { patientId: string; practitionerId: string; sessions: number };
+    return openSeries(staff.clinicId, body, ports.billing, ports.messaging);
+  });
 
   app.post("/api/packages", async (req) => {
     const staff = await staffFrom(req);

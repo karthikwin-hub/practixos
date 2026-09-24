@@ -1,5 +1,7 @@
 # Deployment note — M0 through M4, local only
 
+Superseded by [deployment-m0-m6.md](deployment-m0-m6.md). This file is the record of the M4 checkpoint.
+
 This is a local deployment record. Nothing here has been applied to OCI.
 `docs/evidence/m0/terraform-apply.md` is still **NOT RUN**.
 

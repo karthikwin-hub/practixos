@@ -21,7 +21,7 @@ export async function resetDatabase(): Promise<void> {
   try {
     await client.query(`
       TRUNCATE TABLE
-        token_notices, care_templates, consult_spans, dhis_transactions, clinic_dhis_rates, cash_handovers,
+        vault_attempts, token_notices, care_templates, consult_spans, dhis_transactions, clinic_dhis_rates, cash_handovers,
         recovered_revenue, payment_events, message_outbox, deposits, vitals, sync_applied,
         proxy_consents, patient_relationships, expiry_notices, inventory_issues, inventory_batches,
         inventory_items, package_redemptions, patient_packages, package_definitions, recalls, recall_rules,

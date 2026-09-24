@@ -7,10 +7,10 @@ There is deliberately no timestamp in this file, so it changes only when
 coverage changes and a regression is visible in the diff.
 
 ```
-milestone in progress   M5
+milestone in progress   M6
 requirements defined    50
 scheduled into M0-M6    71
-covered by a test       67
+covered by a test       71
 ```
 
 ## Defined but not scheduled
@@ -56,10 +56,10 @@ decision that nobody wrote down.
 | `FR-4.4` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-4.5` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-4.6` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
-| `FR-5.1` | M6 | — |
-| `FR-5.2` | M6 | — |
-| `FR-5.3` | M6 | — |
-| `FR-5.4` | M6 | — |
+| `FR-5.1` | M6 | `acceptance/m6-vault-non-recoverable.test.ts:17` |
+| `FR-5.2` | M6 | `acceptance/m6-vault-non-recoverable.test.ts:17` |
+| `FR-5.3` | M6 | `acceptance/m6-vault-non-recoverable.test.ts:17` |
+| `FR-5.4` | M6 | `acceptance/m6-vault-non-recoverable.test.ts:173` |
 | `FR-6.1` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-6.2` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-6.3` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
@@ -81,7 +81,7 @@ decision that nobody wrote down.
 | `4.4.1` | M0 | `tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/tenant-isolation.test.ts:72`<br>`tests/unit/health.test.ts:18` |
 | `4.4.2` | M0 | `tests/gates/br02-concurrency.test.ts:18` |
 | `4.4.3` | M0 | `tests/gates/catalog.test.ts:9` |
-| `4.4.4` | M0 | `tests/gates/vault-non-recoverable.test.ts:26` |
+| `4.4.4` | M0 | `acceptance/m6-vault-non-recoverable.test.ts:17`<br>`tests/gates/vault-non-recoverable.test.ts:26` |
 | `4.4.5` | M0 | `tests/gates/catalog.test.ts:59` |
 | `4.5` | M1 | `tests/unit/handoff-client.test.ts:27` |
 | `4.6.1` | M4 | `acceptance/m4-ophthalmology-by-configuration.test.ts:9` |
@@ -107,8 +107,8 @@ decision that nobody wrote down.
 | M2 | 8 | 8 |
 | M3 | 13 | 13 |
 | M4 | 5 | 5 |
-| M5 **(in progress)** | 5 | 5 |
-| M6 | 4 | 0 |
+| M5 | 5 | 5 |
+| M6 **(in progress)** | 4 | 4 |
 
 ## Waived specification sections
 

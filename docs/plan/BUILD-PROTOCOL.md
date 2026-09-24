@@ -182,7 +182,7 @@ milestone that loses coverage is a regression, and an id added to a finished mil
 be claimed by a test rather than grandfathered in.
 
 ```milestone-map
-current: M5
+current: M6
 M0: §4.4.1, §4.4.2, §4.4.3, §4.4.4, §4.4.5, §5.4, §5.6, §8.2, §10.1, FR-1.1.2, FR-1.1.7
 M1: §4.3, §4.5, §6.1, §6.3, §6.4, §6.6, FR-1.1, FR-1.1.1, FR-1.1.3, FR-1.1.4, FR-1.1.6, FR-1.2, FR-1.4, FR-1.5, FR-1.6, FR-1.7, BR-01, BR-02, BR-04, FR-7.4, FR-7.4.1, FR-7.4.2, FR-7.4.3, FR-7.4.4, FR-7.4.5
 M2: §6.2, FR-2.1, FR-2.2, FR-2.3, FR-2.4, FR-3.1, FR-3.2, BR-05

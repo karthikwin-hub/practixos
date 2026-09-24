@@ -124,5 +124,6 @@ test("the six registers are distinct modes", () => {
   assert.match(app, /route\.startsWith\("#\/book"\) && !token\(\)/);
   assert.match(screens, /"label": "doorway",\s+"auth": false/);
   assert.match(css, /\[data-mode="slate"\][\s\S]*min-height:64px/);
-  assert.match(app, /The vault and the notes themselves stay a later milestone/);
+  assert.match(app, /Session notes are sealed/);
+  assert.match(app, /600000/);
 });
