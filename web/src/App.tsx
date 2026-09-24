@@ -26,11 +26,29 @@ const nav = [
   { hash: "#/desk", tab: "Board" },
   { hash: "#/nurse", tab: "Slate" },
   { hash: "#/chart", tab: "Chairside" },
+  { hash: "#/quiet", tab: "Quiet" },
   { hash: "#/recalls", tab: "Recalls" },
   { hash: "#/practice", tab: "Practice" },
   { hash: "#/settle", tab: "Route" },
   { hash: "#/book", tab: "Doorway" },
 ];
+
+function modeFor(hash: string): string {
+  if (hash.startsWith("#/book")) return "doorway";
+  if (hash.startsWith("#/nurse")) return "slate";
+  if (hash.startsWith("#/chart")) return "chairside";
+  if (hash.startsWith("#/quiet")) return "quiet";
+  if (hash.startsWith("#/settle")) return "route";
+  if (hash.startsWith("#/desk")) return "board";
+  return "";
+}
+
+type UndoOffer = { id: number; label: string; run: () => void };
+let undoSink: ((undo: UndoOffer | null) => void) | null = null;
+
+function offerUndo(label: string, run: () => void): void {
+  undoSink?.({ id: Date.now(), label, run });
+}
 
 const verticals = [
   ["dental", "Dentistry"],
@@ -104,11 +122,24 @@ function inr(paise: number): string {
 
 export function App() {
   const [route, setRoute] = useState(location.hash || "#/setup");
+  const [undo, setUndo] = useState<{ id: number; label: string; run: () => void } | null>(null);
+  useEffect(() => {
+    undoSink = setUndo;
+    return () => { undoSink = null; };
+  }, []);
+  useEffect(() => {
+    if (!undo) return undefined;
+    const timer = window.setTimeout(() => setUndo(null), 8000);
+    return () => window.clearTimeout(timer);
+  }, [undo]);
+
   useEffect(() => {
     const onHash = () => setRoute(location.hash || "#/setup");
     const apply = () => {
       const width = window.innerWidth;
+      const hash = location.hash || "#/setup";
       document.documentElement.dataset.lay = width >= 1024 ? "desk" : width >= 600 ? "tab" : "phone";
+      document.documentElement.dataset.mode = modeFor(hash);
     };
     apply();
     window.addEventListener("hashchange", onHash);
@@ -118,6 +149,15 @@ export function App() {
       window.removeEventListener("resize", apply);
     };
   }, []);
+
+  if (route.startsWith("#/book") && !token()) {
+    return (
+      <main className="canvas doorway">
+        <Doorway />
+        {undo ? <UndoToast undo={undo} onDone={() => setUndo(null)} /> : null}
+      </main>
+    );
+  }
 
   if (route.startsWith("#/setup") || !token()) {
     return <Gate />;
@@ -149,6 +189,7 @@ export function App() {
             {current === "#/desk" ? <Desk /> : null}
             {current === "#/nurse" ? <Nurse /> : null}
             {current === "#/chart" ? <Chart /> : null}
+            {current === "#/quiet" ? <QuietRoom /> : null}
             {current === "#/recalls" ? <Recalls /> : null}
             {current === "#/practice" ? <Practice /> : null}
             {current === "#/settle" ? <Settlement /> : null}
@@ -162,7 +203,19 @@ export function App() {
           <a key={item.hash} className="tab-btn" href={item.hash} aria-current={current === item.hash ? "true" : undefined}><span>{item.tab}</span></a>
         ))}
       </nav>
+      {undo ? <UndoToast undo={undo} onDone={() => setUndo(null)} /> : null}
     </>
+  );
+}
+
+function UndoToast({ undo, onDone }: { undo: { label: string; run: () => void }; onDone: () => void }) {
+  return (
+    <div id="toasts">
+      <div className="toast" role="status">
+        <span className="t-x">{undo.label}</span>
+        <button className="t-undo" type="button" onClick={() => { undo.run(); onDone(); }}>Undo</button>
+      </div>
+    </div>
   );
 }
 
@@ -273,6 +326,9 @@ function Doorway() {
   const [text, setText] = useState("");
   const host = localStorage.getItem("practix.host") ?? "";
   useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+  useEffect(() => {
     void fetch(`/api/portal/profile?lang=${lang}`, { headers: { host } })
       .then((res) => res.json())
       .then((body: { noApp?: string }) => setText(body.noApp ?? ""))
@@ -375,7 +431,8 @@ function Desk() {
     await reload();
   }
 
-  async function move(card: Card, stageId: string): Promise<void> {
+  async function move(card: Card, stageId: string, reversible = true): Promise<void> {
+    const previous = card.stageId;
     await db.outbox.add({
       id: crypto.randomUUID(),
       kind: "queue_move",
@@ -385,6 +442,9 @@ function Desk() {
     await db.cards.update(card.id, { stageId });
     setCards(await db.cards.toArray());
     setMoving(null);
+    if (reversible && previous && previous !== stageId) {
+      offerUndo("Moved", () => { void move({ ...card, stageId }, previous, false); });
+    }
     await reload();
   }
 
@@ -493,22 +553,27 @@ function CardView({ card, stage, onMove, onVitals }: {
   );
 }
 
-function Keypad({ onSave }: { onSave: (reading: string) => void }) {
+function Keypad({ onSave, label = "Vitals", save = "Save vitals", keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "/", "0", "⌫"] }: {
+  onSave: (reading: string) => void;
+  label?: string;
+  save?: string;
+  keys?: string[];
+}) {
   const [value, setValue] = useState("");
   return (
-    <div className="scrim on" role="dialog" aria-label="Vitals">
+    <div className="scrim on" role="dialog" aria-label={label}>
       <div className="modal">
-        <div className="modal-h"><h3>Vitals</h3></div>
+        <div className="modal-h"><h3>{label}</h3></div>
         <div className="modal-b">
-          <p className="kp-display" aria-label="Reading">{value || "BP / pulse / sugar / weight"}</p>
+          <p className="kp-display" aria-label="Reading">{value || label}</p>
           <div className="keypad">
-            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "/", "0", "⌫"].map((key) => (
+            {keys.map((key) => (
               <button key={key} type="button" onClick={() => setValue((current) => key === "⌫" ? current.slice(0, -1) : `${current}${key}`)}>{key}</button>
             ))}
           </div>
         </div>
         <div className="modal-f">
-          <button className="btn btn-p btn-full" type="button" onClick={() => onSave(value)}>Save vitals</button>
+          <button className="btn btn-p btn-full" type="button" onClick={() => onSave(value)}>{save}</button>
         </div>
       </div>
     </div>
@@ -516,7 +581,33 @@ function Keypad({ onSave }: { onSave: (reading: string) => void }) {
 }
 
 function Nurse() {
-  return <Desk />;
+  const [reading, setReading] = useState("");
+  const [asking, setAsking] = useState(true);
+  return (
+    <section className="grid slate">
+      <div className="eyebrow">One question</div>
+      <h1>Blood pressure</h1>
+      {asking ? (
+        <Keypad label="Blood pressure" save="Save reading" onSave={(value) => { setReading(value); setAsking(false); }} />
+      ) : (
+        <div className="card">
+          <div className="card-b">
+            <p className="kp-display">{reading}</p>
+            <button className="btn btn-g" type="button" onClick={() => setAsking(true)}>Enter again</button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function QuietRoom() {
+  return (
+    <section className="grid quiet">
+      <h1>Quiet room</h1>
+      <p className="measure">A counselling record is written slowly and read carefully. This register is warm paper and a serif face, with no badges and no counters. The vault and the notes themselves stay a later milestone.</p>
+    </section>
+  );
 }
 
 function Chart() {
@@ -530,6 +621,7 @@ function Chart() {
   const [marked, setMarked] = useState<Record<number, string>>({});
   const [sittings, setSittings] = useState<string[]>([]);
   const [missing, setMissing] = useState(false);
+  const [toothPad, setToothPad] = useState(false);
   useEffect(() => {
     const onResize = () => setWide(window.innerWidth >= 600);
     window.addEventListener("resize", onResize);
@@ -555,6 +647,26 @@ function Chart() {
         <span className="lbl">Patient</span>
         <input aria-label="Patient" className="inp" value={patientId} onChange={(event) => setPatientId(event.target.value)} />
       </label>
+      <button className="btn btn-g" type="button" onClick={() => setToothPad(true)}>Tooth number</button>
+      {toothPad ? (
+        <Keypad
+          label="Tooth number"
+          save="Chart tooth"
+          keys={["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "⌫"]}
+          onSave={(value) => {
+            setToothPad(false);
+            const tooth = Number(value);
+            if (!tooth) return;
+            void api(`/api/chart/${patientId}/teeth`, "POST", { tooth, state: diagnosis }).then(() =>
+              api(`/api/chart/${patientId}/plans`, "POST", { tooth }),
+            ).then(() => api(`/api/chart/${patientId}`)).then((body) => {
+              const chart = body as { steps: { name: string }[] };
+              setMarked((current) => ({ ...current, [tooth]: diagnosis }));
+              setSittings(chart.steps.map((step) => step.name));
+            });
+          }}
+        />
+      ) : null}
       <div className="console">
         <div className="odo">
           <div className="pal mb">
@@ -726,6 +838,8 @@ function Practice() {
 function Settlement() {
   const [lines, setLines] = useState<{ id: string; net_paise: number; status: string; settlement_id?: string }[]>([]);
   const practitionerId = localStorage.getItem("practix.practitionerId") ?? "";
+  const [fee, setFee] = useState<number | null>(null);
+  const [feePad, setFeePad] = useState(false);
   async function load(): Promise<void> {
     const rows = await api(`/api/fee-lines?practitionerId=${practitionerId}`) as { id: string; net_paise: number; status: string; settlement_id?: string }[];
     setLines(rows);
@@ -736,6 +850,24 @@ function Settlement() {
       <div className="eyebrow">Visiting consultant</div>
       <h1>Route card</h1>
       <p className="muted">One identity, one clinic at a time. The split is on the membership. Paying a line does not call a gateway.</p>
+      <div className="timeline">
+        <button className="btn btn-p" type="button" onClick={() => setFeePad(true)}>Fee</button>
+        {fee !== null ? <p className="kpi sm">{inr(fee)}</p> : null}
+      </div>
+      {feePad ? (
+        <Keypad
+          label="Fee"
+          save="Apply fee"
+          keys={["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "⌫"]}
+          onSave={(value) => {
+            const next = Number(value);
+            const previous = fee;
+            setFee(next);
+            setFeePad(false);
+            offerUndo("Fee applied", () => setFee(previous));
+          }}
+        />
+      ) : null}
       {lines.map((line) => (
         <article key={line.id} className="card">
           <div className="card-b between">

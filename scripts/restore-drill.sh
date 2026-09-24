@@ -19,7 +19,7 @@ npx tsx src/db/migrate.ts
 
 MARKER="drill-$(date +%s)"
 docker compose exec -T postgres psql -U postgres -d practixos_test -v ON_ERROR_STOP=1 \
-  -c "INSERT INTO clinics (slug, legal_name, vertical) VALUES ('${MARKER}', 'restore drill marker', 'dental');"
+  -c "INSERT INTO clinics (slug, legal_name, vertical, display_name) VALUES ('${MARKER}', 'restore drill marker', 'dental', 'Restore drill');"
 
 docker compose exec -u postgres -T postgres pgbackrest --stanza=main backup --type=full
 

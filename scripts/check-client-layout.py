@@ -50,6 +50,7 @@ DEFAULT_WIDTHS = [320, 375, 390, 414, 768, 1024, 1280]
 CHROME_CANDIDATES = [
     "google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
     "/usr/bin/google-chrome", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
 ]
 
 # §6.6: three rungs, not a spectrum. The attribute is the layout mode, so this

@@ -39,6 +39,7 @@ export default tseslint.config(
       // A template fragment injected into a probe page, not a module: its one
       // function is called by the page that embeds it.
       "scripts/layout-probe.js",
+      "scripts/fetch-indic-fonts.mjs",
       "docs/**",
       "coverage/**",
     ],
