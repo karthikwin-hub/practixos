@@ -8,7 +8,16 @@ __pycache__/
 venv/
 
 node_modules/
+dist/
 .vercel
 .env
 .env.*
 !.env.example
+
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+infra/vault/server-secret
+web/dist/
+web/portals/

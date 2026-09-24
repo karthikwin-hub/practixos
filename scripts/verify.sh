@@ -68,6 +68,9 @@ node_step() {
   local label="$1" script="$2"
   if ! have node; then skip "$label" "Node is not installed"; return; fi
   if [ ! -f package.json ]; then skip "$label" "no package.json yet; M0 creates it"; return; fi
+  # Without this the step fails with "eslint: not found", which reads as a lint
+  # error rather than as an uninstalled tree.
+  if [ ! -d node_modules ]; then skip "$label" "dependencies are not installed; run npm ci"; return; fi
   if ! npm_script "$script"; then skip "$label" "package.json defines no \"$script\" script"; return; fi
   run "$label" npm run --silent "$script"
 }
@@ -99,12 +102,21 @@ else
 fi
 
 if [ "$FAST" -eq 1 ]; then
-  skip "Layout integrity (spec 8.2)" "--fast was passed"
+  skip "Layout integrity, prototype (spec 8.2)" "--fast was passed"
+  skip "Layout integrity, client (spec 8.2, 6.6)" "--fast was passed"
 elif ! have python3; then
-  skip "Layout integrity (spec 8.2)" "Python 3 is not installed"
+  skip "Layout integrity, prototype (spec 8.2)" "Python 3 is not installed"
+  skip "Layout integrity, client (spec 8.2, 6.6)" "Python 3 is not installed"
 else
-  # check-layout.py exits 0 with a notice of its own when Chrome is absent.
-  run "Layout integrity (spec 8.2)" python3 prototype/check-layout.py
+  # Both checks exit 0 with a notice of their own when Chrome is absent.
+  run "Layout integrity, prototype (spec 8.2)" python3 prototype/check-layout.py
+  # The prototype check reads a file the build never touches, so on its own it
+  # is green regardless of what the product looks like. The client check is the
+  # one that measures the product, and it needs a signed-in, populated client —
+  # so it runs from tests/gates/layout-integrity.test.ts, which boots the API
+  # and seeds a clinic. Run standalone here it would measure the sign-in screen
+  # and report PASS, which is the false green this whole gate exists to prevent.
+  skip "Layout integrity, client (spec 8.2, 6.6)" "runs inside the gates; needs a seeded API"
 fi
 
 # --------------------------------------------------------------------------- #

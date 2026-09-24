@@ -1,0 +1,94 @@
+name: practixos
+
+services:
+  postgres:
+    build: ./infra/postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci
+      POSTGRES_DB: practixos_test
+    ports:
+      - "55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - pgbackrest:/var/lib/pgbackrest
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_timeout=60
+      - -c
+      - max_wal_senders=3
+      - -c
+      - archive_command=pgbackrest --stanza=main archive-push %p
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d practixos_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  restore:
+    profiles: ["drill"]
+    build: ./infra/postgres
+    entrypoint: ["/bin/bash", "/usr/local/bin/restore-and-start.sh"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ci
+      POSTGRES_DB: practixos_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - restoredata:/var/lib/postgresql/data
+      - pgbackrest:/var/lib/pgbackrest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d practixos_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  api:
+    build: .
+    environment:
+      PORT: "3000"
+      DATABASE_URL: postgres://postgres:ci@postgres:5432/practixos_test
+      APP_DATABASE_URL: postgres://app_rw:app_rw_local@postgres:5432/practixos_test
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+  caddy:
+    build: ./infra/caddy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web:/srv/web:ro
+    depends_on:
+      - api
+
+  netdata:
+    image: netdata/netdata:stable
+    ports:
+      - "19999:19999"
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - netdataconfig:/etc/netdata
+      - netdatalib:/var/lib/netdata
+      - netdatacache:/var/cache/netdata
+
+volumes:
+  pgdata:
+  pgbackrest:
+  restoredata:
+  netdataconfig:
+  netdatalib:
+  netdatacache:

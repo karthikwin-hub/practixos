@@ -1,0 +1,14 @@
+[
+  { "path": "/#/setup",    "label": "gate",       "auth": false },
+  { "path": "/#/book",     "label": "doorway",    "auth": false },
+  { "path": "/#/desk",     "label": "board",      "auth": true },
+  { "path": "/#/nurse",    "label": "slate",      "auth": true },
+  { "path": "/#/chart",    "label": "chairside",  "auth": true },
+  { "path": "/#/quiet",    "label": "quiet",      "auth": true },
+  { "path": "/#/recalls",  "label": "recalls",    "auth": true },
+  { "path": "/#/practice", "label": "practice",   "auth": true },
+  { "path": "/#/settle",   "label": "route-card", "auth": true },
+  { "path": "/#/ledger",   "label": "ledger",     "auth": true },
+  { "path": "/#/radar",    "label": "radar",      "auth": false },
+  { "path": "/#/print",    "label": "print",      "auth": true }
+]
