@@ -5,13 +5,13 @@ import path from "node:path";
 import { test } from "node:test";
 import { buildApp } from "../../src/app.ts";
 
-test("the process exposes health and no M5 route", async () => {
+test("the process exposes health and no M6 route", async () => {
   const app = buildApp();
   const res = await app.inject({ method: "GET", url: "/healthz" });
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.json(), { ok: true });
   const routes = app.printRoutes();
-  assert.equal(routes.includes("/abdm"), false);
+  assert.equal(routes.includes("/vault"), false);
   await app.close();
 });
 

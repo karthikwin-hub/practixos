@@ -7,10 +7,10 @@ There is deliberately no timestamp in this file, so it changes only when
 coverage changes and a regression is visible in the diff.
 
 ```
-milestone in progress   M4
+milestone in progress   M5
 requirements defined    50
 scheduled into M0-M6    71
-covered by a test       62
+covered by a test       67
 ```
 
 ## Defined but not scheduled
@@ -65,18 +65,18 @@ decision that nobody wrote down.
 | `FR-6.3` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-6.4` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
 | `FR-6.5` | M3 | `acceptance/m3-tooth16-to-settlement.test.ts:8` |
-| `FR-7.1` | M5 | — |
-| `FR-7.2` | M5 | — |
-| `FR-7.3` | M5 | — |
+| `FR-7.1` | M5 | `acceptance/m5-every-rupee-has-evidence.test.ts:8` |
+| `FR-7.2` | M5 | `acceptance/m5-dhis-reconciles.test.ts:72`<br>`acceptance/m5-dhis-reconciles.test.ts:8` |
+| `FR-7.3` | M5 | `acceptance/m5-every-rupee-has-evidence.test.ts:8` |
 | `FR-7.4` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
 | `FR-7.4.1` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
 | `FR-7.4.2` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
 | `FR-7.4.3` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
 | `FR-7.4.4` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
 | `FR-7.4.5` | M1 | `acceptance/m1-ledger-no-double-count.test.ts:7` |
-| `FR-7.4.6` | M5 | — |
+| `FR-7.4.6` | M5 | `acceptance/m5-every-rupee-has-evidence.test.ts:8` |
 | `10.1` | M0 | `tests/gates/br02-concurrency.test.ts:18`<br>`tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/vault-non-recoverable.test.ts:26` |
-| `10.2` | M5 | — |
+| `10.2` | M5 | `acceptance/m5-every-rupee-has-evidence.test.ts:8` |
 | `4.3` | M1 | `tests/unit/handoff-client.test.ts:10` |
 | `4.4.1` | M0 | `tests/gates/tenant-isolation.test.ts:19`<br>`tests/gates/tenant-isolation.test.ts:72`<br>`tests/unit/health.test.ts:18` |
 | `4.4.2` | M0 | `tests/gates/br02-concurrency.test.ts:18` |
@@ -106,8 +106,8 @@ decision that nobody wrote down.
 | M1 | 25 | 25 |
 | M2 | 8 | 8 |
 | M3 | 13 | 13 |
-| M4 **(in progress)** | 5 | 5 |
-| M5 | 5 | 0 |
+| M4 | 5 | 5 |
+| M5 **(in progress)** | 5 | 5 |
 | M6 | 4 | 0 |
 
 ## Waived specification sections

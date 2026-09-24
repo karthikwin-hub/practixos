@@ -1,3 +1,17 @@
+import {
+  dayBalance,
+  ownerLedger,
+  quoteToken,
+  recordBundles,
+  recordHandover,
+  recordMood,
+  recordSpan,
+  reconcileDhis,
+  repriceDhis,
+  requestLater,
+  saveSettings,
+  sendCare,
+} from "./modules/admin/index.js";
 import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { closedBilling, localBilling, type BillingPort } from "./modules/billing/index.js";
@@ -511,6 +525,72 @@ export function buildApp(): FastifyInstance {
     const staff = await staffFrom(req);
     const body = req.body as { kind: "prescription" | "receipt" };
     return printDocument(staff.clinicId, (req.params as { id: string }).id, body.kind, ports.messaging);
+  });
+
+  app.get("/api/owner", async (req) => ownerLedger((await staffFrom(req)).clinicId));
+
+  app.post("/api/owner/settings", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { overheadPaise?: number; subscriptionPaise?: number; valueSource?: "default" | "clinic" };
+    await saveSettings(staff.clinicId, body);
+    return { ok: true };
+  });
+
+  app.post("/api/owner/handover", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { day: string; cashPaise: number };
+    await recordHandover(staff.clinicId, body.day, body.cashPaise);
+    return dayBalance(staff.clinicId, body.day);
+  });
+
+  app.post("/api/owner/spans", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { practitionerId: string; sessionType: string; minutes: number };
+    await recordSpan(staff.clinicId, body.practitionerId, body.sessionType, body.minutes);
+    return { ok: true };
+  });
+
+  app.post("/api/abdm/bundles", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { rows: Parameters<typeof recordBundles>[1] };
+    const rowCount = await recordBundles(staff.clinicId, body.rows);
+    return { rowCount };
+  });
+
+  app.post("/api/abdm/reprice", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { category: 1 | 2; facilityPaise: number };
+    await repriceDhis(staff.clinicId, body.category, body.facilityPaise);
+    return { ok: true };
+  });
+
+  app.post("/api/abdm/reconcile", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { lines: { bundleRef: string; paise: number }[] };
+    return reconcileDhis(staff.clinicId, body.lines);
+  });
+
+  app.get("/api/portal/token/:id", async (req) => {
+    const clinicId = await clinicFromHost(req);
+    return quoteToken(clinicId, (req.params as { id: string }).id);
+  });
+
+  app.post("/api/portal/token/:id/later", async (req) => {
+    const clinicId = await clinicFromHost(req);
+    return requestLater(clinicId, (req.params as { id: string }).id);
+  });
+
+  app.post("/api/care", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { patientId: string; procedureKey: string };
+    return sendCare(staff.clinicId, body.patientId, body.procedureKey);
+  });
+
+  app.post("/api/care/mood", async (req) => {
+    const staff = await staffFrom(req);
+    const body = req.body as { patientId: string; reply: string };
+    await recordMood(staff.clinicId, body.patientId, body.reply);
+    return { ok: true };
   });
 
   app.post("/api/sync", async (req) => {

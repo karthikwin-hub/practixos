@@ -30,6 +30,7 @@ const nav = [
   { hash: "#/recalls", tab: "Recalls" },
   { hash: "#/practice", tab: "Practice" },
   { hash: "#/settle", tab: "Route" },
+  { hash: "#/ledger", tab: "Ledger" },
   { hash: "#/book", tab: "Doorway" },
 ];
 
@@ -39,6 +40,8 @@ function modeFor(hash: string): string {
   if (hash.startsWith("#/chart")) return "chairside";
   if (hash.startsWith("#/quiet")) return "quiet";
   if (hash.startsWith("#/settle")) return "route";
+  if (hash.startsWith("#/ledger")) return "board";
+  if (hash.startsWith("#/radar")) return "doorway";
   if (hash.startsWith("#/desk")) return "board";
   return "";
 }
@@ -159,12 +162,21 @@ export function App() {
     );
   }
 
+  if (route.startsWith("#/radar") && !token()) {
+    return (
+      <main className="canvas doorway">
+        <Radar />
+      </main>
+    );
+  }
+
   if (route.startsWith("#/setup") || !token()) {
     return <Gate />;
   }
 
   const printing = route.startsWith("#/print");
-  const current = printing ? "" : (nav.find((item) => route.startsWith(item.hash))?.hash ?? "#/desk");
+  const radar = route.startsWith("#/radar");
+  const current = printing || radar ? "" : (nav.find((item) => route.startsWith(item.hash))?.hash ?? "#/desk");
   const clinic = localStorage.getItem("practix.clinicName") ?? "Clinic";
   const mark = localStorage.getItem("practix.mark") ?? "Px";
   return (
@@ -193,6 +205,8 @@ export function App() {
             {current === "#/recalls" ? <Recalls /> : null}
             {current === "#/practice" ? <Practice /> : null}
             {current === "#/settle" ? <Settlement /> : null}
+            {current === "#/ledger" ? <Ledger /> : null}
+            {radar ? <Radar /> : null}
             {current === "#/book" ? <Doorway /> : null}
             {route.startsWith("#/print") ? <PrintSheet /> : null}
           </main>
@@ -355,6 +369,70 @@ function Doorway() {
           <p className="reg-patient mt">{text}</p>
         </div>
       </div>
+    </section>
+  );
+}
+
+function Ledger() {
+  const [body, setBody] = useState<{
+    recoveredPaise: number; subscriptionPaise: number; breakEvenCount: number; valueSource: string;
+    events: { id: string; eventType: string; amountPaise: number; evidenceRef: string }[];
+    chairs: { availableMinutes: number; utilisedMinutes: number; perAvailableMinutePaise: number; perUtilisedMinutePaise: number };
+    dhis: { accruedPaise: number; eligibleCount: number; floor: number; category2Paise: number };
+  } | null>(null);
+  useEffect(() => { void api("/api/owner").then((value) => setBody(value as NonNullable<typeof body>)).catch(() => setBody(null)); }, []);
+  if (!body) return <p className="muted">The ledger is loading.</p>;
+  return (
+    <section className="grid">
+      <div className="eyebrow">Practice ledger</div>
+      <h1>Recovered revenue</h1>
+      <div className="grid g2">
+        <div className="card"><div className="card-b tight">
+          <div className="eyebrow">Recovered this month</div>
+          <div className="kpi">{inr(body.recoveredPaise)}</div>
+          <p className="muted">Paid for by the {body.breakEvenCount}rd recovered event. Source: {body.valueSource}.</p>
+        </div></div>
+        <div className="card"><div className="card-b tight">
+          <div className="eyebrow">Subscription</div>
+          <div className="kpi">{inr(body.subscriptionPaise)}</div>
+        </div></div>
+      </div>
+      <div className="card">
+        <div className="card-h"><h2>Evidence</h2></div>
+        <div className="card-b dl">
+          {body.events.map((event) => (
+            <div key={event.id} className="dl-item">
+              <div className="dl-t">{event.eventType}</div>
+              <div className="dl-r"><span className="dl-k">{event.evidenceRef}</span><span className="dl-v">{inr(event.amountPaise)}</span></div>
+            </div>
+          ))}
+          {body.events.length === 0 ? <p className="muted">Nothing recovered yet. Every row has to point at a receipt, a payment or a work order.</p> : null}
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-h"><h2>ABDM compliance and incentive</h2></div>
+        <div className="card-b">
+          <p>Category 2 is {inr(body.dhis.category2Paise)} per KYC-linked record. The first {body.dhis.floor} earn nothing.</p>
+          <p><b>{inr(body.dhis.accruedPaise)}</b> accrued from {body.dhis.eligibleCount} eligible records.</p>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-h"><h2>Chair utilisation</h2></div>
+        <div className="card-b">
+          <p>{body.chairs.utilisedMinutes} of {body.chairs.availableMinutes} minutes used.</p>
+          <p>{inr(body.chairs.perUtilisedMinutePaise)} per used minute, {inr(body.chairs.perAvailableMinutePaise)} per available minute.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Radar() {
+  return (
+    <section>
+      <div className="eyebrow">Your place</div>
+      <h1>Estimated entry</h1>
+      <p className="reg-patient">The time is this doctor's recent visits, not a guess from the appointment book.</p>
     </section>
   );
 }

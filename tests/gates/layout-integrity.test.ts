@@ -12,8 +12,8 @@ import { boot, finishDental, owner, shutdown } from "./api.ts";
  * measurement instead.
  */
 
-function run(script: string, args: string[]) {
-  return spawnSync("python3", [script, ...args], { encoding: "utf8", timeout: 600_000 });
+function run(script: string, args: string[], timeout = 600_000) {
+  return spawnSync("python3", [script, ...args], { encoding: "utf8", timeout });
 }
 
 /**
@@ -51,7 +51,10 @@ test("the built client has no horizontal overflow and honours the §6.6 ladder",
     await finishDental(app, token);
     const address = await app.listen({ host: "127.0.0.1", port: 0 });
 
-    const result = run("scripts/check-client-layout.py", ["--api", address, "--token", token]);
+    // Twelve screens, each measured at seven widths. The previous ten-screen
+    // run already used nearly the whole ten minutes; cutting it off reports
+    // a missing status rather than an overflow.
+    const result = run("scripts/check-client-layout.py", ["--api", address, "--token", token], 1_200_000);
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /Client layout intact\. \d+ screens/,
       "check-client-layout.py exited 0 without measuring anything:\n" + result.stdout);

@@ -13,7 +13,7 @@ test("M0 health check still answers and M5 routes are absent", async () => {
   const res = await app.inject({ method: "GET", url: "/healthz" });
   assert.equal(res.statusCode, 200);
   const routes = app.printRoutes();
-  assert.equal(routes.includes("/abdm"), false);
+  assert.equal(routes.includes("/vault"), false);
   await app.close();
 });
 
